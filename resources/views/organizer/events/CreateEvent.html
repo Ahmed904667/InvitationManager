@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitation Card Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f6fa;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .editor-container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            height: 100vh;
+        }
+
+        /* Left Panel - Editor */
+        .editor-panel {
+            background: white;
+            border-right: 1px solid #e0e6ed;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .editor-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .editor-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .editor-header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .editor-content {
+            padding: 0;
+        }
+
+        .editor-section {
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+        }
+
+        .section-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            color: #495057;
+            transition: background-color 0.2s ease;
+        }
+
+        .section-header:hover {
+            background: #e9ecef;
+        }
+
+        .section-header.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .section-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .section-content {
+            padding: 20px;
+            display: none;
+        }
+
+        .section-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            transform: scale(1.2);
+        }
+
+        .color-group {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .color-picker {
+            width: 40px;
+            height: 36px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .toggle-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .toggle-icon.active {
+            transform: rotate(180deg);
+        }
+
+        /* Right Panel - Preview */
+        .preview-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .preview-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: auto;
+            position: relative;
+        }
+
+        .preview-invitation {
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .preview-hero {
+            background: linear-gradient(135deg, #ff6b6b, #ffa726);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .preview-hero-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .preview-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .preview-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .preview-date {
+            font-size: 1rem;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .preview-content {
+            padding: 30px;
+        }
+
+        .preview-section {
+            margin-bottom: 25px;
+        }
+
+        .preview-section h3 {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ff6b6b;
+            padding-bottom: 8px;
+            display: inline-block;
+        }
+
+        .location-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .venue-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .venue-address {
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .venue-parking {
+            color: #28a745;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        .map-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            color: #444;
+            border-bottom: 3px solid #ff6b6b;
+            padding-bottom: 10px;
+            display: inline-block;
+        }
+
+        .map-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .map-pin {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            background: #ff6b6b;
+            border-radius: 50% 50% 50% 0;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .map-pin::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .location-info {
+            margin-top: 15px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .rsvp-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #28a745;
+        }
+
+        .rsvp-details {
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .rsvp-deadline {
+            color: #dc3545;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .rsvp-contact {
+            color: #007bff;
+            margin-top: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #ff6b6b;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 10px 16px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .radio-option:hover {
+            background-color: rgba(255, 107, 107, 0.1);
+        }
+
+        .radio-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+        }
+
+        .qr-preview {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .qr-code-preview {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 8px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            position: relative;
+        }
+
+        .qr-pattern {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 2px;
+            width: 80px;
+            height: 80px;
+        }
+
+        .qr-dot {
+            background: white;
+            border-radius: 1px;
+            opacity: 0.9;
+        }
+
+        .qr-dot:nth-child(odd) {
+            opacity: 0.6;
+        }
+
+        .qr-description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .description-content {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .action-buttons {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 15px 20px;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .mobile-preview-btn {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .mobile-preview-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .mobile-preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .mobile-preview-content {
+            background: white;
+            border-radius: 20px;
+            max-width: 500px;
+            max-height: 90vh;
+            margin: 0 auto;
+            overflow: auto;
+            position: relative;
+        }
+
+        .mobile-preview-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10;
+            color: #666;
+        }
+
+        .mobile-preview-close:hover {
+            color: #000;
+        }
+
+        .dragging {
+            opacity: 0.5;
+        }
+
+        .drag-over {
+            border-top: 3px solid #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .editor-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .preview-panel {
+                display: none;
+            }
+            
+            body {
+                overflow: auto;
+            }
+            
+            .editor-panel {
+                height: auto;
+            }
+
+            .mobile-preview-btn {
+                display: block;
+            }
+            .map-container {
+                height: 200px;
+            }
+        }
+
+        .success-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .success-toast.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <!-- Left Panel - Editor -->
+        <div class="editor-panel">
+            <div class="editor-header">
+                <h1>Invitation Editor</h1>
+                <p>Customize your invitation card</p>
+            </div>
+            
+            <div class="editor-content" id="editorContent">
+                <!-- Event Details Section -->
+                <div class="editor-section" data-section="event" draggable="true">
+                    <div class="section-header active" data-section="event">
+                        <div class="section-header-left">
+                            <span class="drag-handle">⋮⋮</span>
+                            <span>Event Details</span>
+                        </div>
+                        <span class="toggle-icon active">▼</span>
+                    </div>
+                    <div class="section-content active" id="event-section">
+                        <div class="form-group">
+                            <label for="eventTitle">Event Title</label>
+                            <input type="text" id="eventTitle" value="You're Invited!" oninput="updatePreview()">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventSubtitle">Subtitle</label>
+                            <input type="text" id="eventSubtitle" value="Join us for an unforgettable celebration" oninput="updatePreview()">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventDate">Date & Time</label>
+                            <input type="text" id="eventDate" value="Saturday, August 15th, 2025 • 7:00 PM" oninput="updatePreview()">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="eventDescription">Description (Optional)</label>
+                            <textarea id="eventDescription" rows="3" placeholder="Add more details about your event..." oninput="updatePreview()"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Section -->
+                <div class="editor-section" data-section="location" draggable="true">
+                    <div class="section-header" data-section="location">
+                        <div class="section-header-left">
+                            <span class="drag-handle">⋮⋮</span>
+                            <span>Location</span>
+                        </div>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content" id="location-section">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="LocationEnabled" checked onchange="updatePreview()">
+                            <label for="LocationEnabled">Enable Location</label>
+                        </div>
+                        <div class="form-group">
+                            <label for="venueName">Venue Name</label>
+                            <input type="text" id="venueName" value="Sunset Garden Venue" oninput="updatePreview()">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="venueAddress">Address</label>
+                            <textarea id="venueAddress" rows="3" oninput="updatePreview()">123 Celebration Avenue
+Downtown District, NY 10001</textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="parkingInfo">Parking Info</label>
+                            <input type="text" id="parkingInfo" value="Free parking available" oninput="updatePreview()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RSVP Section -->
+                <div class="editor-section" data-section="rsvp" draggable="true">
+                    <div class="section-header" data-section="rsvp">
+                        <div class="section-header-left">
+                            <span class="drag-handle">⋮⋮</span>
+                            <span>RSVP Details</span>
+                        </div>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content" id="rsvp-section">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="rsvpEnabled" checked onchange="updatePreview()">
+                            <label for="rsvpEnabled">Enable RSVP Section</label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="rsvpMessage">RSVP Message</label>
+                            <textarea id="rsvpMessage" rows="2" oninput="updatePreview()">Please confirm your attendance by responding to this invitation.</textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="rsvpDeadline">RSVP Deadline</label>
+                            <input type="text" id="rsvpDeadline" value="Please respond by August 10th, 2025" oninput="updatePreview()">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="rsvpContact">Contact Information</label>
+                            <input type="text" id="rsvpContact" value="Email: events@example.com or Call: (555) 123-4567" oninput="updatePreview()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QR Code Section -->
+                <div class="editor-section" data-section="qr" draggable="true">
+                    <div class="section-header" data-section="qr">
+                        <div class="section-header-left">
+                            <span class="drag-handle">⋮⋮</span>
+                            <span>QR Code</span>
+                        </div>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content" id="qr-section">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="qrEnabled" checked onchange="updatePreview()">
+                            <label for="qrEnabled">Enable QR Code</label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="qrContent">QR Code URL</label>
+                            <input type="url" id="qrContent" placeholder="https://your-event-details.com" oninput="updatePreview()">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="qrDescription">QR Description</label>
+                            <input type="text" id="qrDescription" value="Scan for event details & contact info" oninput="updatePreview()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Design Section -->
+                <div class="editor-section" data-section="design" draggable="true">
+                    <div class="section-header" data-section="design">
+                        <div class="section-header-left">
+                            <span class="drag-handle">⋮⋮</span>
+                            <span>Design & Colors</span>
+                        </div>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content" id="design-section">
+                        <div class="form-group">
+                            <label for="heroColor1">Hero Gradient Start</label>
+                            <div class="color-group">
+                                <input type="text" id="heroColor1Text" value="#ff6b6b" readonly>
+                                <input type="color" id="heroColor1" class="color-picker" value="#ff6b6b" onchange="updateColors()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="heroColor2">Hero Gradient End</label>
+                            <div class="color-group">
+                                <input type="text" id="heroColor2Text" value="#ffa726" readonly>
+                                <input type="color" id="heroColor2" class="color-picker" value="#ffa726" onchange="updateColors()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="accentColor">Accent Color</label>
+                            <div class="color-group">
+                                <input type="text" id="accentColorText" value="#667eea" readonly>
+                                <input type="color" id="accentColor" class="color-picker" value="#667eea" onchange="updateColors()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="fontFamily">Font Style</label>
+                            <select id="fontFamily" onchange="updatePreview()">
+                                <option value="Segoe UI">Segoe UI</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Helvetica">Helvetica</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="exportInvitation()">Export Invitation</button>
+                <button class="btn btn-secondary" onclick="resetToDefaults()">Reset</button>
+            </div>
+        </div>
+
+        <!-- Right Panel - Preview -->
+        <div class="preview-panel">
+            <div class="preview-container">
+                <div class="preview-invitation" id="previewInvitation">
+                    <div class="preview-hero" id="previewHero">
+                        <div class="preview-hero-content">
+                            <h1 class="preview-title" id="previewTitle">You're Invited!</h1>
+                            <p class="preview-subtitle" id="previewSubtitle">Join us for an unforgettable celebration</p>
+                            <div class="preview-date" id="previewDate">Saturday, August 15th, 2025 • 7:00 PM</div>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-content" id="previewContent">
+                        <!-- Dynamic content will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Preview Button -->
+    <button class="mobile-preview-btn" onclick="showMobilePreview()">
+        📱 Preview
+    </button>
+
+    <!-- Mobile Preview Modal -->
+    <div class="mobile-preview-modal" id="mobilePreviewModal">
+        <div class="mobile-preview-content">
+            <button class="mobile-preview-close" onclick="hideMobilePreview()">×</button>
+            <div id="mobilePreviewContent"></div>
+        </div>
+    </div>
+    
+    <div class="success-toast" id="successToast">Changes saved successfully!</div>
+
+    <script>
+        let sectionOrder = ['event', 'location', 'rsvp', 'qr', 'design'];
+        let draggedElement = null;
+
+        // Section toggle functionality
+        document.querySelectorAll('.section-header').forEach(header => {
+            header.addEventListener('click', function(e) {
+                // Don't toggle if clicking on drag handle
+                if (e.target.classList.contains('drag-handle')) return;
+                
+                const isActive = this.classList.contains('active');
+                
+                // Close all sections
+                document.querySelectorAll('.section-header').forEach(h => {
+                    h.classList.remove('active');
+                    h.querySelector('.toggle-icon').classList.remove('active');
+                });
+                document.querySelectorAll('.section-content').forEach(c => {
+                    c.classList.remove('active');
+                });
+                
+                // Open clicked section if it wasn't active
+                if (!isActive) {
+                    this.classList.add('active');
+                    this.querySelector('.toggle-icon').classList.add('active');
+                    const sectionId = this.getAttribute('data-section') + '-section';
+                    document.getElementById(sectionId).classList.add('active');
+                }
+            });
+        });
+
+        // Drag and drop functionality
+        function initializeDragAndDrop() {
+            const draggableElements = document.querySelectorAll('.editor-section[draggable="true"]');
+            
+            draggableElements.forEach(element => {
+                element.addEventListener('dragstart', handleDragStart);
+                element.addEventListener('dragover', handleDragOver);
+                element.addEventListener('drop', handleDrop);
+                element.addEventListener('dragend', handleDragEnd);
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            
+            this.classList.add('drag-over');
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            if (draggedElement !== this) {
+                const container = document.getElementById('editorContent');
+                const draggedSection = draggedElement.getAttribute('data-section');
+                const targetSection = this.getAttribute('data-section');
+                
+                // Update section order
+                const draggedIndex = sectionOrder.indexOf(draggedSection);
+                const targetIndex = sectionOrder.indexOf(targetSection);
+                
+                sectionOrder.splice(draggedIndex, 1);
+                sectionOrder.splice(targetIndex, 0, draggedSection);
+                
+                // Reorder DOM elements
+                container.insertBefore(draggedElement, this);
+                
+                updatePreview();
+            }
+
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            document.querySelectorAll('.editor-section').forEach(section => {
+                section.classList.remove('dragging', 'drag-over');
+            });
+            draggedElement = null;
+        }
+
+        // Update preview function
+        function updatePreview() {
+            const title = document.getElementById('eventTitle').value;
+            const subtitle = document.getElementById('eventSubtitle').value;
+            const date = document.getElementById('eventDate').value;
+            const description = document.getElementById('eventDescription').value;
+            const fontFamily = document.getElementById('fontFamily').value;
+
+            // Update hero section
+            document.getElementById('previewTitle').textContent = title;
+            document.getElementById('previewSubtitle').textContent = subtitle;
+            document.getElementById('previewDate').textContent = date;
+            
+            // Update font family
+            document.querySelector('.preview-invitation').style.fontFamily = fontFamily;
+
+            // Update content sections based on order
+            updatePreviewContent();
+        }
+
+        function updatePreviewContent() {
+            const previewContent = document.getElementById('previewContent');
+            previewContent.innerHTML = '';
+
+            sectionOrder.forEach(sectionType => {
+                if (sectionType === 'event') {
+                    // Event description
+                    const description = document.getElementById('eventDescription').value;
+                    if (description.trim()) {
+                        const descSection = createPreviewSection('Event Details', `
+                            <div class="description-content">${description}</div>
+                        `);
+                        previewContent.appendChild(descSection);
+                    }
+                } else if (sectionType === 'location') {
+                    const LocationEnabled = document.getElementById('LocationEnabled').checked;
+                    if (LocationEnabled) {
+                        const venue = document.getElementById('venueName').value;
+                        const address = document.getElementById('venueAddress').value;
+                        const parking = document.getElementById('parkingInfo').value;
+                
+                        if (venue || address || parking) {
+                            const mapId = `map-${Date.now()}`;
+                
+                            const locationSection = createPreviewSection('Location', `
+                                <div class="map-section">
+                                    <div class="map-container" id="${mapId}" style="position: relative; height: 300px;">
+                                        <div style="position: absolute; top: 20px; left: 20px; font-size: 14px; opacity: 0.8; z-index: 1;">
+                                            Interactive Map (Click to set location)
+                                        </div>
+                                    </div>
+                                    <div class="location-info">
+                                        ${venue ? `<strong>${venue}</strong><br>` : ''}
+                                        ${address ? `${address.replace(/\n/g, '<br>')}<br>` : ''}
+                                        ${parking ? `<em>${parking}</em>` : ''}
+                                    </div>
+                                </div>
+                            `);
+                
+                            previewContent.appendChild(locationSection);
+                
+                            // Wait for DOM
+                            setTimeout(() => {
+                                const geocoder = new google.maps.Geocoder();
+                                const map = new google.maps.Map(document.getElementById(mapId), {
+                                    zoom: 15,
+                                    center: { lat: 40.748817, lng: -73.985428 }, // default
+                                });
+                
+                                const marker = new google.maps.Marker({
+                                    map: map,
+                                    draggable: true
+                                });
+                
+                                // Forward Geocoding: from address → lat/lng
+                                if (address.trim()) {
+                                    geocoder.geocode({ address: address }, function (results, status) {
+                                        if (status === 'OK') {
+                                            map.setCenter(results[0].geometry.location);
+                                            marker.setPosition(results[0].geometry.location);
+                                        }
+                                    });
+                                }
+                
+                                // Reverse Geocoding: from click → update address
+                                map.addListener("click", (e) => {
+                                    const latLng = e.latLng;
+                                    marker.setPosition(latLng);
+                                    map.panTo(latLng);
+                
+                                    geocoder.geocode({ location: latLng }, (results, status) => {
+                                        if (status === "OK" && results[0]) {
+                                            document.getElementById("venueAddress").value = results[0].formatted_address;
+                                            updatePreview(); // re-render
+                                        }
+                                    });
+                                });
+                
+                                // Also when dragging the marker
+                                marker.addListener("dragend", function () {
+                                    const position = marker.getPosition();
+                                    geocoder.geocode({ location: position }, (results, status) => {
+                                        if (status === "OK" && results[0]) {
+                                            document.getElementById("venueAddress").value = results[0].formatted_address;
+                                            updatePreview();
+                                        }
+                                    });
+                                });
+                
+                            }, 100);
+                        }
+                    }
+                } else if (sectionType === 'rsvp') {
+                    // RSVP section
+                    // RSVP section
+                    const rsvpEnabled = document.getElementById('rsvpEnabled').checked;
+                    if (rsvpEnabled) {
+                        const rsvpMessage = document.getElementById('rsvpMessage').value;
+                        const rsvpDeadline = document.getElementById('rsvpDeadline').value;
+                        const rsvpContact = document.getElementById('rsvpContact').value;
+
+                        const rsvpSection = createPreviewSection('RSVP', `
+                            <div class="rsvp-info">
+                                <!-- Old Static RSVP Info -->
+                                <div class="rsvp-details">${rsvpMessage}</div>
+                                ${rsvpDeadline ? `<div class="rsvp-deadline">${rsvpDeadline}</div>` : ''}
+                                ${rsvpContact ? `<div class="rsvp-contact">${rsvpContact}</div>` : ''}
+
+                                <!-- New Interactive RSVP Form -->
+                                <div class="form-group" style="margin-top: 20px;">
+                                    <label>Will you be attending?</label>
+                                    <div class="radio-group">
+                                        <label class="radio-option">
+                                            <input type="radio" name="attendance" value="yes">
+                                            <span>Yes, I'll be there!</span>
+                                        </label>
+                                        <label class="radio-option">
+                                            <input type="radio" name="attendance" value="no">
+                                            <span>Sorry, can't make it</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+
+                        previewContent.appendChild(rsvpSection);
+                    }
+                } else if (sectionType === 'qr') {
+                    // QR Code section
+                    const qrEnabled = document.getElementById('qrEnabled').checked;
+                    if (qrEnabled) {
+                        const qrDesc = document.getElementById('qrDescription').value;
+                        
+                        const qrSection = createPreviewSection('Quick Access', `
+                            <div class="qr-preview">
+                                <div class="qr-code-preview">
+                                    <div class="qr-pattern">
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                        <div class="qr-dot"></div>
+                                    </div>
+                                </div>
+                                <div class="qr-description">${qrDesc}</div>
+                            </div>
+                        `);
+                        previewContent.appendChild(qrSection);
+                    }
+                }
+            });
+        }
+
+        function createPreviewSection(title, content) {
+            const section = document.createElement('div');
+            section.className = 'preview-section';
+            section.innerHTML = `
+                <h3>${title}</h3>
+                ${content}
+            `;
+            return section;
+        }
+
+        // Update colors function
+        function updateColors() {
+            const heroColor1 = document.getElementById('heroColor1').value;
+            const heroColor2 = document.getElementById('heroColor2').value;
+            const accentColor = document.getElementById('accentColor').value;
+
+            document.getElementById('heroColor1Text').value = heroColor1;
+            document.getElementById('heroColor2Text').value = heroColor2;
+            document.getElementById('accentColorText').value = accentColor;
+
+            // Update preview colors
+            document.getElementById('previewHero').style.background = `linear-gradient(135deg, ${heroColor1}, ${heroColor2})`;
+            
+            // Update accent color elements
+            document.querySelectorAll('.preview-section h3').forEach(h3 => {
+                h3.style.borderBottomColor = accentColor;
+            });
+            
+            const locationInfo = document.querySelector('.location-info');
+            if (locationInfo) {
+                locationInfo.style.borderLeftColor = accentColor;
+            }
+        }
+
+        // Mobile preview functions
+        function showMobilePreview() {
+            const modal = document.getElementById('mobilePreviewModal');
+            const mobileContent = document.getElementById('mobilePreviewContent');
+            const originalContent = document.getElementById('previewInvitation').cloneNode(true);
+            
+            mobileContent.innerHTML = '';
+            mobileContent.appendChild(originalContent);
+            
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideMobilePreview() {
+            const modal = document.getElementById('mobilePreviewModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Export invitation function
+        function exportInvitation() {
+            const invitationData = {
+                event: {
+                    title: document.getElementById('eventTitle').value,
+                    subtitle: document.getElementById('eventSubtitle').value,
+                    date: document.getElementById('eventDate').value,
+                    description: document.getElementById('eventDescription').value
+                },
+                location: {
+                    venue: document.getElementById('venueName').value,
+                    address: document.getElementById('venueAddress').value,
+                    parking: document.getElementById('parkingInfo').value
+                },
+                rsvp: {
+                    enabled: document.getElementById('rsvpEnabled').checked,
+                    message: document.getElementById('rsvpMessage').value,
+                    deadline: document.getElementById('rsvpDeadline').value,
+                    contact: document.getElementById('rsvpContact').value
+                },
+                design: {
+                    heroColor1: document.getElementById('heroColor1').value,
+                    heroColor2: document.getElementById('heroColor2').value,
+                    accentColor: document.getElementById('accentColor').value,
+                    fontFamily: document.getElementById('fontFamily').value
+                },
+                qr: {
+                    enabled: document.getElementById('qrEnabled').checked,
+                    content: document.getElementById('qrContent').value,
+                    description: document.getElementById('qrDescription').value
+                },
+                sectionOrder: sectionOrder
+            };
+
+            const blob = new Blob([JSON.stringify(invitationData, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'invitation-settings.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showSuccessToast();
+        }
+
+        // Reset to defaults function
+        function resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to default values?')) {
+                document.getElementById('eventTitle').value = "You're Invited!";
+                document.getElementById('eventSubtitle').value = "Join us for an unforgettable celebration";
+                document.getElementById('eventDate').value = "Saturday, August 15th, 2025 • 7:00 PM";
+                document.getElementById('eventDescription').value = "";
+                document.getElementById('venueName').value = "Sunset Garden Venue";
+                document.getElementById('venueAddress').value = "123 Celebration Avenue\nDowntown District, NY 10001";
+                document.getElementById('parkingInfo').value = "Free parking available";
+                document.getElementById('rsvpEnabled').checked = true;
+                document.getElementById('rsvpMessage').value = "Please confirm your attendance by responding to this invitation.";
+                document.getElementById('rsvpDeadline').value = "Please respond by August 10th, 2025";
+                document.getElementById('rsvpContact').value = "Email: events@example.com or Call: (555) 123-4567";
+                document.getElementById('heroColor1').value = "#ff6b6b";
+                document.getElementById('heroColor2').value = "#ffa726";
+                document.getElementById('accentColor').value = "#667eea";
+                document.getElementById('fontFamily').value = "Segoe UI";
+                document.getElementById('qrEnabled').checked = true;
+                document.getElementById('qrContent').value = "";
+                document.getElementById('qrDescription').value = "Scan for event details & contact info";
+                
+                // Reset section order
+                sectionOrder = ['event', 'location', 'rsvp', 'qr', 'design'];
+                
+                updatePreview();
+                updateColors();
+                showSuccessToast();
+            }
+        }
+
+        // Show success toast
+        function showSuccessToast() {
+            const toast = document.getElementById('successToast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Close mobile preview when clicking outside
+        document.getElementById('mobilePreviewModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideMobilePreview();
+            }
+        });
+
+        // Escape key to close mobile preview
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('mobilePreviewModal').style.display === 'flex') {
+                hideMobilePreview();
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDragAndDrop();
+            updatePreview();
+            updateColors();
+        });
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCSMENjTrSQRrGaaJFA12hFlN6qgdyPtzI"></script>
+
+</body>
+</html>
