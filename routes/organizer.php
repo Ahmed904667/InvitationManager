@@ -34,6 +34,7 @@ Route::delete('/guest-lists/{guestList}/groups/{group}', [GuestListController::c
 
     // -------------------- Validation --------------------
     Route::get('/guest-lists/{guestList}/validation-errors', [GuestListController::class, 'getValidationErrors'])->name('guest-lists.validation-errors');
+    Route::get('/guest-lists/{guestList}/health', [GuestListController::class, 'getHealth'])->name('guest-lists.health');
 
     // -------------------- Guest Management --------------------
     Route::post('/guest-lists/{guestList}/guests', [GuestController::class, 'store'])->name('guests.store');
@@ -74,6 +75,10 @@ Route::delete('/guest-lists/{guestList}/groups/{group}', [GuestListController::c
     Route::get('/events/completed', [\App\Organizer\Controllers\EventController::class, 'completed'])->name('events.completed');
     Route::post('/events/{event}/complete', [\App\Organizer\Controllers\EventController::class, 'markAsCompleted'])->name('events.mark-completed');
     Route::post('/events/{event}/start', [\App\Organizer\Controllers\EventController::class, 'markAsRunning'])->name('events.mark-running');
+    
+    // Scanner management routes
+    Route::get('/events/{event}/scanners', [\App\Organizer\Controllers\EventController::class, 'getScanners'])->name('events.scanners');
+    Route::post('/events/{event}/scanners', [\App\Organizer\Controllers\EventController::class, 'createScanner'])->name('events.scanners.create');
     
     // Multi-step Event Creation Flow
     Route::get('/events/create', [\App\Organizer\Controllers\EventController::class, 'create'])->name('events.create');

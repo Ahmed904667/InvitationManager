@@ -66,7 +66,6 @@ class DashboardController extends Controller
             'total_lists' => $stats['total_guest_lists'],
             'total_guests' => $stats['total_guests'],
             'upcoming_events' => $stats['upcoming_events']->count(),
-            'checkin_rate' => $this->organizerService->getCheckInRate(),
         ]);
     }
 
@@ -77,7 +76,13 @@ class DashboardController extends Controller
     {
         Gate::authorize('organizer-access');
 
-        $guestLists = $this->organizerService->getMyGuestLists();
+        $search = $request->get('search', '');
+        $health = $request->get('health', '');
+        $guestCount = $request->get('guest_count', '');
+        $sortBy = $request->get('sort_by', 'created_at_desc');
+        $page = $request->get('page', 1);
+
+        $guestLists = $this->organizerService->getMyGuestListsWithFilters($search, $health, $guestCount, $sortBy, $page);
         
         return response()->json($guestLists);
     }

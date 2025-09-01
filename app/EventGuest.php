@@ -17,11 +17,19 @@ class EventGuest extends Model
         'status',
         'removed_at',
         'removal_reason',
-        'removed_by'
+        'removed_by',
+        'checked_in',
+        'checked_in_at',
+        'checked_in_by',
+        'check_in_notes',
+        'scanned_by_scanner_id',
+        'scanner_name'
     ];
 
     protected $casts = [
         'removed_at' => 'datetime',
+        'checked_in' => 'boolean',
+        'checked_in_at' => 'datetime',
     ];
 
     // Status constants
@@ -77,5 +85,46 @@ class EventGuest extends Model
             'removal_reason' => $reason,
             'removed_by' => $removedBy
         ]);
+    }
+
+    public function isCheckedIn(): bool
+    {
+        return $this->checked_in === true;
+    }
+
+    public function checkIn(\App\Scanner $scanner, ?string $notes = null): void
+    {
+        $this->update([
+            'checked_in' => true,
+            'checked_in_at' => now(),
+            'check_in_notes' => $notes,
+            'scanned_by_scanner_id' => $scanner->id,
+            'scanner_name' => $scanner->name,
+        ]);
+        
+        // Update scanner last used
+        $scanner->updateLastUsed();
+    }
+
+    public function undoCheckIn(): void
+    {
+        $this->update([
+            'checked_in' => false,
+            'checked_in_at' => null,
+            'checked_in_by' => null,
+            'check_in_notes' => null,
+            'scanned_by_scanner_id' => null,
+            'scanner_name' => null,
+        ]);
+    }
+
+    public function checkedInBy()
+    {
+        return $this->belongsTo(User::class, 'checked_in_by');
+    }
+
+    public function scannedByScanner()
+    {
+        return $this->belongsTo(\App\Scanner::class, 'scanned_by_scanner_id');
     }
 }

@@ -410,6 +410,183 @@ function showEmptyState() {
     }
 }
 
+// Scanner URL generation
+function generateScannerUrl(eventId) {
+    // Show modal to create or manage scanners
+    showScannerModal(eventId);
+}
+
+function showScannerModal(eventId) {
+    // Create modal HTML
+    const modalHtml = `
+        <div id="scannerModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Scanner URLs</h3>
+                        <button onclick="closeScannerModal()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600 mb-4">Generate scanner URLs for your event. Each scanner profile can track check-ins separately.</p>
+                        <div id="scannersList">
+                            <div class="flex justify-center py-4">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border-t pt-4">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <input type="text" id="newScannerName" placeholder="Scanner name (e.g., Main Gate)" 
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+                            <button onclick="createNewScanner(${eventId})" class="btn-primary px-4 py-2 text-sm">
+                                Create
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Load existing scanners
+    loadEventScanners(eventId);
+}
+
+function loadEventScanners(eventId) {
+    fetch(`/organizer/events/${eventId}/scanners`)
+        .then(response => response.json())
+        .then(data => {
+            const scannersList = document.getElementById('scannersList');
+            if (data.scanners.length === 0) {
+                scannersList.innerHTML = `
+                    <div class="text-center text-gray-500 py-4">
+                        <p class="text-sm">No scanners created yet</p>
+                        <p class="text-xs">Create your first scanner to get started</p>
+                    </div>
+                `;
+            } else {
+                scannersList.innerHTML = data.scanners.map(scanner => `
+                    <div class="flex items-center justify-between p-3 border rounded-lg mb-2">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-900">${scanner.name}</h4>
+                            <p class="text-xs text-gray-500">Created ${scanner.created_at}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="copyScannerUrl('${scanner.url}')" 
+                                    class="btn-secondary text-xs px-3 py-1">
+                                Copy URL
+                            </button>
+                            <button onclick="shareScannerUrl('${scanner.url}', '${scanner.name}')" 
+                                    class="btn-accent text-xs px-3 py-1">
+                                Share
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading scanners:', error);
+            document.getElementById('scannersList').innerHTML = `
+                <div class="text-center text-red-500 py-4">
+                    <p class="text-sm">Error loading scanners</p>
+                </div>
+            `;
+        });
+}
+
+function createNewScanner(eventId) {
+    const nameInput = document.getElementById('newScannerName');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        alert('Please enter a scanner name');
+        return;
+    }
+    
+    fetch(`/organizer/events/${eventId}/scanners`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ name: name })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            nameInput.value = '';
+            loadEventScanners(eventId);
+        } else {
+            alert(data.message || 'Error creating scanner');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating scanner:', error);
+        alert('Error creating scanner');
+    });
+}
+
+function copyScannerUrl(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        // Show success message
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.classList.add('bg-green-600');
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('bg-green-600');
+        }, 2000);
+    }).catch(err => {
+        console.error('Error copying URL:', err);
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('URL copied to clipboard');
+    });
+}
+
+function shareScannerUrl(url, scannerName) {
+    if (navigator.share) {
+        navigator.share({
+            title: `Scanner: ${scannerName}`,
+            text: `Use this link to access the event scanner: ${scannerName}`,
+            url: url
+        });
+    } else {
+        // Fallback: copy to clipboard and show message
+        copyScannerUrl(url);
+        alert(`Scanner URL copied! Share this link with the scanner operator for ${scannerName}`);
+    }
+}
+
+function closeScannerModal() {
+    const modal = document.getElementById('scannerModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('scannerModal');
+    if (modal && event.target === modal) {
+        closeScannerModal();
+    }
+});
+
 // Utility functions
 function debounce(func, wait) {
     let timeout;

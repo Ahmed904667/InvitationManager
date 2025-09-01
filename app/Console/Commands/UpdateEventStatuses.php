@@ -114,6 +114,7 @@ class UpdateEventStatuses extends Command
     {
         return Event::where('status', '!=', 'running')
             ->where('status', '!=', 'completed')
+            ->where('status', '!=', 'draft')  // Exclude draft events from auto-transition
             ->where('start_date', '<=', $now)
             ->where(function ($query) use ($now) {
                 // Events with end date that hasn't passed yet
@@ -137,6 +138,7 @@ class UpdateEventStatuses extends Command
         $startOfDay = $now->copy()->startOfDay();
         
         return Event::where('status', '!=', 'completed')
+            ->where('status', '!=', 'draft')  // Exclude draft events from auto-transition
             ->where(function ($query) use ($now, $startOfDay) {
                 $query->where(function ($q) use ($now) {
                     // Events with end date that has passed

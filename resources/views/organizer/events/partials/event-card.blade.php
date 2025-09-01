@@ -181,6 +181,14 @@
             </a>
         @endif
         
+        @if($event->canUseScanner())
+            <button class="btn-accent" onclick="generateScannerUrl({{ $event->id }})" title="Generate Scanner URL">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11a9 9 0 11-18 0 9 9 0 0118 0zm-9 8a3 3 0 00-3-3h6a3 3 0 00-3 3z"></path>
+                </svg>
+            </button>
+        @endif
+        
         <button class="btn-danger" onclick="confirmDeleteEvent({{ $event->id }}, '{{ $event->name ?: 'Untitled Event' }}')" title="Delete Event">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>

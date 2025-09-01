@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Shared\Models\Guest;
 use App\Shared\Models\Event;
 use App\Shared\Models\Invitation;
+use App\EventGuest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -40,11 +41,16 @@ class GuestController extends Controller
             ];
         }
 
-        // Get check-in information
+        // Get event-specific check-in information
+        $eventGuest = EventGuest::where('event_id', $event->id)
+            ->where('guest_id', $guest->id)
+            ->where('status', EventGuest::STATUS_ACTIVE)
+            ->first();
+        
         $checkInInfo = [
-            'checked_in' => $guest->checked_in ?? false,
-            'checked_in_at' => $guest->checked_in_at,
-            'checked_in_by' => $guest->checkedInBy ?? null,
+            'checked_in' => $eventGuest ? $eventGuest->checked_in : false,
+            'checked_in_at' => $eventGuest ? $eventGuest->checked_in_at : null,
+            'checked_in_by' => $eventGuest ? $eventGuest->scannedByScanner : null,
         ];
 
         // Get guest's group information
@@ -109,12 +115,18 @@ class GuestController extends Controller
     {
         $this->authorize('view', $event);
         
+        // Get event-specific check-in information
+        $eventGuest = EventGuest::where('event_id', $event->id)
+            ->where('guest_id', $guest->id)
+            ->where('status', EventGuest::STATUS_ACTIVE)
+            ->first();
+        
         $checkInInfo = [
-            'checked_in' => $guest->checked_in ?? false,
-            'checked_in_at' => $guest->checked_in_at,
-            'checked_in_by' => $guest->checkedInBy ? [
-                'id' => $guest->checkedInBy->id,
-                'name' => $guest->checkedInBy->name,
+            'checked_in' => $eventGuest ? $eventGuest->checked_in : false,
+            'checked_in_at' => $eventGuest ? $eventGuest->checked_in_at : null,
+            'checked_in_by' => $eventGuest && $eventGuest->scannedByScanner ? [
+                'id' => $eventGuest->scannedByScanner->id,
+                'name' => $eventGuest->scanner_name,
             ] : null,
             'last_updated' => now()->toISOString(),
         ];

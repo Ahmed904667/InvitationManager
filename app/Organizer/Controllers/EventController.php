@@ -68,8 +68,8 @@ class EventController extends Controller
         foreach ($userEvents as $event) {
             $originalStatus = $event->status;
             
-            // Check if event should be marked as running
-            if ($event->status !== 'running' && $event->isOngoing()) {
+            // Check if event should be marked as running (but never change draft events)
+            if ($event->status !== 'running' && $event->status !== 'draft' && $event->isOngoing()) {
                 $event->markAsRunning();
                 $runningCount++;
                 
@@ -83,8 +83,8 @@ class EventController extends Controller
                     'update_time' => $now->toISOString(),
                 ]);
             }
-            // Check if event should be marked as completed
-            elseif ($event->isCompleted()) {
+            // Check if event should be marked as completed (but never change draft events)
+            elseif ($event->status !== 'draft' && $event->isCompleted()) {
                 $event->markAsCompleted();
                 $completedCount++;
                 
@@ -1551,8 +1551,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 $rsvpStats['no_response']++;
             }
             
-            // Check attendance
-            if ($guest->checked_in) {
+            // Check attendance - use event-specific check-in status
+            if ($eventGuest->checked_in) {
                 $attendanceStats['checked_in']++;
             } else {
                 $attendanceStats['not_checked_in']++;
@@ -3536,6 +3536,76 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             
             default:
                 return "Update for {$event->name}: Please check your invitation for the latest information.";
+        }
+    }
+
+    /**
+     * Get scanners for an event
+     */
+    public function getScanners(Event $event)
+    {
+        // Ensure the user owns this event
+        if ($event->user_id !== Auth::id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $scanners = $event->activeScanners()->get()->map(function($scanner) {
+            return [
+                'id' => $scanner->id,
+                'name' => $scanner->name,
+                'url' => $scanner->getScannerUrl(),
+                'created_at' => $scanner->created_at->diffForHumans(),
+                'last_used' => $scanner->last_used_at ? $scanner->last_used_at->diffForHumans() : 'Never',
+                'check_ins' => $scanner->getCheckInCount()
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'scanners' => $scanners
+        ]);
+    }
+
+    /**
+     * Create a new scanner for an event
+     */
+    public function createScanner(Request $request, Event $event)
+    {
+        // Ensure the user owns this event
+        if ($event->user_id !== Auth::id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Check if event can use scanner
+        if (!$event->canUseScanner()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Scanner not available for this event. Make sure QR check-in is enabled and event is sent/scheduled.'
+            ]);
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255'
+        ]);
+
+        try {
+            $scanner = $event->createScanner($request->name);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Scanner created successfully',
+                'scanner' => [
+                    'id' => $scanner->id,
+                    'name' => $scanner->name,
+                    'url' => $scanner->getScannerUrl(),
+                    'created_at' => $scanner->created_at->diffForHumans()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creating scanner: ' . $e->getMessage()
+            ], 500);
         }
     }
 } 

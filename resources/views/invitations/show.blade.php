@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="min-h-screen invite-page-bg">
-    @if(str_starts_with($invitation->token, 'preview-'))
+    @if((isset($isPreview) && $isPreview))
     <!-- Preview Banner -->
     <div class="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg">
         <div class="max-w-4xl mx-auto flex items-center justify-between">
@@ -41,7 +41,7 @@
     @endphp
     
     <!-- Hero Section with Event Details -->
-    <div class="relative overflow-hidden invite-hero @if(str_starts_with($invitation->token, 'preview-')) pt-20 @endif">
+    <div class="relative overflow-hidden invite-hero @if((isset($isPreview) && $isPreview)) pt-20 @endif">
         <div class="absolute inset-0 bg-black opacity-10"></div>
         <div class="relative max-w-4xl mx-auto px-6 py-16 text-center">
             <div class="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium mb-6">
@@ -195,7 +195,7 @@
                                 Yahoo
                             </a>
                             
-                            @if(str_starts_with($invitation->token, 'preview-'))
+                            @if((isset($isPreview) && $isPreview))
                                 <button disabled class="inline-flex items-center justify-center px-4 py-2 bg-gray-400 text-white text-sm font-medium rounded-xl cursor-not-allowed">
                                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
@@ -213,7 +213,7 @@
                                 </button>
                             @endif
                             
-                            @if(str_starts_with($invitation->token, 'preview-'))
+                            @if((isset($isPreview) && $isPreview))
                                 <button disabled class="inline-flex items-center justify-center px-4 py-2 bg-gray-400 text-white text-sm font-medium rounded-xl cursor-not-allowed">
                                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
@@ -323,7 +323,7 @@
                         </div>
                 </div>
             @else
-                @if(str_starts_with($invitation->token, 'preview-'))
+                @if((isset($isPreview) && $isPreview))
                     <!-- Preview Mode - RSVP Form Disabled -->
                     <div class="p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-sm">
                         <div class="flex items-center">

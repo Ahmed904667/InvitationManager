@@ -884,4 +884,8 @@ document.addEventListener('click', function(e) {
     display: none !important;
 }
 </style>
+
+{{-- Google Maps for location selection --}}
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places&language=en&region=MY&callback=initMap"></script>
+
 @endsection

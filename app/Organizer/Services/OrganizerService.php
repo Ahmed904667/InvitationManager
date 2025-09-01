@@ -29,7 +29,80 @@ class OrganizerService
     public function getMyGuestLists()
     {
         $user = Auth::user();
-        return $user->guestLists()->latest()->paginate(10);
+        $guestLists = $user->guestLists()->withCount('guests')->latest()->paginate(10);
+        
+        return $guestLists;
+    }
+
+    public function getMyGuestListsWithFilters($search = '', $health = '', $guestCount = '', $sortBy = 'created_at_desc', $page = 1)
+    {
+        $user = Auth::user();
+        $query = $user->guestLists()->withCount('guests');
+
+        // Search filter
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Health filter
+        if (!empty($health)) {
+            $query->whereJsonContains('health->status', $health);
+        }
+
+        // Guest count filter
+        if (!empty($guestCount)) {
+            switch ($guestCount) {
+                case 'empty':
+                    $query->whereDoesntHave('guests');
+                    break;
+                case 'small':
+                    $query->whereRaw('(SELECT COUNT(*) FROM guests WHERE guests.guest_list_id = guest_lists.id) > 0')
+                          ->whereRaw('(SELECT COUNT(*) FROM guests WHERE guests.guest_list_id = guest_lists.id) <= 10');
+                    break;
+                case 'medium':
+                    $query->whereRaw('(SELECT COUNT(*) FROM guests WHERE guests.guest_list_id = guest_lists.id) > 10')
+                          ->whereRaw('(SELECT COUNT(*) FROM guests WHERE guests.guest_list_id = guest_lists.id) <= 50');
+                    break;
+                case 'large':
+                    $query->whereRaw('(SELECT COUNT(*) FROM guests WHERE guests.guest_list_id = guest_lists.id) > 50');
+                    break;
+            }
+        }
+
+        // Sorting
+        switch ($sortBy) {
+            case 'created_at_asc':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'updated_at_desc':
+                $query->orderBy('updated_at', 'desc');
+                break;
+            case 'updated_at_asc':
+                $query->orderBy('updated_at', 'asc');
+                break;
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            case 'guests_count_desc':
+                $query->orderBy('guests_count', 'desc');
+                break;
+            case 'guests_count_asc':
+                $query->orderBy('guests_count', 'asc');
+                break;
+            default: // created_at_desc
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        $guestLists = $query->paginate(10, ['*'], 'page', $page);
+        
+        return $guestLists;
     }
 
     public function createGuestList(array $data): GuestList
@@ -40,7 +113,6 @@ class OrganizerService
         $guestList->user_id = $user->id;
         $guestList->name = $data['name'];
         $guestList->description = $data['description'] ?? null;
-        $guestList->event_date = $data['event_date'] ?? null;
         $guestList->max_guests = $data['max_guests'] ?? null;
         $guestList->settings = $data['settings'] ?? $guestList->getDefaultSettings();
         $guestList->save();
@@ -67,7 +139,6 @@ class OrganizerService
     {
         return [
             'total_guests' => $guestList->guests()->count(),
-            'checked_in_guests' => $guestList->guests()->where('checked_in', true)->count(),
             'groups_count' => $guestList->guestGroups()->count(),
             'recent_additions' => $guestList->guests()->latest()->limit(5)->get(),
         ];
@@ -84,6 +155,9 @@ class OrganizerService
         $guest->language = $data['language'] ?? null;
         $guest->notes = $data['notes'] ?? null;
         $guest->save();
+
+        // Recalculate health after adding guest
+        $guestList->calculateAndStoreHealth();
 
         return $guest;
     }
@@ -109,11 +183,18 @@ class OrganizerService
     public function updateGuest(Guest $guest, array $data): void
     {
         $guest->update($data);
+        
+        // Recalculate health after updating guest
+        $guest->guestList->calculateAndStoreHealth();
     }
 
     public function deleteGuest(Guest $guest): void
     {
+        $guestList = $guest->guestList;
         $guest->delete();
+        
+        // Recalculate health after deleting guest
+        $guestList->calculateAndStoreHealth();
     }
 
     public function importGuests(GuestList $guestList, $file): array
@@ -247,23 +328,29 @@ class OrganizerService
 
     private function getGuestStatistics(User $user): array
     {
+        // Get all events for this user's guest lists
+        $eventIds = $user->guestLists()->with('events')->get()
+            ->pluck('events')->flatten()->pluck('id')->unique();
+        
+        // Get total guests across all events
+        $totalGuests = \App\EventGuest::whereIn('event_id', $eventIds)
+            ->where('status', \App\EventGuest::STATUS_ACTIVE)
+            ->count();
+        
+        // Get checked-in guests across all events
+        $checkedInGuests = \App\EventGuest::whereIn('event_id', $eventIds)
+            ->where('status', \App\EventGuest::STATUS_ACTIVE)
+            ->where('checked_in', true)
+            ->count();
+        
         return [
-            'total_guests' => $user->guestLists()->withCount('guests')->get()->sum('guests_count'),
-            'checked_in_guests' => $user->guestLists()->guests()->where('checked_in', true)->count(),
+            'total_guests' => $totalGuests,
+            'checked_in_guests' => $checkedInGuests,
             'average_guests_per_list' => $user->guestLists()->withCount('guests')->get()->avg('guests_count'),
         ];
     }
 
-    /**
-     * Calculate check-in rate across all guest lists for the current user
-     */
-    public function getCheckInRate(): float
-    {
-        $user = Auth::user();
-        $totalGuests = $user->guestLists()->withCount('guests')->get()->sum('guests_count');
-        $totalCheckedIn = Guest::whereIn('guest_list_id', $user->guestLists()->pluck('id'))->where('checked_in', true)->count();
-        return $totalGuests > 0 ? round(($totalCheckedIn / $totalGuests) * 100, 2) : 0;
-    }
+
 
     /**
      * Get display data for a guest list
@@ -284,7 +371,6 @@ class OrganizerService
                 'group_id' => $guest->group_id,
                 'group_name' => $guest->guestGroup ? $guest->guestGroup->name : '',
                 'language' => $guest->language ?? '',
-                'checked_in_at' => $guest->checked_in_at,
             ];
         })->toArray();
 
@@ -418,4 +504,5 @@ class OrganizerService
             'deleted_count' => $successCount
         ];
     }
+
 } 

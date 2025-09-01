@@ -58,31 +58,43 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label class="form-label">Full Name</label>
-                                <input type="text" value="{{ $guest->name }}" class="form-input" readonly>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                    {{ $guest->name }}
+                                </div>
                             </div>
                             <div>
-                                <label class="form-label">Email Address</label>
-                                <input type="email" value="{{ $guest->email ?: 'Not provided' }}" class="form-input" readonly>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                    {{ $guest->email ?: 'Not provided' }}
+                                </div>
                             </div>
                             <div>
-                                <label class="form-label">Phone Number</label>
-                                <input type="text" value="{{ $guest->phone ?: 'Not provided' }}" class="form-input" readonly>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                    {{ $guest->phone ?: 'Not provided' }}
+                                </div>
                             </div>
                             <div>
-                                <label class="form-label">Guest List</label>
-                                <input type="text" value="{{ $guestList->name }}" class="form-input" readonly>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Guest List</label>
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                    {{ $guestList->name }}
+                                </div>
                             </div>
-                            @if($group)
+                            @if(isset($group) && $group)
                             <div>
-                                <label class="form-label">Group</label>
-                                <input type="text" value="{{ $group->name }}" class="form-input" readonly>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Group</label>
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                    {{ $group->name }}
+                                </div>
                             </div>
                             @endif
-                            @if($guest->notes)
+                            @if(isset($guest) && $guest->notes)
                             <div class="md:col-span-2">
-                                <label class="form-label">Notes</label>
-                                <textarea class="form-input" rows="3" readonly>{{ $guest->notes }}</textarea>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 min-h-[80px]">
+                                    {{ $guest->notes }}
+                                </div>
                             </div>
                             @endif
                         </div>
@@ -91,17 +103,23 @@
                             <h4 class="text-lg leading-6 font-medium text-primary mb-4">Event Information</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="form-label">Event Name</label>
-                                    <input type="text" value="{{ $event->name }}" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Event Name</label>
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        {{ $event->name }}
+                                    </div>
                                 </div>
                                 <div>
-                                    <label class="form-label">Date & Time</label>
-                                    <input type="text" value="{{ $event->start_date->format('M j, Y \a\t g:i A') }}" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Date & Time</label>
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        {{ $event->start_date->format('M j, Y \a\t g:i A') }}
+                                    </div>
                                 </div>
-                                @if($event->venue_name || $event->venue_address)
+                                @if(isset($event) && ($event->venue_name || $event->venue_address))
                                 <div class="md:col-span-2">
-                                    <label class="form-label">Location</label>
-                                    <input type="text" value="{{ $event->venue_name ? $event->venue_name . ($event->venue_address ? ' - ' . $event->venue_address : '') : $event->venue_address }}" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        {{ $event->venue_name ? $event->venue_name . ($event->venue_address ? ' - ' . $event->venue_address : '') : $event->venue_address }}
+                                    </div>
                                 </div>
                                 @endif
                             </div>
@@ -111,39 +129,136 @@
                             <h4 class="text-lg leading-6 font-medium text-primary mb-4">RSVP & Check-in Information</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="form-label">RSVP Status</label>
-                                    <input type="text" id="rsvp-status-display" value="@switch($rsvpHistory['status'] ?? 'no_response')@case('yes')✓ Confirmed@break@case('no')✗ Declined@break@case('maybe')? Maybe@break@default○ No Response@endswitch" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">RSVP Status</label>
+                                    <div id="rsvp-status-display" class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        @switch(isset($rsvpHistory) ? ($rsvpHistory['status'] ?? 'no_response') : 'no_response')
+                                            @case('yes')
+                                                <span class="inline-flex items-center text-green-700">
+                                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Confirmed
+                                                </span>
+                                                @break
+                                            @case('no')
+                                                <span class="inline-flex items-center text-red-700">
+                                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Declined
+                                                </span>
+                                                @break
+                                            @case('maybe')
+                                                <span class="inline-flex items-center text-yellow-700">
+                                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Maybe
+                                                </span>
+                                                @break
+                                            @default
+                                                <span class="inline-flex items-center text-gray-500">
+                                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    No Response
+                                                </span>
+                                        @endswitch
+                                    </div>
                                 </div>
                                 <div>
-                                    <label class="form-label">Check-in Status</label>
-                                    <input type="text" id="checkin-status-display" value="@if($checkInInfo['checked_in'])✓ Checked In@else○ Not Checked In@endif" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Check-in Status</label>
+                                    <div id="checkin-status-display" class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        @if(isset($checkInInfo) && $checkInInfo['checked_in'])
+                                            <span class="inline-flex items-center text-green-700">
+                                                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                Checked In
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center text-gray-500">
+                                                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                Not Checked In
+                                            </span>
+                                        @endif
+                                    </div>
                                 </div>
                                 <div>
-                                    <label class="form-label">Response Date</label>
-                                    <input type="text" id="rsvp-date-display" value="@if($rsvpHistory['submitted_at'] ?? false){{ \Carbon\Carbon::parse($rsvpHistory['submitted_at'])->format('M j, Y \a\t g:i A') }}@elseNot submitted yet@endif" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Response Date</label>
+                                    <div id="rsvp-date-display" class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        @if(isset($rsvpHistory) && ($rsvpHistory['submitted_at'] ?? false))
+                                            {{ \Carbon\Carbon::parse($rsvpHistory['submitted_at'])->format('M j, Y \a\t g:i A') }}
+                                        @else
+                                            <span class="text-gray-500 italic">Not submitted yet</span>
+                                        @endif
+                                    </div>
                                 </div>
                                 <div>
-                                    <label class="form-label">Check-in Time</label>
-                                    <input type="text" id="checkin-time-display" value="@if($checkInInfo['checked_in_at']){{ \Carbon\Carbon::parse($checkInInfo['checked_in_at'])->format('M j, Y \a\t g:i A') }}@elseNot checked in yet@endif" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Check-in Time</label>
+                                    <div id="checkin-time-display" class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        @if(isset($checkInInfo) && $checkInInfo['checked_in_at'])
+                                            {{ \Carbon\Carbon::parse($checkInInfo['checked_in_at'])->format('M j, Y \a\t g:i A') }}
+                                        @else
+                                            <span class="text-gray-500 italic">Not checked in yet</span>
+                                        @endif
+                                    </div>
                                 </div>
-                                @if($rsvpHistory['note'] ?? false)
+                                @if(isset($rsvpHistory) && ($rsvpHistory['note'] ?? false))
                                 <div class="md:col-span-2">
-                                    <label class="form-label">RSVP Note</label>
-                                    <textarea id="rsvp-note-display" class="form-input" rows="2" readonly>{{ $rsvpHistory['note'] }}</textarea>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">RSVP Note</label>
+                                    <div id="rsvp-note-display" class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900 min-h-[60px]">
+                                        {{ $rsvpHistory['note'] }}
+                                    </div>
                                 </div>
                                 @endif
-                                @if($checkInInfo['checked_in_by'])
+                                @if(isset($checkInInfo) && $checkInInfo['checked_in_by'])
                                 <div class="md:col-span-2">
-                                    <label class="form-label">Checked in by</label>
-                                    <input type="text" value="{{ $checkInInfo['checked_in_by']->name }}" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Checked in by</label>
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        {{ $checkInInfo['checked_in_by']->name ?? $checkInInfo['checked_in_by']->scanner_name ?? 'Unknown' }}
+                                    </div>
                                 </div>
                                 @endif
-                                @if($invitation)
+                                @if(isset($invitation) && $invitation)
                                 <div class="md:col-span-2">
-                                    <label class="form-label">Invitation Status</label>
-                                    <input type="text" value="@if($invitation->status === 'sent')✓ Sent@elseif($invitation->status === 'pending')⏳ Pending@else○ Not Sent@endif@if($invitation->status === 'sent' && $invitation->sent_at) - {{ $invitation->sent_at->format('M j, Y \a\t g:i A') }}@endif" class="form-input" readonly>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Invitation Status</label>
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-gray-900">
+                                        @switch($invitation->status)
+                                            @case('sent')
+                                                <span class="inline-flex items-center text-green-700">
+                                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                                                    </svg>
+                                                    Sent
+                                                    @if($invitation->sent_at)
+                                                        - {{ $invitation->sent_at->format('M j, Y \a\t g:i A') }}
+                                                    @endif
+                                                </span>
+                                                @break
+                                            @case('pending')
+                                                <span class="inline-flex items-center text-yellow-700">
+                                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Pending
+                                                </span>
+                                                @break
+                                            @default
+                                                <span class="inline-flex items-center text-gray-500">
+                                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Not Sent
+                                                </span>
+                                        @endswitch
+                                    </div>
                                 </div>
                                 @endif
+
                             </div>
                         </div>
                                         </div>
@@ -168,7 +283,7 @@
                                 <span class="text-sm text-gray-500">Guest List</span>
                                 <span class="text-sm font-medium text-primary">{{ $guestList->name }}</span>
                             </div>
-                            @if($group)
+                            @if(isset($group) && $group)
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-gray-500">Group</span>
                                 <span class="text-sm font-medium text-primary">{{ $group->name }}</span>
@@ -178,17 +293,28 @@
                                 <span class="text-sm text-gray-500">RSVP Status</span>
                                 <span class="text-sm font-medium text-primary">
                                     @switch($rsvpHistory['status'] ?? 'no_response')
-                                        @case('yes')✓ Confirmed@break
-                                        @case('no')✗ Declined@break
-                                        @case('maybe')? Maybe@break
-                                        @default○ No Response
+                                        @case('yes')
+                                            ✓ Confirmed
+                                            @break
+                                        @case('no')
+                                            ✗ Declined
+                                            @break
+                                        @case('maybe')
+                                            ? Maybe
+                                            @break
+                                        @default
+                                            ○ No Response
                                     @endswitch
                                 </span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-gray-500">Check-in Status</span>
                                 <span class="text-sm font-medium text-primary">
-                                    @if($checkInInfo['checked_in'])✓ Checked In@else○ Not Checked In@endif
+                                    @if(isset($checkInInfo) && $checkInInfo['checked_in'])
+                                        ✓ Checked In
+                                    @else
+                                        ○ Not Checked In
+                                    @endif
                                 </span>
                             </div>
                         </div>
@@ -206,13 +332,13 @@
                                 </svg>
                                 Back to Event
                             </a>
-                            @if($invitation && $invitation->token && !str_starts_with($invitation->token, 'preview-'))
-                            <a href="{{ route('public.invite.show', $invitation->token) }}" target="_blank" class="w-full btn-primary">
+                            @if(isset($invitation) && $invitation)
+                            <a href="{{ route('public.invite.show', 'preview-' . $invitation->id) }}" target="_blank" class="w-full btn-primary">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                 </svg>
-                                View Invitation
+                                Preview Invitation
                             </a>
                             @endif
                         </div>
@@ -258,13 +384,18 @@ document.addEventListener('DOMContentLoaded', function() {
                      const statusDisplay = document.getElementById('rsvp-status-display');
                      const statusText = getStatusText(history.status);
                      
-                     statusDisplay.value = `${statusText.symbol} ${statusText.text}`;
+                     statusDisplay.innerHTML = `<span class="inline-flex items-center ${statusText.color}">
+                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                             ${statusText.icon}
+                         </svg>
+                         ${statusText.text}
+                     </span>`;
                     
                                          // Update RSVP date
                      const dateDisplay = document.getElementById('rsvp-date-display');
                      if (history.submitted_at) {
                          const date = new Date(history.submitted_at);
-                         dateDisplay.value = date.toLocaleDateString('en-US', { 
+                         dateDisplay.textContent = date.toLocaleDateString('en-US', { 
                              month: 'short', 
                              day: 'numeric', 
                              year: 'numeric' 
@@ -273,14 +404,14 @@ document.addEventListener('DOMContentLoaded', function() {
                              minute: '2-digit' 
                          });
                      } else {
-                         dateDisplay.value = 'Not submitted yet';
+                         dateDisplay.innerHTML = '<span class="text-gray-500 italic">Not submitted yet</span>';
                      }
                     
                                          // Update RSVP note
                      const noteDisplay = document.getElementById('rsvp-note-display');
                      if (noteDisplay) {
                          if (history.note) {
-                             noteDisplay.value = history.note;
+                             noteDisplay.textContent = history.note;
                              noteDisplay.parentElement.style.display = 'block';
                          } else {
                              noteDisplay.parentElement.style.display = 'none';
@@ -308,16 +439,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                          // Update check-in status
                      const statusDisplay = document.getElementById('checkin-status-display');
                      if (checkIn.checked_in) {
-                         statusDisplay.value = '✓ Checked In';
+                         statusDisplay.innerHTML = '<span class="inline-flex items-center text-green-700"><svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>Checked In</span>';
                      } else {
-                         statusDisplay.value = '○ Not Checked In';
+                         statusDisplay.innerHTML = '<span class="inline-flex items-center text-gray-500"><svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>Not Checked In</span>';
                      }
                     
                                          // Update check-in time
                      const timeDisplay = document.getElementById('checkin-time-display');
                      if (checkIn.checked_in_at) {
                          const date = new Date(checkIn.checked_in_at);
-                         timeDisplay.value = date.toLocaleDateString('en-US', { 
+                         timeDisplay.textContent = date.toLocaleDateString('en-US', { 
                              month: 'short', 
                              day: 'numeric', 
                              year: 'numeric' 
@@ -326,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
                              minute: '2-digit' 
                          });
                      } else {
-                         timeDisplay.value = 'Not checked in yet';
+                         timeDisplay.innerHTML = '<span class="text-gray-500 italic">Not checked in yet</span>';
                      }
                 }
             })
@@ -337,10 +468,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getStatusText(status) {
         switch (status) {
-            case 'yes': return { text: 'Confirmed', color: 'text-green-600', symbol: '✓' };
-            case 'no': return { text: 'Declined', color: 'text-red-600', symbol: '✗' };
-            case 'maybe': return { text: 'Maybe', color: 'text-yellow-600', symbol: '?' };
-            default: return { text: 'No Response', color: 'text-gray-500', symbol: '○' };
+            case 'yes': return { 
+                text: 'Confirmed', 
+                color: 'text-green-700', 
+                icon: '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>' 
+            };
+            case 'no': return { 
+                text: 'Declined', 
+                color: 'text-red-700', 
+                icon: '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>' 
+            };
+            case 'maybe': return { 
+                text: 'Maybe', 
+                color: 'text-yellow-700', 
+                icon: '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>' 
+            };
+            default: return { 
+                text: 'No Response', 
+                color: 'text-gray-500', 
+                icon: '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>' 
+            };
         }
     }
 

@@ -65,7 +65,6 @@ class GuestListController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'event_date' => 'nullable|date|after:today',
             'max_guests' => 'nullable|integer|min:1|max:10000',
             'settings' => 'array'
         ]);
@@ -133,7 +132,6 @@ class GuestListController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'event_date' => 'nullable|date',
             'max_guests' => 'nullable|integer|min:1|max:10000',
             'settings' => 'array'
         ]);
@@ -358,6 +356,24 @@ class GuestListController extends Controller
                     ] : null
                 ];
             })
+        ]);
+    }
+
+    /**
+     * Get health information for a guest list (JSON response)
+     */
+    public function getHealth(GuestList $guestList)
+    {
+        Gate::authorize('view-guest-list', $guestList);
+
+        $health = $guestList->getHealth();
+
+        return response()->json([
+            'health' => $health,
+            'guest_list' => [
+                'id' => $guestList->id,
+                'name' => $guestList->name
+            ]
         ]);
     }
 } 

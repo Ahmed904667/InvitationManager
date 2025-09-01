@@ -17,29 +17,48 @@
 <body class="font-sans antialiased bg-primary">
     <div class="min-h-screen bg-primary">
         <!-- Navigation -->
-        <nav class="nav-bg shadow-sm">
+        <nav class="nav-bg shadow-sm border-b border-primary">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex">
+                <div class="flex justify-between h-20">
+                    <div class="flex items-center">
                         <!-- Logo -->
                         <div class="flex-shrink-0 flex items-center">
-                            <a href="{{ route('scanner.dashboard') }}" class="text-xl font-bold text-primary-600">
-                                📱 Guest Manager
+                            <a href="{{ route('scanner.dashboard') }}" class="flex items-center space-x-3 text-xl font-bold text-primary-600 hover:text-primary-700 transition-colors duration-200">
+                                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z"></path>
+                                    </svg>
+                                </div>
+                                <span>Guest Manager</span>
                             </a>
                         </div>
 
                         <!-- Navigation Links -->
-                        <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <a href="{{ route('scanner.dashboard') }}" class="border-primary-500 text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                        <div class="hidden sm:ml-8 sm:flex sm:space-x-1">
+                            <a href="{{ route('scanner.dashboard') }}" class="scanner-nav-link {{ request()->routeIs('scanner.dashboard') ? 'scanner-nav-link-active' : '' }}">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path>
+                                </svg>
                                 Dashboard
                             </a>
-                            <a href="{{ route('scanner.events.index') }}" class="border-transparent text-secondary hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                            <a href="{{ route('scanner.events.index') }}" class="scanner-nav-link {{ request()->routeIs('scanner.events.*') ? 'scanner-nav-link-active' : '' }}">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
                                 Events
                             </a>
-                            <a href="{{ route('scanner.offline') }}" class="border-transparent text-secondary hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                            <a href="{{ route('scanner.offline') }}" class="scanner-nav-link {{ request()->routeIs('scanner.offline') ? 'scanner-nav-link-active' : '' }}">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M12 2.25a9.75 9.75 0 100 19.5 9.75 9.75 0 000-19.5z"></path>
+                                </svg>
                                 Offline Mode
                             </a>
-                            <a href="{{ route('scanner.settings') }}" class="border-transparent text-secondary hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                            <a href="{{ route('scanner.settings') }}" class="scanner-nav-link {{ request()->routeIs('scanner.settings') ? 'scanner-nav-link-active' : '' }}">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
                                 Settings
                             </a>
                         </div>
@@ -89,16 +108,30 @@
             <!-- Mobile menu -->
             <div class="sm:hidden" id="mobile-menu">
                 <div class="pt-2 pb-3 space-y-1">
-                    <a href="{{ route('scanner.dashboard') }}" class="bg-primary-50 border-primary-500 text-primary-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+                    <a href="{{ route('scanner.dashboard') }}" class="scanner-mobile-nav-link {{ request()->routeIs('scanner.dashboard') ? 'scanner-mobile-nav-link-active' : '' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path>
+                        </svg>
                         Dashboard
                     </a>
-                    <a href="{{ route('scanner.events.index') }}" class="border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
+                    <a href="{{ route('scanner.events.index') }}" class="scanner-mobile-nav-link {{ request()->routeIs('scanner.events.*') ? 'scanner-mobile-nav-link-active' : '' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
                         Events
                     </a>
-                    <a href="{{ route('scanner.offline') }}" class="border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
+                    <a href="{{ route('scanner.offline') }}" class="scanner-mobile-nav-link {{ request()->routeIs('scanner.offline') ? 'scanner-mobile-nav-link-active' : '' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M12 2.25a9.75 9.75 0 100 19.5 9.75 9.75 0 000-19.5z"></path>
+                        </svg>
                         Offline Mode
                     </a>
-                    <a href="{{ route('scanner.settings') }}" class="border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
+                    <a href="{{ route('scanner.settings') }}" class="scanner-mobile-nav-link {{ request()->routeIs('scanner.settings') ? 'scanner-mobile-nav-link-active' : '' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
                         Settings
                     </a>
                 </div>

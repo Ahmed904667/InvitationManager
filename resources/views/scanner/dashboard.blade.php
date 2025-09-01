@@ -5,23 +5,24 @@
 @section('content')
 <div class="min-h-screen bg-primary">
     <!-- Header -->
-    <div class="nav-bg shadow">
+    <div class="scanner-dashboard-header bg-gradient-to-r from-primary-600 to-primary-700 text-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-6">
+            <div class="flex justify-between items-center py-8">
                 <div>
-                    <h1 class="text-3xl font-bold text-primary">Event Scanner Dashboard</h1>
-                    <p class="mt-1 text-sm text-secondary">Check-in guests and manage events</p>
+                    <h1 class="text-4xl font-bold">Event Scanner Dashboard</h1>
+                    <p class="mt-2 text-lg text-primary-100">Check-in guests and manage events efficiently</p>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="{{ route('scanner.events.index') }}" class="btn-success inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="{{ route('scanner.events.index') }}" class="scanner-main-button bg-white text-primary-600 hover:bg-primary-50">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z"></path>
                         </svg>
-                        Scan Event
+                        Start Scanning
                     </a>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                        📱 Scanner
-                    </span>
+                    <div class="flex items-center space-x-2 px-4 py-2 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
+                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span class="text-sm font-medium">Scanner Ready</span>
+                    </div>
                 </div>
             </div>
         </div>

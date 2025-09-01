@@ -177,3 +177,5 @@ $activeEvents = $eventGuestService->getActiveEventsForGuest($guest);
 - Event success metrics
 - Guest list performance tracking
 
+
+

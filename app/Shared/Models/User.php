@@ -34,6 +34,11 @@ class User extends Authenticatable
         return $this->hasMany(GuestList::class);
     }
 
+    public function events()
+    {
+        return $this->hasMany(Event::class);
+    }
+
     public function checkedInGuests()
     {
         return $this->hasMany(Guest::class, 'checked_in_by');

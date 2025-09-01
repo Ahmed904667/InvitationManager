@@ -23,7 +23,9 @@ class Guest extends Model
         'checked_in',
         'checked_in_at',
         'checked_in_by',
-        'check_in_notes'
+        'check_in_notes',
+        'scanned_by_scanner_id',
+        'scanner_name'
     ];
 
     protected $casts = [
@@ -66,6 +68,11 @@ class Guest extends Model
     public function checkedInBy()
     {
         return $this->belongsTo(User::class, 'checked_in_by');
+    }
+
+    public function scannedByScanner()
+    {
+        return $this->belongsTo(\App\Scanner::class, 'scanned_by_scanner_id');
     }
 
     public function isCheckedIn(): bool
@@ -117,5 +124,39 @@ class Guest extends Model
     public function getGuestListName(): string
     {
         return $this->guestList ? $this->guestList->name : 'Standalone Guest';
+    }
+
+    /**
+     * Check in guest via scanner
+     */
+    public function scannerCheckIn(\App\Scanner $scanner, ?string $notes = null): void
+    {
+        $this->checked_in = true;
+        $this->checked_in_at = now(); // Store in UTC
+        $this->check_in_notes = $notes;
+        $this->scanned_by_scanner_id = $scanner->id;
+        $this->scanner_name = $scanner->name;
+        $this->save();
+        
+        // Update scanner last used
+        $scanner->updateLastUsed();
+    }
+
+    /**
+     * Get display contact info based on event settings
+     */
+    public function getContactInfo(array $eventSettings = []): array
+    {
+        $contacts = [];
+        
+        if (!empty($this->email) && ($eventSettings['show_email'] ?? true)) {
+            $contacts['email'] = $this->email;
+        }
+        
+        if (!empty($this->phone) && ($eventSettings['show_phone'] ?? true)) {
+            $contacts['phone'] = $this->phone;
+        }
+        
+        return $contacts;
     }
 }

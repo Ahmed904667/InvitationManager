@@ -29,7 +29,7 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
                 <div class="p-2 rounded-lg" style="background: var(--primary-100);">
@@ -69,40 +69,54 @@
                 </div>
             </div>
         </div>
-        <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
-            <div class="flex items-center">
-                <div class="p-2 rounded-lg" style="background: var(--purple-100);">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--purple-600);">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Check-in Rate</p>
-                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="checkinRate">0%</p>
-                </div>
-            </div>
-        </div>
+
     </div>
 
     <!-- Search and Filters -->
     <div class="rounded-lg shadow-sm border p-6 mb-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
                 <label class="block text-sm font-medium text-primary mb-2">Search Lists</label>
-                <input type="text" id="searchInput" placeholder="Search by name..." class="form-input">
+                <input type="text" id="searchInput" placeholder="Search by name or description..." class="form-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-primary mb-2">Status</label>
-                <select id="statusFilter" class="form-select">
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="archived">Archived</option>
+                <label class="block text-sm font-medium text-primary mb-2">Health Status</label>
+                <select id="healthFilter" class="form-select">
+                    <option value="">All Health</option>
+                    <option value="excellent">Excellent</option>
+                    <option value="not valid">Not Valid</option>
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-primary mb-2">Event Date</label>
-                <input type="date" id="dateFilter" class="form-input">
+                <label class="block text-sm font-medium text-primary mb-2">Guest Count</label>
+                <select id="guestCountFilter" class="form-select">
+                    <option value="">All Lists</option>
+                    <option value="empty">Empty (0 guests)</option>
+                    <option value="small">Small (1-10 guests)</option>
+                    <option value="medium">Medium (11-50 guests)</option>
+                    <option value="large">Large (50+ guests)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-primary mb-2">Sort By</label>
+                <select id="sortBy" class="form-select">
+                    <option value="created_at_desc">Newest First</option>
+                    <option value="created_at_asc">Oldest First</option>
+                    <option value="updated_at_desc">Recently Updated</option>
+                    <option value="updated_at_asc">Least Recently Updated</option>
+                    <option value="name_asc">Name A-Z</option>
+                    <option value="name_desc">Name Z-A</option>
+                    <option value="guests_count_desc">Most Guests</option>
+                    <option value="guests_count_asc">Least Guests</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button class="btn-secondary w-full" onclick="clearFilters()">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Clear Filters
+                </button>
             </div>
         </div>
     </div>
@@ -123,37 +137,45 @@
                                 <p class="text-sm text-gray-500">{{ $list->description ?? 'No description' }}</p>
                             </div>
                         </div>
-                        <span class="badge badge-{{ $list->status ?? 'secondary' }}">{{ $list->status ?? 'N/A' }}</span>
+                        @if($list->health)
+                            <span class="badge badge-{{ $list->health['color'] }}" title="{{ $list->health['message'] }}">
+                                @if($list->health['status'] === 'not valid')
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                @else
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                @endif
+                                {{ ucfirst($list->health['status']) }}
+                            </span>
+                        @endif
                     </div>
-                    <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="mb-4">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Guests</p>
                             <p class="text-lg font-bold text-primary">{{ $list->guests_count ?? 0 }}</p>
                         </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-600">Check-ins</p>
-                            <p class="text-lg font-bold text-primary">{{ $list->checkins_count ?? 0 }}</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between text-xs text-gray-500">
+                            <div class="flex items-center">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Created: {{ $list->created_at->format('M j, Y') }}
+                            </div>
+                            <div class="flex items-center">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Updated: {{ $list->updated_at->diffForHumans() }}
+                            </div>
                         </div>
                     </div>
-                    @if($list->event_date)
-                    <div class="mb-4 p-3 bg-gray-50 rounded-md">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                            {{ $list->event_date->format('D, M j, Y') }}
-                        </div>
-                        @if($list->event_location)
-                        <div class="flex items-center text-sm text-gray-600 mt-1">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                            {{ $list->event_location }}
-                        </div>
-                        @endif
-                    </div>
-                    @endif
+
                     <div class="flex space-x-2">
                         <a href="{{ route('organizer.guest-lists.display', $list) }}" class="flex-1 btn-primary inline-flex items-center justify-center">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,13 +268,20 @@ function setupEventListeners() {
         loadGuestLists();
     }, 300));
 
-    // Filters
-    document.getElementById('statusFilter').addEventListener('change', function() {
+    // Health filter
+    document.getElementById('healthFilter').addEventListener('change', function() {
         currentPage = 1;
         loadGuestLists();
     });
 
-    document.getElementById('dateFilter').addEventListener('change', function() {
+    // Guest count filter
+    document.getElementById('guestCountFilter').addEventListener('change', function() {
+        currentPage = 1;
+        loadGuestLists();
+    });
+
+    // Sort by
+    document.getElementById('sortBy').addEventListener('change', function() {
         currentPage = 1;
         loadGuestLists();
     });
@@ -269,10 +298,19 @@ function setupEventListeners() {
 
 function loadGuestLists(append = false) {
     const search = document.getElementById('searchInput').value;
-    const status = document.getElementById('statusFilter').value;
-    const date = document.getElementById('dateFilter').value;
+    const health = document.getElementById('healthFilter').value;
+    const guestCount = document.getElementById('guestCountFilter').value;
+    const sortBy = document.getElementById('sortBy').value;
 
-    fetch(`/organizer/guest-lists/json?page=${currentPage}&search=${search}&status=${status}&date=${date}`)
+    const params = new URLSearchParams({
+        page: currentPage,
+        search: search,
+        health: health,
+        guest_count: guestCount,
+        sort_by: sortBy
+    });
+
+    fetch(`/organizer/guest-lists/json?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
             if (append) {
@@ -296,6 +334,40 @@ function renderGuestLists(lists, append = false) {
         container.innerHTML = '';
     }
 
+    // Check if no lists found
+    if (lists.length === 0 && !append) {
+        const search = document.getElementById('searchInput').value;
+        const health = document.getElementById('healthFilter').value;
+        const guestCount = document.getElementById('guestCountFilter').value;
+        
+        let message = 'No guest lists found.';
+        let suggestion = '';
+        
+        if (search || health || guestCount) {
+            message = 'No guest lists match your search criteria.';
+            suggestion = 'Try adjusting your filters or search terms.';
+        }
+        
+        container.innerHTML = `
+            <div class="col-span-full text-center py-16 px-6">
+                <div class="mx-auto mb-6">
+                    <svg class="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">${message}</h3>
+                ${suggestion ? `<p class="text-gray-500 mb-6">${suggestion}</p>` : ''}
+                <button class="btn-primary" onclick="clearFilters()">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Clear Filters
+                </button>
+            </div>
+        `;
+        return;
+    }
+
     lists.forEach(list => {
         const card = document.createElement('div');
         card.className = 'rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow duration-200';
@@ -314,39 +386,45 @@ function renderGuestLists(lists, append = false) {
                             <p class="text-sm text-gray-500">${list.description || 'No description'}</p>
                         </div>
                     </div>
-                    <span class="badge badge-${getStatusColor(list.status)}">${list.status}</span>
+                    ${list.health ? `
+                        <span class="badge badge-${list.health.color}" title="${list.health.message}">
+                            ${list.health.status === 'not valid' ? `
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            ` : `
+                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                            `}
+                            ${list.health.status.charAt(0).toUpperCase() + list.health.status.slice(1)}
+                        </span>
+                    ` : ''}
                 </div>
                 
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="mb-4">
                     <div>
                         <p class="text-sm font-medium text-gray-600">Guests</p>
                         <p class="text-lg font-bold text-primary">${list.guests_count}</p>
                     </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">Check-ins</p>
-                        <p class="text-lg font-bold text-primary">${list.checkins_count || 0}</p>
-                    </div>
                 </div>
                 
-                ${list.event_date ? `
-                <div class="mb-4 p-3 bg-gray-50 rounded-md">
-                    <div class="flex items-center text-sm text-gray-600">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        ${formatDate(list.event_date)}
+                <div class="mb-4">
+                    <div class="flex items-center justify-between text-xs text-gray-500">
+                        <div class="flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            Created: ${formatDate(list.created_at)}
+                        </div>
+                        <div class="flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Last update ${formatTimeAgo(list.updated_at)}
+                        </div>
                     </div>
-                    ${list.event_location ? `
-                    <div class="flex items-center text-sm text-gray-600 mt-1">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                        ${list.event_location}
-                    </div>
-                    ` : ''}
                 </div>
-                ` : ''}
                 
                 <div class="flex space-x-2">
                     <button class="flex-1 btn-primary" onclick="viewList(${list.id})">
@@ -378,23 +456,9 @@ function renderGuestLists(lists, append = false) {
     });
 }
 
-function getStatusColor(status) {
-    switch (status) {
-        case 'active': return 'success';
-        case 'inactive': return 'warning';
-        case 'archived': return 'secondary';
-        default: return 'secondary';
-    }
-}
 
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
-}
+
+
 
 function loadMoreLists() {
     currentPage++;
@@ -404,6 +468,15 @@ function loadMoreLists() {
 function updateLoadMoreButton() {
     const container = document.getElementById('loadMoreContainer');
     container.style.display = hasMorePages ? 'block' : 'none';
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('healthFilter').value = '';
+    document.getElementById('guestCountFilter').value = '';
+    document.getElementById('sortBy').value = 'created_at_desc';
+    currentPage = 1;
+    loadGuestLists();
 }
 
 function showCreateModal() {
@@ -521,6 +594,44 @@ document.getElementById('importForm').addEventListener('submit', function(e) {
     });
 });
 
+// Date formatting function
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+    });
+}
+
+// Time ago formatting function
+function formatTimeAgo(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) {
+        return 'just now';
+    } else if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60);
+        return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 86400) {
+        const hours = Math.floor(diffInSeconds / 3600);
+        return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 2592000) {
+        const days = Math.floor(diffInSeconds / 86400);
+        return `${days} day${days > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 31536000) {
+        const months = Math.floor(diffInSeconds / 2592000);
+        return `${months} month${months > 1 ? 's' : ''} ago`;
+    } else {
+        const years = Math.floor(diffInSeconds / 31536000);
+        return `${years} year${years > 1 ? 's' : ''} ago`;
+    }
+}
+
 // Utility functions
 function loadStats() {
     fetch('/organizer/stats')
@@ -529,7 +640,6 @@ function loadStats() {
             document.getElementById('totalLists').textContent = data.total_lists || 0;
             document.getElementById('totalGuests').textContent = data.total_guests || 0;
             document.getElementById('upcomingEvents').textContent = data.upcoming_events || 0;
-            document.getElementById('checkinRate').textContent = (data.checkin_rate || 0) + '%';
         })
         .catch(error => console.error('Error loading stats:', error));
 }

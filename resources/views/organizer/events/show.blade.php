@@ -326,18 +326,18 @@
                                 @endif
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap">
-                                @if($guest->checked_in)
+                                @if($eventGuest->checked_in)
                                     <span class="badge badge-success">Checked In</span>
                                 @else
                                     <span class="badge badge-secondary">Not Checked In</span>
                                 @endif
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm" style="color: var(--text-primary);">
-                                @if($guest->checked_in && $guest->checked_in_at)
-                                    {{ $guest->checked_in_at->format('M j, g:i A') }}
-                                    @if($guest->checkedInBy)
+                                @if($eventGuest->checked_in && $eventGuest->checked_in_at)
+                                    {{ $eventGuest->checked_in_at->format('M j, g:i A') }}
+                                    @if($eventGuest->scannedByScanner)
                                     <div class="text-xs" style="color: var(--text-secondary);">
-                                        by {{ $guest->checkedInBy->name }}
+                                        by {{ $eventGuest->scanner_name }}
                                     </div>
                                     @endif
                                 @else

@@ -114,6 +114,16 @@ class Event extends Model
                     ->withTimestamps();
     }
 
+    public function scanners()
+    {
+        return $this->hasMany(\App\Scanner::class);
+    }
+
+    public function activeScanners()
+    {
+        return $this->hasMany(\App\Scanner::class)->where('is_active', true);
+    }
+
     public function getFormattedDateAttribute(): string
     {
         return $this->start_date->format('l, F jS, Y • g:i A');
@@ -209,7 +219,7 @@ class Event extends Model
      */
     public function markAsRunning(): void
     {
-        if ($this->status !== 'running' && $this->status !== 'completed') {
+        if ($this->status !== 'running' && $this->status !== 'completed' && $this->status !== 'draft') {
             $this->update(['status' => 'running']);
         }
     }
@@ -219,7 +229,7 @@ class Event extends Model
      */
     public function markAsCompleted(): void
     {
-        if ($this->status !== 'completed') {
+        if ($this->status !== 'completed' && $this->status !== 'draft') {
             $this->update(['status' => 'completed']);
         }
     }
@@ -274,5 +284,39 @@ class Event extends Model
                        ->where('start_date', '<', $startOfDay);
               });
         });
+    }
+
+    /**
+     * Check if this event can use scanner functionality
+     */
+    public function canUseScanner(): bool
+    {
+        return $this->qr_checkin_enabled && 
+               in_array($this->status, ['sent', 'scheduled', 'running']);
+    }
+
+    /**
+     * Generate a new scanner for this event
+     */
+    public function createScanner(string $name): \App\Scanner
+    {
+        return $this->scanners()->create([
+            'name' => $name,
+            'is_active' => true
+        ]);
+    }
+
+    /**
+     * Get the main scanner URL for this event (creates default scanner if none exists)
+     */
+    public function getMainScannerUrl(): string
+    {
+        $scanner = $this->activeScanners()->first();
+        
+        if (!$scanner) {
+            $scanner = $this->createScanner('Main Scanner');
+        }
+        
+        return $scanner->getScannerUrl();
     }
 } 

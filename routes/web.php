@@ -63,6 +63,13 @@ Route::get('/test-theme', function () {
     return view('test-theme');
 })->name('test-theme');
 
+// Test camera route
+Route::get('/test-camera', function () {
+    return view('test-camera');
+})->name('test-camera');
+
+
+
 
 
 // Include role-based route files
@@ -70,8 +77,32 @@ require __DIR__.'/admin.php';
 require __DIR__.'/organizer.php';
 require __DIR__.'/scanner.php';
 
+// Include mobile scanner routes (no auth required, token-based access)
+require __DIR__.'/mobile.php';
+
 // Public invitation routes
 Route::get('/invite/{token}', function(string $token) {
+    // Handle preview mode for organizers
+    if (str_starts_with($token, 'preview-')) {
+        $invitationId = str_replace('preview-', '', $token);
+        $invitation = \App\Shared\Models\Invitation::findOrFail($invitationId);
+        
+        // For preview mode, we don't check expiration status
+        $event = \App\Shared\Models\Event::findOrFail($invitation->event_id);
+        $guest = \App\Shared\Models\Guest::findOrFail($invitation->guest_id);
+
+        // Build map link if address exists
+        $addressForMap = $event->venue_address ?: ($event->location ?: '');
+        $mapLink = $addressForMap ? 'https://www.google.com/maps/search/?api=1&query=' . urlencode($addressForMap) : null;
+        $inviteUrl = route('public.invite.show', ['token' => $token]);
+        
+        // Add preview mode flag
+        $isPreview = true;
+
+        return view('invitations.show', compact('event', 'guest', 'invitation', 'mapLink', 'inviteUrl', 'isPreview'));
+    }
+    
+    // Regular invitation handling
     $invitation = \App\Shared\Models\Invitation::where('token', $token)->firstOrFail();
     
     // Check if invitation is expired
@@ -86,8 +117,11 @@ Route::get('/invite/{token}', function(string $token) {
     $addressForMap = $event->venue_address ?: ($event->location ?: '');
     $mapLink = $addressForMap ? 'https://www.google.com/maps/search/?api=1&query=' . urlencode($addressForMap) : null;
     $inviteUrl = route('public.invite.show', ['token' => $token]);
+    
+    // Regular mode (not preview)
+    $isPreview = false;
 
-    return view('invitations.show', compact('event', 'guest', 'invitation', 'mapLink', 'inviteUrl'));
+    return view('invitations.show', compact('event', 'guest', 'invitation', 'mapLink', 'inviteUrl', 'isPreview'));
 })->name('public.invite.show');
 
 Route::post('/invite/{token}/rsvp', [App\Http\Controllers\RsvpController::class, 'submit'])->name('public.invite.rsvp');
@@ -215,3 +249,19 @@ Route::post('/invite/{token}/reminder', function(string $token, Illuminate\Http\
         ], 500);
     }
 })->name('public.invite.reminder');
+
+// Temporary test route for health calculation
+Route::get('/test-health/{id}', function($id) {
+    $guestList = \App\Shared\Models\GuestList::find($id);
+    if (!$guestList) {
+        return response()->json(['error' => 'Guest list not found']);
+    }
+    
+    $organizerService = new \App\Organizer\Services\OrganizerService();
+    $health = $organizerService->calculateGuestListHealth($guestList);
+    
+    return response()->json([
+        'guest_list' => $guestList->name,
+        'health' => $health
+    ]);
+})->middleware('auth');

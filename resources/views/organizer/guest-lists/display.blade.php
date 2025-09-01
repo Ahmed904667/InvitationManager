@@ -99,7 +99,7 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
                 <div class="p-2 rounded-lg" style="background: var(--primary-100);">
@@ -126,35 +126,35 @@
                 </div>
             </div>
         </div>
-        <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
+
+        <div class="rounded-lg shadow-sm border p-6 cursor-pointer hover:shadow-md transition-shadow" style="background: var(--bg-primary); border-color: var(--border-primary);" onclick="showHealthModal()">
             <div class="flex items-center">
-                <div class="p-2 rounded-lg" style="background: var(--yellow-100);">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--yellow-600);">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+                <div class="p-2 rounded-lg" style="background: var(--{{ $guestList->health['color'] ?? 'gray' }}-100);">
+                    @if($guestList->health && $guestList->health['status'] === 'not valid')
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--{{ $guestList->health['color'] ?? 'gray' }}-600);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    @else
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--{{ $guestList->health['color'] ?? 'gray' }}-600);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    @endif
                 </div>
                 <div class="ml-4">
-                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Pending</p>
-                    <p class="text-2xl font-bold" style="color: var(--text-primary);">{{ $allGuests->where('checked_in', false)->count() }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
-            <div class="flex items-center">
-                <div class="p-2 rounded-lg" style="background: var(--purple-100);">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--purple-600);">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Check-in Rate</p>
+                    <p class="text-sm font-medium" style="color: var(--text-secondary);">List Health</p>
                     <p class="text-2xl font-bold" style="color: var(--text-primary);">
-                        @if($allGuests->count() > 0)
-                            {{ round(($allGuests->where('checked_in', true)->count() / $allGuests->count()) * 100) }}%
+                        @if($guestList->health)
+                            {{ ucfirst($guestList->health['status']) }}
                         @else
-                            0%
+                            N/A
                         @endif
                     </p>
+                </div>
+                <div class="ml-auto">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
                 </div>
             </div>
         </div>
@@ -168,11 +168,16 @@
                 <input type="text" id="searchInput" placeholder="Search by name or email..." class="form-input">
             </div>
             <div>
-                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Status</label>
-                <select id="statusFilter" class="form-select">
+                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Health Issues</label>
+                <select id="healthFilter" class="form-select">
                     <option value="">All Guests</option>
-                    <option value="checked_in">Checked In</option>
-                    <option value="pending">Pending</option>
+                    <option value="missing_email">Missing Email</option>
+                    <option value="missing_phone">Missing Phone</option>
+                    <option value="missing_group">Missing Group</option>
+                    <option value="missing_language">Missing Language</option>
+                    <option value="duplicate_email">Duplicate Email</option>
+                    <option value="duplicate_phone">Duplicate Phone</option>
+                    <option value="invalid_phone">Invalid Phone Format</option>
                 </select>
             </div>
             @if($guestList->settings['fields']['group'] ?? false)
@@ -242,7 +247,23 @@
                             <tbody style="background: var(--bg-primary); color: var(--text-primary);">
                                 @if(count($groupGuests) > 0)
                                     @foreach($groupGuests as $guest)
-                                        <tr class="hover:bg-gray-100 transition" data-name="{{ strtolower($guest->name) }}" data-email="{{ strtolower($guest->email ?? '') }}" data-status="{{ $guest->checked_in ? 'checked_in' : 'pending' }}" data-group="{{ $guest->group ? $guest->group->name : '' }}">
+                                        @php
+                                            $healthIssues = [];
+                                            if (($guestList->settings['fields']['email'] ?? false) && empty($guest->email)) {
+                                                $healthIssues[] = 'missing_email';
+                                            }
+                                            if (($guestList->settings['fields']['phone'] ?? false) && empty($guest->phone)) {
+                                                $healthIssues[] = 'missing_phone';
+                                            }
+                                            if (($guestList->settings['fields']['group'] ?? false) && empty($guest->group_id)) {
+                                                $healthIssues[] = 'missing_group';
+                                            }
+                                            if (($guestList->settings['fields']['language'] ?? false) && empty($guest->language)) {
+                                                $healthIssues[] = 'missing_language';
+                                            }
+                                            $healthData = implode(',', $healthIssues);
+                                        @endphp
+                                        <tr class="hover:bg-gray-100 transition" data-name="{{ strtolower($guest->name) }}" data-email="{{ strtolower($guest->email ?? '') }}" data-health="{{ $healthData }}" data-group="{{ $guest->group ? $guest->group->name : '' }}">
                                             <td class="px-6 py-4 whitespace-nowrap font-semibold">{{ $guest->name }}</td>
                                             @if($guestList->settings['fields']['email'] ?? false)
                                                 <td class="px-6 py-4 whitespace-nowrap">{{ $guest->email ?? '' }}</td>
@@ -286,7 +307,23 @@
                             </thead>
                             <tbody style="background: var(--bg-primary); color: var(--text-primary);">
                                 @foreach($ungrouped as $guest)
-                                    <tr class="hover:bg-gray-100 transition" data-name="{{ strtolower($guest->name) }}" data-email="{{ strtolower($guest->email ?? '') }}" data-status="{{ $guest->checked_in ? 'checked_in' : 'pending' }}" data-group="{{ $guest->group ? $guest->group->name : '' }}">
+                                    @php
+                                        $healthIssues = [];
+                                        if (($guestList->settings['fields']['email'] ?? false) && empty($guest->email)) {
+                                            $healthIssues[] = 'missing_email';
+                                        }
+                                        if (($guestList->settings['fields']['phone'] ?? false) && empty($guest->phone)) {
+                                            $healthIssues[] = 'missing_phone';
+                                        }
+                                        if (($guestList->settings['fields']['group'] ?? false) && empty($guest->group_id)) {
+                                            $healthIssues[] = 'missing_group';
+                                        }
+                                        if (($guestList->settings['fields']['language'] ?? false) && empty($guest->language)) {
+                                            $healthIssues[] = 'missing_language';
+                                        }
+                                        $healthData = implode(',', $healthIssues);
+                                    @endphp
+                                    <tr class="hover:bg-gray-100 transition" data-name="{{ strtolower($guest->name) }}" data-email="{{ strtolower($guest->email ?? '') }}" data-health="{{ $healthData }}" data-group="{{ $guest->group ? $guest->group->name : '' }}">
                                         <td class="px-6 py-4 whitespace-nowrap font-semibold">{{ $guest->name }}</td>
                                         @if($guestList->settings['fields']['email'] ?? false)
                                             <td class="px-6 py-4 whitespace-nowrap">{{ $guest->email ?? '' }}</td>
@@ -323,7 +360,23 @@
                         </thead>
                         <tbody style="background: var(--bg-primary); color: var(--text-primary);">
                             @foreach($allGuests as $guest)
-                                <tr class="hover:bg-gray-100 transition" data-name="{{ strtolower($guest->name) }}" data-email="{{ strtolower($guest->email ?? '') }}" data-status="{{ $guest->checked_in ? 'checked_in' : 'pending' }}" data-group="{{ $guest->group ? $guest->group->name : '' }}">
+                                @php
+                                    $healthIssues = [];
+                                    if (($guestList->settings['fields']['email'] ?? false) && empty($guest->email)) {
+                                        $healthIssues[] = 'missing_email';
+                                    }
+                                    if (($guestList->settings['fields']['phone'] ?? false) && empty($guest->phone)) {
+                                        $healthIssues[] = 'missing_phone';
+                                    }
+                                    if (($guestList->settings['fields']['group'] ?? false) && empty($guest->group_id)) {
+                                        $healthIssues[] = 'missing_group';
+                                    }
+                                    if (($guestList->settings['fields']['language'] ?? false) && empty($guest->language)) {
+                                        $healthIssues[] = 'missing_language';
+                                    }
+                                    $healthData = implode(',', $healthIssues);
+                                @endphp
+                                <tr class="hover:bg-gray-100 transition" data-name="{{ strtolower($guest->name) }}" data-email="{{ strtolower($guest->email ?? '') }}" data-health="{{ $healthData }}" data-group="{{ $guest->group ? $guest->group->name : '' }}">
                                     <td class="px-6 py-4 whitespace-nowrap font-semibold">{{ $guest->name }}</td>
                                     @if($guestList->settings['fields']['email'] ?? false)
                                         <td class="px-6 py-4 whitespace-nowrap">{{ $guest->email ?? '' }}</td>
@@ -357,6 +410,63 @@
         @endif
     </div>
 </div>
+
+<!-- Health Modal -->
+<div id="healthModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">List Health Details</h3>
+            <button type="button" class="modal-close" onclick="closeHealthModal()"></button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="mb-6">
+                <div class="flex items-center mb-3">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium badge-{{ $guestList->health['color'] ?? 'gray' }}">
+                        {{ ucfirst($guestList->health['status'] ?? 'Unknown') }}
+                    </span>
+                </div>
+                <p class="text-sm" style="color: var(--text-secondary);">{{ $guestList->health['message'] ?? 'No health information available.' }}</p>
+            </div>
+            
+            @if($guestList->health && isset($guestList->health['issues']) && count($guestList->health['issues']) > 0)
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium mb-3" style="color: var(--text-primary);">Issues Found:</h4>
+                    <ul class="space-y-2">
+                        @foreach($guestList->health['issues'] as $issue)
+                            <li class="flex items-start">
+                                <svg class="w-4 h-4 text-red-500 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span style="color: var(--text-secondary);">{{ $issue }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+            
+            <div class="text-sm" style="color: var(--text-tertiary);">
+                <p class="mb-1">Total Guests: {{ $guestList->health['total_guests'] ?? 0 }}</p>
+                <p>Total Issues: {{ $guestList->health['total_issues'] ?? 0 }}</p>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            @if($guestList->health && $guestList->health['status'] === 'not valid')
+                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeHealthModal()">Close</button>
+                <a href="{{ route('organizer.guest-lists.edit', $guestList) }}" class="modal-btn modal-btn-primary">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                    Edit List
+                </a>
+            @else
+                <div></div>
+                <button type="button" class="modal-btn modal-btn-primary" onclick="closeHealthModal()">Close</button>
+            @endif
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -365,7 +475,7 @@
 // Filter functionality
 function filterGuests() {
     const search = document.getElementById('searchInput').value.toLowerCase();
-    const status = document.getElementById('statusFilter').value;
+    const health = document.getElementById('healthFilter').value;
     const group = document.getElementById('groupFilter').value;
     
     const guestRows = document.querySelectorAll('#guestsTableContainer tbody tr');
@@ -373,14 +483,14 @@ function filterGuests() {
     guestRows.forEach(row => {
         const name = row.dataset.name;
         const email = row.dataset.email;
-        const guestStatus = row.dataset.status;
+        const guestHealth = row.dataset.health;
         const guestGroup = row.dataset.group;
         
         const matchesSearch = name.includes(search) || email.includes(search);
-        const matchesStatus = !status || guestStatus === status;
+        const matchesHealth = !health || guestHealth.includes(health);
         const matchesGroup = !group || guestGroup === group;
         
-        if (matchesSearch && matchesStatus && matchesGroup) {
+        if (matchesSearch && matchesHealth && matchesGroup) {
             row.style.display = 'table-row';
         } else {
             row.style.display = 'none';
@@ -410,7 +520,7 @@ function filterGuests() {
 
 function clearFilters() {
     document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
+    document.getElementById('healthFilter').value = '';
     document.getElementById('groupFilter').value = '';
     filterGuests();
 }
@@ -418,15 +528,15 @@ function clearFilters() {
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
+    const healthFilter = document.getElementById('healthFilter');
     const groupFilter = document.getElementById('groupFilter');
     
     if (searchInput) {
         searchInput.addEventListener('input', debounce(filterGuests, 300));
     }
     
-    if (statusFilter) {
-        statusFilter.addEventListener('change', filterGuests);
+    if (healthFilter) {
+        healthFilter.addEventListener('change', filterGuests);
     }
     
     if (groupFilter) {
@@ -446,5 +556,39 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// Health Modal Functions
+function showHealthModal() {
+    const modal = document.getElementById('healthModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeHealthModal() {
+    const modal = document.getElementById('healthModal');
+    modal.classList.remove('show');
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+// Close modal when clicking outside
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('healthModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeHealthModal();
+            }
+        });
+    }
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeHealthModal();
+        }
+    });
+});
 </script>
 @endpush 
