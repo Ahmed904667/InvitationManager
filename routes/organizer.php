@@ -118,6 +118,24 @@ Route::delete('/guest-lists/{guestList}/groups/{group}', [GuestListController::c
     Route::post('/events/{event}/update-sent/add-guest-list', [\App\Organizer\Controllers\EventController::class, 'addGuestListToSentEvent'])->name('events.update-sent.add-guest-list');
     Route::post('/events/{event}/update-sent/add-guest', [\App\Organizer\Controllers\EventController::class, 'addGuestToSentEvent'])->name('events.update-sent.add-guest');
     Route::post('/events/{event}/update-sent/remove-guest', [\App\Organizer\Controllers\EventController::class, 'removeGuestFromSentEvent'])->name('events.update-sent.remove-guest');
+Route::get('/events/{event}/notifications', [\App\Organizer\Controllers\EventController::class, 'viewNotifications'])->name('events.notifications');
+Route::post('/events/{event}/notifications/refresh', [\App\Organizer\Controllers\EventController::class, 'refreshNotificationStatuses'])->name('events.notifications.refresh');
+Route::get('/events/{event}/notifications/stats', [\App\Organizer\Controllers\EventController::class, 'getNotificationStats'])->name('events.notifications.stats');
+    Route::get('/events/{event}/notifications/list', [\App\Organizer\Controllers\EventController::class, 'getNotificationList'])->name('events.notifications.list');
+    Route::post('/events/{event}/notifications/send', [\App\Organizer\Controllers\EventController::class, 'sendNotificationToAllGuests'])->name('events.notifications.send');
+    Route::get('/events/{event}/notifications/{notificationId}/check-status', [\App\Organizer\Controllers\EventController::class, 'checkNotificationStatus'])->name('events.notifications.check-status');
+    
+    // Test route for debugging
+    Route::get('/events/{event}/notifications/test', function(\App\Shared\Models\Event $event) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Test route working',
+            'event_id' => $event->id,
+            'event_name' => $event->name,
+            'user_id' => auth()->id()
+        ]);
+    })->name('events.notifications.test');
+
     Route::post('/events/{event}/update-sent/remove-guest-list', [\App\Organizer\Controllers\EventController::class, 'removeGuestListFromSentEvent'])->name('events.update-sent.remove-guest-list');
     Route::post('/events/{event}/update-sent/generate-messages', [\App\Organizer\Controllers\EventController::class, 'generateMessagesForNewGuests'])->name('events.update-sent.generate-messages');
     Route::post('/events/{event}/update-sent/save-message', [\App\Organizer\Controllers\EventController::class, 'saveGuestMessage'])->name('events.update-sent.save-message');

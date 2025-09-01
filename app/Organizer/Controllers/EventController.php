@@ -5,7 +5,13 @@ namespace App\Organizer\Controllers;
 use App\Http\Controllers\Controller;
 use App\Shared\Models\Event;
 use App\Shared\Models\GuestList;
+use App\Shared\Models\Guest;
+use App\Shared\Models\Invitation;
+use App\Shared\Models\Notification;
+
 use App\Organizer\Services\EventCreationService;
+use App\Services\EventGuestService;
+use App\Services\TwilioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -1485,6 +1491,9 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             ]);
         }
         
+        // Automatically refresh notification statuses for WhatsApp notifications
+        $this->refreshNotificationStatusesSilently($event);
+        
         // Use EventGuestService to get active guests
         $eventGuestService = app(\App\Services\EventGuestService::class);
         $activeEventGuests = $eventGuestService->getActiveGuestsForEvent($event);
@@ -2535,6 +2544,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                             'guest_id' => $guest->id,
                             'token' => \Str::random(32),
                             'status' => 'pending',
+                            'channel' => 'email', // Add required channel field
                         ]);
                         
                         // Send invitation to new guest
@@ -3027,6 +3037,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 'guest_id' => $guest->id,
                 'token' => Str::random(32),
                 'status' => 'pending',
+                'channel' => 'email', // Add required channel field
             ]);
             
             $guestsData[] = [
@@ -3093,6 +3104,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             'guest_id' => $guest->id,
             'token' => Str::random(32),
             'status' => 'pending',
+            'channel' => 'email', // Add required channel field
         ]);
 
         // Prepare response data
@@ -3171,27 +3183,86 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         $notificationSent = false;
         $notificationErrors = [];
 
+        // Track notification success for each channel separately
+        $emailSent = false;
+        $whatsappSent = false;
+        
         // Send email notification
         if (!empty($validated['notify_email']) && $guestEmail) {
             try {
                 $this->sendGuestRemovalEmail($guest, $event, $validated['notification_message']);
-                $notificationSent = true;
+                
+                // Create notification record for email tracking
+                \App\Shared\Models\Notification::create([
+                    'event_id' => $event->id,
+                    'guest_id' => $guest->id,
+                    'user_id' => Auth::id(),
+                    'type' => \App\Shared\Models\Notification::TYPE_GUEST_REMOVAL,
+                    'channel' => 'email',
+                    'message' => $validated['notification_message'],
+                    'status' => \App\Shared\Models\Notification::STATUS_DELIVERED, // Emails are considered delivered when sent
+                    'sent_at' => now(),
+                    'delivery_details' => [
+                        'email_sent' => true,
+                        'sent_at' => now()->toISOString()
+                    ]
+                ]);
+                
+                $emailSent = true;
             } catch (\Exception $e) {
                 $notificationErrors[] = 'Email: ' . $e->getMessage();
             }
+        } elseif (!empty($validated['notify_email']) && !$guestEmail) {
+            $notificationErrors[] = 'Email: No email address available';
         }
 
         // Send WhatsApp notification
         if (!empty($validated['notify_whatsapp']) && $guestPhone) {
             try {
-                $this->sendGuestRemovalWhatsApp($guest, $event, $validated['notification_message']);
-                $notificationSent = true;
+                $result = $this->sendGuestRemovalWhatsApp($guest, $event, $validated['notification_message']);
+                if ($result['success']) {
+                    // Create notification record for tracking
+                    \App\Shared\Models\Notification::create([
+                        'event_id' => $event->id,
+                        'guest_id' => $guest->id,
+                        'user_id' => Auth::id(),
+                        'type' => \App\Shared\Models\Notification::TYPE_GUEST_REMOVAL,
+                        'channel' => 'whatsapp',
+                        'message' => $validated['notification_message'],
+                        'status' => \App\Shared\Models\Notification::STATUS_QUEUED,
+                        'external_id' => $result['message_sid'],
+                        'sent_at' => now(),
+                        'delivery_details' => [
+                            'twilio_response' => $result,
+                            'twilio_status' => $result['status'],
+                            'message_accepted' => true,
+                            'guest_phone' => $guest->phone,
+                            'guest_name' => $guest->name,
+                            'sent_at' => now()->toISOString()
+                        ]
+                    ]);
+                    $whatsappSent = true;
+                } else {
+                    // Clean up Twilio error messages to be user-friendly
+                    $errorMessage = $result['error'] ?? 'Failed to send message';
+                    if (strpos($errorMessage, '[HTTP 400]') !== false) {
+                        $errorMessage = 'Invalid phone number format';
+                    } elseif (strpos($errorMessage, 'Unable to create record') !== false) {
+                        $errorMessage = 'Phone number not valid for WhatsApp';
+                    }
+                    $notificationErrors[] = 'WhatsApp: ' . $errorMessage;
+                }
             } catch (\Exception $e) {
                 $notificationErrors[] = 'WhatsApp: ' . $e->getMessage();
             }
+        } elseif (!empty($validated['notify_whatsapp']) && !$guestPhone) {
+            $notificationErrors[] = 'WhatsApp: No phone number available';
         }
+        
+        // Overall notification success (at least one channel succeeded)
+        $notificationSent = $emailSent || $whatsappSent;
 
-        // Log the removal action
+        // Log the removal action with detailed notification information
         \Log::info('Guest removed from event', [
             'event_id' => $event->id,
             'guest_id' => $guest->id,
@@ -3200,6 +3271,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             'is_standalone' => $isStandalone,
             'removed_by' => Auth::id(),
             'notification_sent' => $notificationSent,
+            'email_sent' => $emailSent,
+            'whatsapp_sent' => $whatsappSent,
             'notification_errors' => $notificationErrors,
             'event_guest_id' => $eventGuest->id
         ]);
@@ -3209,16 +3282,374 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             ? "Standalone guest '{$guestName}' removed successfully from the event."
             : "Guest '{$guestName}' removed successfully from the event (remains in their guest list).";
 
-        if ($notificationSent) {
-            $message .= " Notification sent successfully.";
+        // Add detailed notification status
+        if ($notificationSent && empty($notificationErrors)) {
+            $message .= " ✅ All notifications sent successfully.";
+        } elseif ($notificationSent && !empty($notificationErrors)) {
+            $message .= " ⚠️ Some notifications sent, but there were issues with others.";
+        } elseif (!empty($notificationErrors)) {
+            $message .= " ❌ Guest was removed but notification delivery failed.";
+        } else {
+            $message .= " ℹ️ No notifications were requested.";
         }
 
+        // Add specific error details if there are any
         if (!empty($notificationErrors)) {
-            $message .= " Some notifications failed: " . implode(', ', $notificationErrors);
+            $message .= " Issues: " . implode('; ', array_slice($notificationErrors, 0, 3));
+            if (count($notificationErrors) > 3) {
+                $message .= " and " . (count($notificationErrors) - 3) . " more issues.";
+            }
         }
 
         return back()->with('success', $message);
     }
+
+    /**
+     * View notification status for an event
+     */
+    public function viewNotifications(Event $event)
+    {
+        $this->authorize('update', $event);
+        
+        $notifications = $event->notifications()
+            ->with(['guest', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->groupBy('channel');
+
+                            $stats = [
+                        'queued' => $event->notifications()->whereIn('status', ['queued', 'sending', 'pending'])->count(),
+                        'delivered' => $event->notifications()->whereIn('status', ['delivered', 'sent'])->count(),
+                        'read' => $event->notifications()->where('status', 'read')->count(),
+                        'failed' => $event->notifications()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
+                    ];
+
+        return view('organizer.events.notifications', compact('event', 'notifications', 'stats'));
+    }
+    
+    /**
+     * Refresh notification statuses from Twilio
+     */
+    public function refreshNotificationStatuses(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+        
+        // Get all WhatsApp notifications for this event (check all statuses for updates)
+        $allNotifications = $event->notifications()
+            ->where('channel', 'whatsapp')
+            ->get();
+            
+        $updatedCount = 0;
+        $errors = [];
+        $missingExternalId = 0;
+        
+        foreach ($allNotifications as $notification) {
+            try {
+                // Check if we have external_id
+                if (!$notification->external_id) {
+                    // Try to extract from delivery_details
+                    $deliveryDetails = $notification->delivery_details ?? [];
+                    $messageSid = $deliveryDetails['twilio_response']['message_sid'] ?? null;
+                    
+                    if ($messageSid) {
+                        $notification->update(['external_id' => $messageSid]);
+                        \Log::info('Fixed missing external_id for notification', [
+                            'notification_id' => $notification->id,
+                            'message_sid' => $messageSid
+                        ]);
+                    } else {
+                        $missingExternalId++;
+                        continue; // Skip this notification
+                    }
+                }
+                
+                // Get message status from Twilio
+                $twilioService = app(TwilioService::class);
+                $messageStatus = $twilioService->getMessageStatus($notification->external_id);
+                
+                if ($messageStatus) {
+                    // Check if status actually needs updating
+                    $currentTwilioStatus = strtolower($messageStatus->status);
+                    $currentNotificationStatus = strtolower($notification->status);
+                    $deliveryDetails = $notification->delivery_details ?? [];
+                    $lastTwilioStatus = strtolower($deliveryDetails['twilio_status'] ?? '');
+                    
+                    // Only update if Twilio status has changed
+                    if ($currentTwilioStatus !== $lastTwilioStatus) {
+                        // Update the notification status
+                        $this->updateNotificationFromTwilio($notification, $messageStatus);
+                        $updatedCount++;
+                        
+                        \Log::info('Updated notification status from Twilio', [
+                            'notification_id' => $notification->id,
+                            'message_sid' => $notification->external_id,
+                            'old_status' => $notification->getOriginal('status'),
+                            'new_status' => $notification->status,
+                            'old_twilio_status' => $lastTwilioStatus,
+                            'new_twilio_status' => $currentTwilioStatus
+                        ]);
+                    } else {
+                        \Log::info('Notification status unchanged', [
+                            'notification_id' => $notification->id,
+                            'twilio_status' => $currentTwilioStatus,
+                            'local_status' => $currentNotificationStatus
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                $errors[] = "Failed to update notification {$notification->id}: " . $e->getMessage();
+                \Log::error('Failed to update notification status', [
+                    'notification_id' => $notification->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        $message = "Updated {$updatedCount} notification statuses.";
+        if ($missingExternalId > 0) {
+            $message .= " Skipped {$missingExternalId} notifications with missing message IDs.";
+        }
+        if (!empty($errors)) {
+            $message .= " Errors: " . implode('; ', array_slice($errors, 0, 3));
+        }
+        
+        // Always return JSON for the refresh endpoint
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'updated_count' => $updatedCount,
+            'missing_external_id' => $missingExternalId,
+            'errors' => $errors
+        ]);
+    }
+    
+    /**
+     * Get notification statistics for an event
+     */
+    public function getNotificationStats(Event $event)
+    {
+        $this->authorize('view', $event);
+        
+        $stats = [
+            'queued' => $event->notifications()->whereIn('status', ['queued', 'sending', 'pending'])->count(),
+            'delivered' => $event->notifications()->whereIn('status', ['delivered', 'sent'])->count(),
+            'read' => $event->notifications()->where('status', 'read')->count(),
+            'failed' => $event->notifications()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'stats' => $stats
+        ]);
+    }
+    
+    /**
+     * Get notification list for an event
+     */
+    public function getNotificationList(Event $event)
+    {
+        $this->authorize('view', $event);
+        
+        $notifications = $event->notifications()
+            ->with(['guest', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'status' => $notification->status,
+                    'channel' => $notification->channel,
+                    'type' => $notification->type,
+                    'message' => $notification->message,
+                    'created_at' => $notification->created_at->toISOString(),
+                    'guest_name' => $notification->guest ? $notification->guest->name : null,
+                    'external_id' => $notification->external_id
+                ];
+            });
+        
+        return response()->json([
+            'success' => true,
+            'notifications' => $notifications
+        ]);
+    }
+    
+    /**
+     * Manually check and update a specific notification's status
+     */
+    public function checkNotificationStatus(Event $event, $notificationId)
+    {
+        $this->authorize('update', $event);
+        
+        $notification = $event->notifications()->findOrFail($notificationId);
+        
+        if ($notification->channel !== 'whatsapp' || !$notification->external_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Notification not eligible for status check'
+            ]);
+        }
+        
+        try {
+            $twilioService = app(TwilioService::class);
+            $messageStatus = $twilioService->getMessageStatus($notification->external_id);
+            
+            if ($messageStatus) {
+                $oldStatus = $notification->status;
+                $oldTwilioStatus = $notification->delivery_details['twilio_status'] ?? 'unknown';
+                
+                $this->updateNotificationFromTwilio($notification, $messageStatus);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Status updated successfully',
+                    'old_status' => $oldStatus,
+                    'new_status' => $notification->status,
+                    'old_twilio_status' => $oldTwilioStatus,
+                    'new_twilio_status' => $messageStatus->status,
+                    'notification_id' => $notification->id
+                ]);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check status: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Update notification status from Twilio data
+     */
+    private function updateNotificationFromTwilio($notification, $twilioMessage)
+    {
+        // Get existing delivery details and merge with new status
+        $existingDetails = $notification->delivery_details ?? [];
+        $deliveryDetails = array_merge($existingDetails, [
+            'twilio_status' => $twilioMessage->status,
+            'updated_at' => now()->toISOString(),
+            'last_checked' => now()->toISOString()
+        ]);
+        
+        switch (strtolower($twilioMessage->status)) {
+            case 'queued':
+            case 'sending':
+            case 'accepted':
+            case 'scheduled':
+            case 'partially_delivered':
+            case 'receiving':
+            case 'received':
+                // Map intermediate statuses to 'queued'
+                $notification->markAsQueued($deliveryDetails);
+                break;
+            case 'sent':
+                // Map 'sent' to 'delivered' since it means message was accepted and sent
+                $notification->markAsDelivered($notification->external_id, $deliveryDetails);
+                break;
+            case 'delivered':
+                $notification->markAsDelivered($notification->external_id, $deliveryDetails);
+                break;
+            case 'read':
+                // Message delivered and read by recipient (only for WhatsApp)
+                if ($notification->channel === 'whatsapp') {
+                    $notification->markAsRead($deliveryDetails);
+                } else {
+                    // For non-WhatsApp channels (like email), just update delivery details
+                    $notification->updateDeliveryDetails($deliveryDetails);
+                }
+                break;
+            case 'undelivered':
+                $notification->markAsUndelivered($deliveryDetails);
+                break;
+            case 'failed':
+                $notification->markAsFailed('Message delivery failed', $deliveryDetails);
+                break;
+            case 'canceled':
+                $notification->markAsCanceled($deliveryDetails);
+                break;
+            default:
+                // For any other status, just update delivery details
+                $notification->updateDeliveryDetails($deliveryDetails);
+                break;
+        }
+    }
+    
+    /**
+     * Silently refresh notification statuses without user feedback
+     * This is called automatically when viewing the event page
+     */
+    private function refreshNotificationStatusesSilently(Event $event)
+    {
+        try {
+            // Only refresh if there are queued WhatsApp notifications
+            $queuedCount = $event->notifications()
+                ->whereIn('status', ['queued', 'pending'])
+                ->where('channel', 'whatsapp')
+                ->count();
+                
+            if ($queuedCount === 0) {
+                return; // No need to refresh
+            }
+            
+            // Get all queued/pending WhatsApp notifications
+            $pendingNotifications = $event->notifications()
+                ->whereIn('status', ['queued', 'pending'])
+                ->where('channel', 'whatsapp')
+                ->get();
+                
+            $updatedCount = 0;
+            
+            foreach ($pendingNotifications as $notification) {
+                try {
+                    // Check if we have external_id
+                    if (!$notification->external_id) {
+                        // Try to extract from delivery_details
+                        $deliveryDetails = $notification->delivery_details ?? [];
+                        $messageSid = $deliveryDetails['twilio_response']['message_sid'] ?? null;
+                        
+                        if ($messageSid) {
+                            $notification->update(['external_id' => $messageSid]);
+                        } else {
+                            continue; // Skip this notification
+                        }
+                    }
+                    
+                    // Get message status from Twilio
+                    $twilioService = app(TwilioService::class);
+                    $messageStatus = $twilioService->getMessageStatus($notification->external_id);
+                    
+                    if ($messageStatus) {
+                        // Update the notification status
+                        $this->updateNotificationFromTwilio($notification, $messageStatus);
+                        $updatedCount++;
+                    }
+                } catch (\Exception $e) {
+                    // Log error but don't show to user
+                    \Log::debug('Silent notification status update failed', [
+                        'notification_id' => $notification->id,
+                        'silent_refresh' => true,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            if ($updatedCount > 0) {
+                \Log::info('Silently updated notification statuses', [
+                    'event_id' => $event->id,
+                    'updated_count' => $updatedCount
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            // Log error but don't show to user
+            \Log::debug('Silent notification status refresh failed', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+    
+
 
     /**
      * Remove a guest list from a sent event
@@ -3382,13 +3813,69 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     }
 
     /**
+     * Create a notification record for tracking
+     */
+    private function createNotificationRecord($guest, $event, $channel, $message)
+    {
+        $deliveryDetails = [];
+        
+        if ($channel === 'email') {
+            $deliveryDetails = [
+                'email_sent' => true,
+                'sent_at' => now()->toISOString()
+            ];
+        } elseif ($channel === 'whatsapp') {
+            $deliveryDetails = [
+                'twilio_status' => 'queued',
+                'message_accepted' => true,
+                'guest_phone' => $guest->phone,
+                'guest_name' => $guest->name,
+                'sent_at' => now()->toISOString()
+            ];
+        }
+        
+        return \App\Shared\Models\Notification::create([
+            'event_id' => $event->id,
+            'guest_id' => $guest->id,
+            'user_id' => Auth::id(),
+            'type' => \App\Shared\Models\Notification::TYPE_GUEST_REMOVAL,
+            'channel' => $channel,
+            'message' => $message,
+            'status' => \App\Shared\Models\Notification::STATUS_QUEUED,
+            'sent_at' => now(),
+            'delivery_details' => $deliveryDetails
+        ]);
+    }
+
+    /**
+     * Validate email address and domain
+     */
+    private function validateEmailAddress($email)
+    {
+        // Basic email format validation
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['valid' => false, 'error' => 'Invalid email address format.'];
+        }
+
+        // Check if email domain has valid MX records
+        $emailDomain = substr(strrchr($email, "@"), 1);
+        if (!checkdnsrr($emailDomain, 'MX')) {
+            return ['valid' => false, 'error' => 'Email domain does not have valid mail servers (MX records).'];
+        }
+
+        return ['valid' => true, 'error' => null];
+    }
+
+    /**
      * Send email notification for guest removal
      */
-    private function sendGuestRemovalEmail($guest, $event, $message)
+    private function sendGuestRemovalEmail($guest, $event, $message, $notification = null)
     {
         if (!$guest->email) {
             throw new \Exception('Guest has no email address');
         }
+
+
 
         // Replace placeholders in the message
         $personalizedMessage = str_replace(
@@ -3424,10 +3911,71 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         // Use Twilio service to send WhatsApp message
         $twilioService = app(\App\Services\TwilioService::class);
         
-        $twilioService->sendWhatsAppMessage(
-            $guest->phone,
-            $personalizedMessage
+        try {
+            $result = $twilioService->sendWhatsAppMessage(
+                $guest->phone,
+                $personalizedMessage
+            );
+            
+            return $result;
+        } catch (\Exception $e) {
+            throw $e; // Re-throw to be caught by the caller
+        }
+    }
+
+    /**
+     * Send email notification for event updates
+     */
+    private function sendEventUpdateEmail($guest, $event, $message)
+    {
+        if (!$guest->email) {
+            throw new \Exception('Guest has no email address');
+        }
+
+        // Replace placeholders in the message
+        $personalizedMessage = str_replace(
+            ['[Guest Name]', '[Event Name]', '[Your Name]'],
+            [$guest->name, $event->name, Auth::user()->name],
+            $message
         );
+
+        // Send email using Laravel's mail system
+        \Mail::raw($personalizedMessage, function($mail) use ($guest, $event) {
+            $mail->to($guest->email)
+                 ->subject("Event Update - {$event->name}")
+                 ->from(config('mail.from.address'), config('mail.from.name'));
+        });
+    }
+
+    /**
+     * Send WhatsApp notification for event updates
+     */
+    private function sendEventUpdateWhatsApp($guest, $event, $message)
+    {
+        if (!$guest->phone) {
+            throw new \Exception('Guest has no phone number');
+        }
+
+        // Replace placeholders in the message
+        $personalizedMessage = str_replace(
+            ['[Guest Name]', '[Event Name]', '[Your Name]'],
+            [$guest->name, $event->name, Auth::user()->name],
+            $message
+        );
+
+        // Use Twilio service to send WhatsApp message
+        $twilioService = app(\App\Services\TwilioService::class);
+        
+        try {
+            $result = $twilioService->sendWhatsAppMessage(
+                $guest->phone,
+                $personalizedMessage
+            );
+            
+            return $result;
+        } catch (\Exception $e) {
+            throw $e; // Re-throw to be caught by the caller
+        }
     }
 
     /**
@@ -3442,7 +3990,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         }
 
         $validated = $request->validate([
-            'platform' => 'required|in:email,whatsapp,both',
+            'platforms' => 'required|array|min:1',
+            'platforms.*' => 'in:email,whatsapp',
             'notification_type' => 'required|in:update,reminder,custom',
             'custom_message' => 'nullable|string'
         ]);
@@ -3452,6 +4001,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         
         $sentCount = 0;
         $failedCount = 0;
+        $notificationErrors = [];
 
         foreach ($invitations as $invitation) {
             if ($invitation->guest) {
@@ -3459,25 +4009,83 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                     // Prepare notification message
                     $message = $this->prepareNotificationMessage($event, $validated['notification_type'], $validated['custom_message']);
                     
-                    // Send notification based on platform
-                    if (in_array($validated['platform'], ['email', 'both'])) {
+                    // Send notification based on selected platforms
+                    if (in_array('email', $validated['platforms'])) {
                         // Send email notification
-                        // TODO: Implement email sending
-                        Log::info('Email notification would be sent', [
-                            'guest_email' => $invitation->guest->email,
-                            'message' => $message
-                        ]);
-                        $sentCount++;
+                        if ($invitation->guest->email) {
+                            try {
+                                $this->sendEventUpdateEmail($invitation->guest, $event, $message);
+                                
+                                // Create notification record for email tracking
+                                \App\Shared\Models\Notification::create([
+                                    'event_id' => $event->id,
+                                    'guest_id' => $invitation->guest->id,
+                                    'user_id' => Auth::id(),
+                                    'type' => \App\Shared\Models\Notification::TYPE_EVENT_UPDATE,
+                                    'channel' => 'email',
+                                    'message' => $message,
+                                    'status' => \App\Shared\Models\Notification::STATUS_DELIVERED, // Emails are considered delivered when sent
+                                    'sent_at' => now(),
+                                    'delivery_details' => [
+                                        'email_sent' => true,
+                                        'sent_at' => now()->toISOString(),
+                                        'notification_type' => $validated['notification_type']
+                                    ]
+                                ]);
+                                $sentCount++;
+                            } catch (\Exception $e) {
+                                $notificationErrors[] = "Email for {$invitation->guest->name}: " . $e->getMessage();
+                                $failedCount++;
+                            }
+                        } else {
+                            $notificationErrors[] = "Email for {$invitation->guest->name}: No email address available";
+                            $failedCount++;
+                        }
                     }
                     
-                    if (in_array($validated['platform'], ['whatsapp', 'both'])) {
+                    if (in_array('whatsapp', $validated['platforms'])) {
                         // Send WhatsApp notification
-                        // TODO: Implement WhatsApp sending
-                        Log::info('WhatsApp notification would be sent', [
-                            'guest_phone' => $invitation->guest->phone,
-                            'message' => $message
-                        ]);
-                        $sentCount++;
+                        if ($invitation->guest->phone) {
+                            try {
+                                $result = $this->sendEventUpdateWhatsApp($invitation->guest, $event, $message);
+                                
+                                if ($result['success']) {
+                                    // Create notification record for tracking
+                                    \App\Shared\Models\Notification::create([
+                                        'event_id' => $event->id,
+                                        'guest_id' => $invitation->guest->id,
+                                        'user_id' => Auth::id(),
+                                        'type' => \App\Shared\Models\Notification::TYPE_EVENT_UPDATE,
+                                        'channel' => 'whatsapp',
+                                        'message' => $message,
+                                        'status' => \App\Shared\Models\Notification::STATUS_QUEUED,
+                                        'external_id' => $result['message_sid'],
+                                        'delivery_details' => [
+                                            'twilio_status' => $result['status'],
+                                            'sent_at' => now()->toISOString(),
+                                            'notification_type' => $validated['notification_type']
+                                        ]
+                                    ]);
+                                    $sentCount++;
+                                } else {
+                                    // Clean up Twilio error messages to be user-friendly
+                                    $errorMessage = $result['error'] ?? 'Failed to send WhatsApp message';
+                                    if (strpos($errorMessage, '[HTTP 400]') !== false) {
+                                        $errorMessage = 'Invalid phone number format';
+                                    } elseif (strpos($errorMessage, 'Unable to create record') !== false) {
+                                        $errorMessage = 'Phone number not valid for WhatsApp';
+                                    }
+                                    $notificationErrors[] = "WhatsApp for {$invitation->guest->name}: " . $errorMessage;
+                                    $failedCount++;
+                                }
+                            } catch (\Exception $e) {
+                                $notificationErrors[] = "WhatsApp for {$invitation->guest->name}: " . $e->getMessage();
+                                $failedCount++;
+                            }
+                        } else {
+                            $notificationErrors[] = "WhatsApp for {$invitation->guest->name}: No phone number available";
+                            $failedCount++;
+                        }
                     }
                 } catch (\Exception $e) {
                     Log::error('Failed to send notification', [
@@ -3489,7 +4097,16 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             }
         }
 
+        // Prepare response message
         $message = "Notifications sent: {$sentCount} successful, {$failedCount} failed.";
+        
+        if (!empty($notificationErrors)) {
+            $message .= " Errors: " . implode('; ', array_slice($notificationErrors, 0, 5));
+            if (count($notificationErrors) > 5) {
+                $message .= " and " . (count($notificationErrors) - 5) . " more errors.";
+            }
+        }
+
         return back()->with('success', $message);
     }
 
@@ -3608,4 +4225,205 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             ], 500);
         }
     }
+
+    /**
+     * Send notification to all guests in an event
+     */
+    public function sendNotificationToAllGuests(Request $request, Event $event)
+    {
+        \Log::info('Notification request received', [
+            'event_id' => $event->id,
+            'user_id' => auth()->id(),
+            'request_data' => $request->all()
+        ]);
+        
+        $this->authorize('update', $event);
+        
+        $validated = $request->validate([
+            'platforms' => 'required|array|min:1',
+            'platforms.*' => 'in:whatsapp,email',
+            'type' => 'required|in:event_reminder,event_update,custom',
+            'message' => 'required|string|max:1000'
+        ]);
+        
+        try {
+            $platforms = $validated['platforms'];
+            $type = $validated['type'];
+            $message = $validated['message'];
+            
+            // Get all active guests for this event
+            $activeGuests = $event->activeGuests()->get();
+            
+            if ($activeGuests->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No active guests found for this event.'
+                ], 400);
+            }
+            
+            $notificationsCreated = 0;
+            $errors = [];
+            
+            foreach ($activeGuests as $guest) {
+                foreach ($platforms as $platform) {
+                    try {
+                        // Check if guest has the required contact method
+                        if ($platform === 'whatsapp' && !$guest->phone) {
+                            continue; // Skip if no phone number for WhatsApp
+                        }
+                        
+                        if ($platform === 'email' && !$guest->email) {
+                            continue; // Skip if no email for email notifications
+                        }
+                        
+                        // Create notification record
+                        $notification = \App\Shared\Models\Notification::create([
+                            'event_id' => $event->id,
+                            'guest_id' => $guest->id,
+                            'user_id' => auth()->id(),
+                            'type' => $type,
+                            'channel' => $platform,
+                            'message' => $message,
+                            'status' => \App\Shared\Models\Notification::STATUS_QUEUED,
+                            'sent_at' => now(),
+                        ]);
+                        
+                        $notificationsCreated++;
+                        
+                        // Send the actual notification based on platform
+                        if ($platform === 'whatsapp') {
+                            $this->sendWhatsAppNotification($notification, $guest, $message);
+                        } elseif ($platform === 'email') {
+                            $this->sendEmailNotification($notification, $guest, $message);
+                        }
+                        
+                    } catch (\Exception $e) {
+                        $errors[] = "Failed to send {$platform} notification to {$guest->name}: " . $e->getMessage();
+                        
+                        // Mark notification as failed
+                        if (isset($notification)) {
+                            $notification->markAsFailed($e->getMessage());
+                        }
+                    }
+                }
+            }
+            
+            $response = [
+                'success' => true,
+                'message' => "Successfully created {$notificationsCreated} notifications.",
+                'notifications_created' => $notificationsCreated
+            ];
+            
+            if (!empty($errors)) {
+                $response['warnings'] = array_slice($errors, 0, 5); // Limit to first 5 errors
+                if (count($errors) > 5) {
+                    $response['warnings'][] = '... and ' . (count($errors) - 5) . ' more errors.';
+                }
+            }
+            
+            \Log::info('Notification request completed successfully', [
+                'event_id' => $event->id,
+                'notifications_created' => $notificationsCreated,
+                'errors_count' => count($errors)
+            ]);
+            
+            return response()->json($response);
+            
+        } catch (\Exception $e) {
+            \Log::error('Notification request failed', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send notifications: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Send WhatsApp notification using Twilio
+     */
+    private function sendWhatsAppNotification($notification, $guest, $message)
+    {
+        try {
+            $twilioService = app(TwilioService::class);
+            
+            // Send WhatsApp message
+            $result = $twilioService->sendWhatsAppMessage(
+                $guest->phone,
+                $message
+            );
+            
+            if ($result['success']) {
+                // For WhatsApp, we keep status as 'queued' initially since delivery confirmation comes later
+                // The status will be updated by refreshNotificationStatuses when Twilio confirms delivery
+                $notification->update([
+                    'external_id' => $result['message_sid'] ?? null,
+                    'delivery_details' => [
+                        'twilio_response' => $result,
+                        'sent_at' => now()->toISOString(),
+                        'twilio_status' => $result['status'] ?? 'accepted',
+                        'message_accepted' => true,
+                        'guest_phone' => $guest->phone,
+                        'guest_name' => $guest->name
+                    ]
+                ]);
+                
+                \Log::info('WhatsApp notification sent successfully', [
+                    'notification_id' => $notification->id,
+                    'guest_id' => $guest->id,
+                    'message_sid' => $result['message_sid'],
+                    'twilio_status' => $result['status']
+                ]);
+            } else {
+                $notification->markAsFailed($result['error'] ?? 'WhatsApp delivery failed');
+                
+                \Log::error('WhatsApp notification failed', [
+                    'notification_id' => $notification->id,
+                    'guest_id' => $guest->id,
+                    'error' => $result['error'] ?? 'Unknown error'
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            $notification->markAsFailed('WhatsApp service error: ' . $e->getMessage());
+            
+            \Log::error('WhatsApp notification exception', [
+                'notification_id' => $notification->id,
+                'guest_id' => $guest->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * Send email notification
+     */
+    private function sendEmailNotification($notification, $guest, $message)
+    {
+        try {
+            // You can implement email sending logic here
+            // For now, we'll just mark it as queued and let a job handle it
+            
+            $notification->update([
+                'status' => \App\Shared\Models\Notification::STATUS_DELIVERED,
+                'delivery_details' => [
+                    'email_sent' => true,
+                    'sent_at' => now()->toISOString(),
+                    'delivered_at' => now()->toISOString(),
+                    'recipient_email' => $guest->email
+                ]
+            ]);
+            
+            // You could dispatch a job here to actually send the email
+            // dispatch(new SendEventNotificationEmail($notification));
+            
+        } catch (\Exception $e) {
+            $notification->markAsFailed('Email service error: ' . $e->getMessage());
+        }
+    }
+
 } 

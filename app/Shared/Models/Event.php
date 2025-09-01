@@ -100,6 +100,11 @@ class Event extends Model
         return $this->hasMany(\App\EventGuest::class);
     }
 
+    public function notifications()
+    {
+        return $this->hasMany(\App\Shared\Models\Notification::class);
+    }
+
     public function activeGuests()
     {
         return $this->belongsToMany(Guest::class, 'event_guest')

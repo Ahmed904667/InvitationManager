@@ -19,35 +19,55 @@ class TwilioService
         $this->fromNumber = str_replace('whatsapp:', '', config('services.twilio.whatsapp_from'));
     }
 
-    public function sendWhatsAppMessage(string $to, string $message): bool
+    public function sendWhatsAppMessage(string $to, string $message): array
     {
         try {
             // Format the phone number for WhatsApp
             $formattedTo = $this->formatPhoneNumber($to);
             
-            // Send WhatsApp message with clickable link
-            $message = $this->client->messages->create(
+            // Get webhook URL for status updates (only if not localhost)
+            $webhookUrl = $this->getWebhookUrl();
+            
+            // Prepare message parameters
+            $messageParams = [
+                'from' => config('services.twilio.whatsapp_from'),
+                'body' => $message
+            ];
+            
+            // Only add webhook if we have a valid public URL
+            if ($webhookUrl) {
+                $messageParams['statusCallback'] = $webhookUrl;
+                $messageParams['statusCallbackMethod'] = 'POST';
+            }
+            
+            // Send WhatsApp message
+            $twilioMessage = $this->client->messages->create(
                 "whatsapp:{$formattedTo}",
-                [
-                    'from' => config('services.twilio.whatsapp_from'),
-                    'body' => $message
-                ]
+                $messageParams
             );
 
             Log::info('WhatsApp message sent successfully', [
                 'to' => $formattedTo,
-                'message_sid' => $message->sid,
-                'status' => $message->status
+                'message_sid' => $twilioMessage->sid,
+                'status' => $twilioMessage->status
             ]);
 
-            return true;
+            return [
+                'success' => true,
+                'message_sid' => $twilioMessage->sid,
+                'status' => $twilioMessage->status,
+                'to' => $formattedTo
+            ];
         } catch (\Exception $e) {
             Log::error('Failed to send WhatsApp message', [
                 'to' => $to,
                 'error' => $e->getMessage()
             ]);
 
-            return false;
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
         }
     }
 
@@ -57,13 +77,25 @@ class TwilioService
             // Format the phone number for SMS
             $formattedTo = $this->formatPhoneNumber($to);
             
+            // Get webhook URL for status updates (only if not localhost)
+            $webhookUrl = $this->getWebhookUrl();
+            
+            // Prepare message parameters
+            $messageParams = [
+                'from' => $this->fromNumber,
+                'body' => $message
+            ];
+            
+            // Only add webhook if we have a valid public URL
+            if ($webhookUrl) {
+                $messageParams['statusCallback'] = $webhookUrl;
+                $messageParams['statusCallbackMethod'] = 'POST';
+            }
+            
             // Send SMS message
             $message = $this->client->messages->create(
                 $formattedTo,
-                [
-                    'from' => $this->fromNumber,
-                    'body' => $message
-                ]
+                $messageParams
             );
 
             Log::info('SMS message sent successfully', [
@@ -121,5 +153,105 @@ class TwilioService
     {
         $formatted = $this->formatPhoneNumber($phone);
         return strlen($formatted) >= 12 && strlen($formatted) <= 15;
+    }
+    
+    /**
+     * Get webhook URL for Twilio status callbacks
+     * Returns null if localhost (Twilio doesn't accept localhost URLs)
+     */
+    private function getWebhookUrl(): ?string
+    {
+        // Check if we have a custom webhook URL configured
+        $customWebhookUrl = config('services.twilio.webhook_url');
+        if ($customWebhookUrl) {
+            return $customWebhookUrl;
+        }
+        
+        // Generate the webhook URL
+        $webhookUrl = route('webhooks.twilio.status');
+        
+        // Check if it's localhost (Twilio doesn't accept localhost URLs)
+        if (str_contains($webhookUrl, 'localhost') || str_contains($webhookUrl, '127.0.0.1')) {
+            Log::info('Skipping webhook for localhost environment', [
+                'webhook_url' => $webhookUrl
+            ]);
+            return null;
+        }
+        
+        return $webhookUrl;
+    }
+    
+    /**
+     * Manually update notification status for local development
+     * This can be called when webhooks are not available
+     */
+    public function updateNotificationStatusManually(string $messageSid, string $status): bool
+    {
+        try {
+            $notification = \App\Shared\Models\Notification::where('external_id', $messageSid)->first();
+            
+            if (!$notification) {
+                Log::warning('Notification not found for manual status update', [
+                    'message_sid' => $messageSid,
+                    'status' => $status
+                ]);
+                return false;
+            }
+            
+            // Create a mock Twilio message object
+            $mockMessage = (object) [
+                'status' => $status,
+                'errorCode' => null,
+                'errorMessage' => null
+            ];
+            
+            // Use the existing webhook controller logic
+            $webhookController = new \App\Http\Controllers\TwilioWebhookController();
+            $reflection = new \ReflectionClass($webhookController);
+            $method = $reflection->getMethod('updateNotificationStatus');
+            $method->setAccessible(true);
+            $method->invoke($webhookController, $notification, $mockMessage);
+            
+            Log::info('Manual notification status update completed', [
+                'message_sid' => $messageSid,
+                'status' => $status,
+                'notification_id' => $notification->id
+            ]);
+            
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to manually update notification status', [
+                'message_sid' => $messageSid,
+                'status' => $status,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+    
+    /**
+     * Get the current status of a message from Twilio
+     */
+    public function getMessageStatus(string $messageSid): ?object
+    {
+        try {
+            $message = $this->client->messages($messageSid)->fetch();
+            
+            Log::info('Retrieved message status from Twilio', [
+                'message_sid' => $messageSid,
+                'status' => $message->status,
+                'error_code' => $message->errorCode ?? null,
+                'error_message' => $message->errorMessage ?? null
+            ]);
+            
+            return $message;
+        } catch (\Exception $e) {
+            Log::error('Failed to retrieve message status from Twilio', [
+                'message_sid' => $messageSid,
+                'error' => $e->getMessage()
+            ]);
+            
+            return null;
+        }
     }
 } 

@@ -4,6 +4,25 @@
 
 @section('content')
 
+<style>
+.tab-button {
+    transition: all 0.2s ease-in-out;
+}
+
+.tab-button:hover {
+    color: var(--primary-600) !important;
+}
+
+.tab-button.active {
+    border-color: var(--primary-600) !important;
+    color: var(--primary-600) !important;
+}
+
+.tab-content {
+    transition: opacity 0.2s ease-in-out;
+}
+</style>
+
 <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
@@ -18,6 +37,12 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                 </svg>
                 Preview
+            </a>
+            <a href="{{ route('organizer.events.notifications', $event) }}" class="btn-secondary">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                Notifications
             </a>
             <a href="{{ route('organizer.events.edit', $event) }}" class="btn-primary">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,6 +259,21 @@
             <h2 class="text-xl font-semibold" style="color: var(--text-primary);">Guest Lists & Guests</h2>
         </div>
         
+        <!-- Tabs -->
+        <div class="border-b" style="border-color: var(--border-primary);">
+            <nav class="flex space-x-8 px-6" aria-label="Tabs">
+                <button id="guests-tab" class="tab-button active py-4 px-1 border-b-2 font-medium text-sm transition-colors" style="border-color: var(--primary-600); color: var(--primary-600);">
+                    Guest Lists
+                </button>
+                <button id="notifications-tab" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors" style="border-color: transparent; color: var(--text-secondary);">
+                    Notifications
+                </button>
+            </nav>
+        </div>
+        
+        <!-- Tab Content -->
+        <div id="guests-content" class="tab-content">
+        
         @php
             // Group active event guests by guest list
             $guestsByList = $activeEventGuests->groupBy(function($eventGuest) {
@@ -360,14 +400,423 @@
             <p class="text-sm" style="color: var(--text-secondary);">No guests associated with this event</p>
         </div>
         @endforelse
+        </div>
+        
+        <!-- Notifications Tab Content -->
+        <div id="notifications-content" class="tab-content hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-medium" style="color: var(--text-primary);">Event Notifications</h3>
+                    <div class="flex space-x-2">
+                        <button type="button" onclick="openSendNotificationModal()" class="btn-primary text-sm flex items-center" id="send-notification-btn">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg> Send Notification
+                        </button>
+                        <button type="button" class="btn-secondary text-sm flex items-center" id="refresh-notifications-btn">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+
+
+                        <a href="{{ route('organizer.events.notifications', $event) }}" class="btn-secondary text-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            View All Notifications
+                            <button type="button" onclick="toggleNotificationDetails()" class="ml-2 text-xs text-blue-600 hover:text-blue-800">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                        </a>
+                    </div>
+                </div>
+                
+                @php
+                    $recentNotifications = $event->notifications()
+                        ->with(['guest', 'user'])
+                        ->orderBy('created_at', 'desc')
+                        ->limit(10)
+                        ->get();
+                    
+                    $stats = [
+                        'queued' => $event->notifications()->whereIn('status', ['queued', 'sending', 'pending'])->count(),
+                        'delivered' => $event->notifications()->whereIn('status', ['delivered', 'sent'])->count(),
+                        'read' => $event->notifications()->where('status', 'read')->count(),
+                        'failed' => $event->notifications()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
+                    ];
+                @endphp
+                
+                <!-- Notification Statistics -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <div class="text-center p-3 rounded-lg" style="background: var(--orange-100);">
+                        <div class="text-xl font-bold notification-queued-count" style="color: var(--orange-600);">{{ $stats['queued'] }}</div>
+                        <div class="text-xs" style="color: var(--text-secondary);">Queued</div>
+                    </div>
+                    <div class="text-center p-3 rounded-lg" style="background: var(--green-100);">
+                        <div class="text-xl font-bold notification-delivered-count" style="color: var(--green-600);">{{ $stats['delivered'] }}</div>
+                        <div class="text-xs" style="color: var(--text-secondary);">Delivered</div>
+                    </div>
+                    <div class="text-center p-3 rounded-lg" style="background: var(--emerald-100);">
+                        <div class="text-xl font-bold notification-read-count" style="color: var(--emerald-600);">{{ $stats['read'] }}</div>
+                        <div class="text-xs" style="color: var(--text-secondary);">Read</div>
+                    </div>
+                    <div class="text-center p-3 rounded-lg" style="background: var(--red-100);">
+                        <div class="text-xl font-bold notification-failed-count" style="color: var(--red-600);">{{ $stats['failed'] }}</div>
+                        <div class="text-xs" style="color: var(--text-secondary);">Failed</div>
+                    </div>
+                </div>
+                
+                <!-- Recent Notifications -->
+                @if($recentNotifications->count() > 0)
+                <div class="space-y-3">
+                    @foreach($recentNotifications as $notification)
+                    <div class="flex items-center justify-between p-3 rounded-lg border" style="background: var(--bg-secondary); border-color: var(--border-primary);">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-2 h-2 rounded-full 
+                                @if($notification->status === 'read') bg-emerald-500
+                                @elseif($notification->status === 'delivered' || $notification->status === 'sent') bg-green-500
+                                @elseif($notification->status === 'queued' || $notification->status === 'sending' || $notification->status === 'pending') bg-orange-500
+                                @elseif($notification->status === 'failed' || $notification->status === 'undelivered' || $notification->status === 'canceled' || $notification->status === 'bounced') bg-red-500
+                                @else bg-orange-500
+                                @endif">
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium" style="color: var(--text-primary);">
+                                    {{ $notification->guest->name ?? 'Unknown Guest' }}
+                                </div>
+                                <div class="text-xs" style="color: var(--text-secondary);">
+                                    {{ ucfirst($notification->channel) }} • {{ ucfirst($notification->type) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs" style="color: var(--text-secondary);">
+                                {{ $notification->created_at->diffForHumans() }}
+                            </div>
+                            <div class="text-xs font-medium 
+                                @if($notification->status === 'read') text-emerald-600
+                                @elseif($notification->status === 'delivered' || $notification->status === 'sent') text-green-600
+                                @elseif($notification->status === 'queued' || $notification->status === 'sending' || $notification->status === 'pending') text-orange-600
+                                @elseif($notification->status === 'failed' || $notification->status === 'undelivered' || $notification->status === 'canceled' || $notification->status === 'bounced') text-red-600
+                                @else text-orange-600
+                                @endif">
+                                @if($notification->status === 'read') Read
+                                @elseif($notification->status === 'delivered' || $notification->status === 'sent') Delivered
+                                @elseif($notification->status === 'queued' || $notification->status === 'sending' || $notification->status === 'pending') Queued
+                                @elseif($notification->status === 'failed' || $notification->status === 'undelivered' || $notification->status === 'canceled' || $notification->status === 'bounced') Failed
+                                @else Queued
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @else
+                <div class="text-center py-8">
+                    <p class="text-sm" style="color: var(--text-secondary);">No notifications sent yet</p>
+                </div>
+                @endif
+
+                <!-- Extended Notification Details (Collapsible) -->
+                <div id="notification-details" class="hidden mt-6">
+                    <div class="border rounded-lg" style="border-color: var(--border-primary);">
+                        <div class="p-4 border-b" style="border-color: var(--border-primary); background: var(--bg-secondary);">
+                            <h4 class="text-lg font-medium" style="color: var(--text-primary);">Detailed Notification Status</h4>
+                            <p class="text-sm" style="color: var(--text-secondary);">View status for all notifications sent to guests</p>
+                        </div>
+                        <div class="p-4">
+                            @php
+                                $allNotifications = $event->notifications()
+                                    ->with(['guest', 'user'])
+                                    ->orderBy('created_at', 'desc')
+                                    ->get()
+                                    ->groupBy('channel');
+                            @endphp
+                            
+                            @foreach($allNotifications as $channel => $channelNotifications)
+                            <div class="mb-6">
+                                <h5 class="text-md font-medium mb-3" style="color: var(--text-primary);">
+                                    {{ ucfirst($channel) }} Notifications 
+                                    <span class="text-sm font-normal" style="color: var(--text-secondary);">({{ $channelNotifications->count() }})</span>
+                                </h5>
+                                <div class="space-y-2">
+                                    @foreach($channelNotifications as $notification)
+                                    <div class="flex items-center justify-between p-3 rounded-lg border" style="background: var(--bg-secondary); border-color: var(--border-primary);">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-3 h-3 rounded-full 
+                                                @if($notification->status === 'read') bg-emerald-500
+                                                @elseif($notification->status === 'delivered' || $notification->status === 'sent') bg-green-500
+                                                @elseif($notification->status === 'queued' || $notification->status === 'sending' || $notification->status === 'pending') bg-orange-500
+                                                @elseif($notification->status === 'failed' || $notification->status === 'undelivered' || $notification->status === 'canceled' || $notification->status === 'bounced') bg-red-500
+                                                @else bg-orange-500
+                                                @endif">
+                                            </div>
+                                            <div>
+                                                <div class="text-sm font-medium" style="color: var(--text-primary);">
+                                                    {{ $notification->guest->name ?? 'Unknown Guest' }}
+                                                </div>
+                                                <div class="text-xs" style="color: var(--text-secondary);">
+                                                    {{ ucfirst($notification->type) }} • {{ $notification->created_at->format('M j, Y g:i A') }}
+                                                </div>
+                                                @if($notification->message)
+                                                <div class="text-xs mt-1" style="color: var(--text-secondary);">
+                                                    {{ Str::limit($notification->message, 100) }}
+                                                </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                                                                 <div class="text-right">
+                                             <div class="text-xs font-medium 
+                                                 @if($notification->status === 'read') text-emerald-600
+                                                 @elseif($notification->status === 'delivered' || $notification->status === 'sent') text-green-600
+                                                 @elseif($notification->status === 'queued' || $notification->status === 'sending' || $notification->status === 'pending') text-orange-600
+                                                 @elseif($notification->status === 'failed' || $notification->status === 'undelivered' || $notification->status === 'canceled' || $notification->status === 'bounced') text-red-600
+                                                 @else text-orange-600
+                                                 @endif">
+                                                 @if($notification->status === 'read') Read
+                                                 @elseif($notification->status === 'delivered' || $notification->status === 'sent') Delivered
+                                                 @elseif($notification->status === 'queued' || $notification->status === 'sending' || $notification->status === 'pending') Queued
+                                                 @elseif($notification->status === 'failed' || $notification->status === 'undelivered' || $notification->status === 'canceled' || $notification->status === 'bounced') Failed
+                                                 @else Queued
+                                                 @endif
+                                             </div>
+                                             @if($notification->external_id)
+                                             <div class="text-xs" style="color: var(--text-secondary);">
+                                                 ID: {{ $notification->external_id }}
+                                             </div>
+                                             @endif
+                                             
+
+                                         </div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- Send Notification Modal -->
+<div id="send-notification-modal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Send Notification to All Guests</h3>
+            <button onclick="closeSendNotificationModal()" class="modal-close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 18"></path>
+                </svg>
+            </button>
+        </div>
+
+                <div class="modal-body">
+                    <form id="send-notification-form" action="{{ route('organizer.events.notifications.send', $event) }}" method="POST">
+                        <!-- Debug: Show the actual route URL -->
+                        <div style="display: none;">
+                            Route URL: {{ route('organizer.events.notifications.send', $event) }}
+                        </div>
+                        @csrf
+                        
+                        <!-- Platform Selection -->
+                        <div class="form-group">
+                            <label class="form-label">Notification Platform</label>
+                            <div class="space-y-3">
+                                @if($event->invitation_platforms && in_array('whatsapp', $event->invitation_platforms))
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="platforms[]" value="whatsapp" class="checkbox-input">
+                                    <span class="checkbox-text">WhatsApp</span>
+                                    <span class="badge badge-success">Available</span>
+                                </label>
+                                @endif
+                                
+                                @if($event->invitation_platforms && in_array('email', $event->invitation_platforms))
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="platforms[]" value="email" class="checkbox-input">
+                                    <span class="checkbox-text">Email</span>
+                                    <span class="badge badge-success">Available</span>
+                                </label>
+                                @endif
+                                
+                                @if(!$event->invitation_platforms || (empty(array_intersect(['whatsapp', 'email'], $event->invitation_platforms))))
+                                <div class="alert alert-warning">
+                                    <p>No notification platforms configured for this event. Please update event settings to enable WhatsApp or Email notifications.</p>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Message Type -->
+                        <div class="form-group">
+                            <label for="notification_type" class="form-label">Message Type</label>
+                            <select id="notification_type" name="type" class="form-select">
+                                <option value="event_reminder">Event Reminder</option>
+                                <option value="event_update">Event Update</option>
+                                <option value="custom">Custom Message</option>
+                            </select>
+                        </div>
+
+                        <!-- Message Content -->
+                        <div class="form-group">
+                            <label for="notification_message" class="form-label">Message Content</label>
+                            <textarea id="notification_message" name="message" rows="4" class="form-textarea" placeholder="Enter your message here..."></textarea>
+                        </div>
+
+                        <!-- Template Suggestions -->
+                        <div class="form-group">
+                            <label class="form-label">Template Suggestions</label>
+                            <div class="template-grid">
+                                <button type="button" onclick="useTemplate('reminder')" class="template-option">
+                                    <div class="template-title">Event Reminder</div>
+                                    <div class="template-description">Remind guests about upcoming event</div>
+                                </button>
+                                <button type="button" onclick="useTemplate('update')" class="template-option">
+                                    <div class="template-title">Event Update</div>
+                                    <div class="template-description">Inform about event changes</div>
+                                </button>
+                                <button type="button" onclick="useTemplate('welcome')" class="template-option">
+                                    <div class="template-title">Welcome Message</div>
+                                    <div class="template-description">Welcome guests to the event</div>
+                                </button>
+                                <button type="button" onclick="useTemplate('custom')" class="template-option">
+                                    <div class="template-title">Custom</div>
+                                    <div class="template-description">Write your own message</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Guest Count Info -->
+                        <div class="alert alert-info">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <div>
+                                    <p>This notification will be sent to <strong>{{ $event->activeGuests()->count() }}</strong> active guests</p>
+                                    <p class="text-sm mt-1">Guests will receive notifications based on their available contact methods</p>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" onclick="closeSendNotificationModal()" class="modal-btn modal-btn-secondary">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="testRoute()" class="modal-btn modal-btn-info">
+                        Test Route
+                    </button>
+                    <button type="submit" form="send-notification-form" class="modal-btn modal-btn-primary" id="send-notification-submit-btn">
+                        Send Notification
+                    </button>
+                </div>
+
 @if($event->rsvp_enabled)
+<style>
+.template-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.template-option {
+    text-align: left;
+    padding: 1rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 0.5rem;
+    background: var(--bg-secondary);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.template-option:hover {
+    background: var(--bg-primary);
+    border-color: var(--primary-500);
+    transform: translateY(-1px);
+}
+
+.template-title {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.template-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.5rem 0;
+}
+
+.checkbox-input {
+    margin-right: 0.75rem;
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary-600);
+}
+
+.checkbox-text {
+    margin-right: 0.75rem;
+    color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+    .template-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const eventId = {{ $event->id }};
     let refreshInterval;
+    
+    // Tab functionality
+    const guestsTab = document.getElementById('guests-tab');
+    const notificationsTab = document.getElementById('notifications-tab');
+    const guestsContent = document.getElementById('guests-content');
+    const notificationsContent = document.getElementById('notifications-content');
+    
+    function switchTab(activeTab, activeContent, inactiveTab, inactiveContent) {
+        // Update tab buttons
+        activeTab.classList.add('active');
+        activeTab.style.borderColor = 'var(--primary-600)';
+        activeTab.style.color = 'var(--primary-600)';
+        
+        inactiveTab.classList.remove('active');
+        inactiveTab.style.borderColor = 'transparent';
+        inactiveTab.style.color = 'var(--text-secondary)';
+        
+        // Update content
+        activeContent.classList.remove('hidden');
+        inactiveContent.classList.add('hidden');
+    }
+    
+    guestsTab.addEventListener('click', () => {
+        switchTab(guestsTab, guestsContent, notificationsTab, notificationsContent);
+    });
+    
+    notificationsTab.addEventListener('click', () => {
+        switchTab(notificationsTab, notificationsContent, guestsTab, guestsContent);
+        
+        // Auto-refresh notification statuses when notifications tab is clicked
+        refreshNotificationStatuses();
+    });
 
     // Function to update RSVP statuses in the table and summary
     function updateRsvpStatuses() {
@@ -494,6 +943,487 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(refreshInterval);
         }
     });
+    
+    // Add event listener to refresh button
+    const refreshBtn = document.getElementById('refresh-notifications-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            refreshNotificationStatuses();
+        });
+    } else {
+        console.error('Refresh button not found!');
+    }
+    
+    // Function to refresh notification statuses
+    function refreshNotificationStatuses() {
+        const refreshUrl = '{{ route("organizer.events.notifications.refresh", $event) }}';
+        const submitBtn = document.getElementById('refresh-notifications-btn');
+        let originalText = '';
+        
+        // Show loading state
+        if (submitBtn) {
+            originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Refreshing...';
+            submitBtn.disabled = true;
+        }
+        
+        fetch(refreshUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Update notification statuses in the UI without reloading
+                updateNotificationStatusesInUI(data);
+                
+                // Log the update details
+                console.log(`Updated ${data.updated_count} notifications, Skipped ${data.missing_external_id} with missing IDs`);
+            } else {
+                showNotification(data.message || 'Failed to update notification statuses', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Notification status refresh failed:', error);
+            showNotification('Failed to refresh notification statuses', 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            if (submitBtn && originalText) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+    
+    // Function to update notification statuses in the UI
+    function updateNotificationStatusesInUI(data) {
+        // Update notification statistics
+        updateNotificationStats();
+        
+        // Update individual notification statuses
+        updateIndividualNotificationStatuses();
+        
+        // Update notification count badges
+        updateNotificationCounts();
+    }
+    
+    // Function to update notification statistics
+    function updateNotificationStats() {
+        // Fetch updated notification statistics
+        const eventId = {{ $event->id }};
+        
+        fetch(`/organizer/events/${eventId}/notifications/stats`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update the statistics display
+                    const stats = data.stats;
+                    
+                    // Update notification count badges
+                    const queuedCount = document.querySelector('.notification-queued-count');
+                    const deliveredCount = document.querySelector('.notification-delivered-count');
+                    const readCount = document.querySelector('.notification-read-count');
+                    const failedCount = document.querySelector('.notification-failed-count');
+                    
+                    if (queuedCount) queuedCount.textContent = stats.queued;
+                    if (deliveredCount) deliveredCount.textContent = stats.delivered;
+                    if (readCount) readCount.textContent = stats.read;
+                    if (failedCount) failedCount.textContent = stats.failed;
+                    
+                    console.log('Notification stats updated successfully');
+                } else {
+                    console.error('Failed to update notification stats:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Failed to update notification stats:', error);
+            });
+    }
+    
+    // Function to update individual notification statuses
+    function updateIndividualNotificationStatuses() {
+        // Fetch updated notification list
+        const eventId = {{ $event->id }};
+        
+        fetch(`/organizer/events/${eventId}/notifications/list`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update the notifications list
+                    updateNotificationsList(data.notifications);
+                    console.log('Notifications list updated successfully');
+                } else {
+                    console.error('Failed to update notifications list:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Failed to update notifications list:', error);
+            });
+    }
+    
+    // Function to update the notifications list in the UI
+    function updateNotificationsList(notifications) {
+        const notificationsContainer = document.querySelector('#notifications-content .space-y-3');
+        if (!notificationsContainer) return;
+        
+        // Clear existing notifications
+        notificationsContainer.innerHTML = '';
+        
+        if (notifications.length === 0) {
+            // Show "no notifications" message
+            notificationsContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-sm" style="color: var(--text-secondary);">No notifications sent yet</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Add updated notifications
+        notifications.forEach(notification => {
+            const notificationElement = createNotificationElement(notification);
+            notificationsContainer.appendChild(notificationElement);
+        });
+    }
+    
+    // Function to create a notification element
+    function createNotificationElement(notification) {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between p-3 rounded-lg border';
+        div.style.cssText = 'background: var(--bg-secondary); border-color: var(--border-primary);';
+        
+        const statusColor = getStatusColor(notification.status);
+        const statusText = getStatusText(notification.status);
+        
+        div.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <div class="w-2 h-2 rounded-full ${statusColor}"></div>
+                <div>
+                    <div class="text-sm font-medium" style="color: var(--text-primary);">
+                        ${notification.guest_name || 'Unknown Guest'}
+                    </div>
+                    <div class="text-xs" style="color: var(--text-secondary);">
+                        ${notification.channel.charAt(0).toUpperCase() + notification.channel.slice(1)} • ${notification.type.charAt(0).toUpperCase() + notification.type.slice(1)}
+                    </div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs" style="color: var(--text-secondary);">
+                    ${formatTime(notification.created_at)}
+                </div>
+                <div class="text-xs font-medium ${statusColor.replace('bg-', 'text-')}">
+                    ${statusText}
+                </div>
+            </div>
+        `;
+        
+        return div;
+    }
+    
+    // Function to get status color class
+    function getStatusColor(status) {
+        switch (status) {
+            case 'read': return 'bg-emerald-500';
+            case 'delivered':
+            case 'sent': return 'bg-green-500';
+            case 'queued':
+            case 'sending':
+            case 'pending': return 'bg-orange-500';
+            case 'failed':
+            case 'undelivered':
+            case 'canceled':
+            case 'bounced': return 'bg-red-500';
+            default: return 'bg-orange-500';
+        }
+    }
+    
+    // Function to get status text
+    function getStatusText(status) {
+        switch (status) {
+            case 'read': return 'Read';
+            case 'delivered':
+            case 'sent': return 'Delivered';
+            case 'queued':
+            case 'sending':
+            case 'pending': return 'Queued';
+            case 'failed':
+            case 'undelivered':
+            case 'canceled':
+            case 'bounced': return 'Failed';
+            default: return 'Queued';
+        }
+    }
+    
+    // Function to format time
+    function formatTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return Math.floor(diffInSeconds / 60) + 'm ago';
+        if (diffInSeconds < 86400) return Math.floor(diffInSeconds / 3600) + 'h ago';
+        return date.toLocaleDateString();
+    }
+    
+    // Function to update notification counts
+    function updateNotificationCounts() {
+        // This is handled by updateNotificationStats()
+        console.log('Notification counts updated via stats refresh');
+    }
+    
+    // Function to show notifications (if not already defined)
+    function showNotification(message, type = 'info') {
+        // Check if showNotification function exists, otherwise use alert
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+        } else {
+            alert(message);
+        }
+    }
+});
+
+// Notification Modal Functions
+function openSendNotificationModal() {
+    console.log('Opening notification modal...');
+    showModal('send-notification-modal');
+}
+
+function closeSendNotificationModal() {
+    console.log('Closing notification modal...');
+    hideModal('send-notification-modal');
+}
+
+function testRoute() {
+    console.log('Testing route...');
+    const testUrl = '{{ route("organizer.events.notifications.test", $event) }}';
+    console.log('Test URL:', testUrl);
+    
+    fetch(testUrl, {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Test route response:', data);
+        alert('Test route working! Event ID: ' + data.event_id);
+    })
+    .catch(error => {
+        console.error('Test route error:', error);
+        alert('Test route failed: ' + error.message);
+    });
+}
+
+
+
+function toggleNotificationDetails() {
+    const details = document.getElementById('notification-details');
+    const button = event.target.closest('button');
+    const icon = button.querySelector('svg');
+    
+    if (details.classList.contains('hidden')) {
+        details.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        details.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+function useTemplate(templateType) {
+    const messageField = document.getElementById('notification_message');
+    const typeField = document.getElementById('notification_type');
+    
+    let message = '';
+    let type = '';
+    
+    switch (templateType) {
+        case 'reminder':
+            type = 'event_reminder';
+            message = `Hi! Just a friendly reminder about our upcoming event. We're looking forward to seeing you there!`;
+            break;
+        case 'update':
+            type = 'event_update';
+            message = `Important update about our event. Please check the latest details and let us know if you have any questions.`;
+            break;
+        case 'welcome':
+            type = 'custom';
+            message = `Welcome to our event! We're excited to have you join us. If you need any information, feel free to reach out.`;
+            break;
+        case 'custom':
+            type = 'custom';
+            message = '';
+            break;
+    }
+    
+    if (typeField) typeField.value = type;
+    if (messageField) messageField.value = message;
+    
+    // Focus on message field if it's custom
+    if (templateType === 'custom' && messageField) {
+        messageField.focus();
+    }
+}
+
+
+
+// Handle form submission
+document.addEventListener('DOMContentLoaded', function() {
+    // Debug button click
+    const sendBtn = document.getElementById('send-notification-btn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', function(e) {
+            console.log('Send notification button clicked!');
+        });
+    }
+    
+    const form = document.getElementById('send-notification-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('Form submission started...');
+            
+            const formData = new FormData(this);
+            const platforms = formData.getAll('platforms[]');
+            const message = formData.get('message');
+            const type = formData.get('type');
+            
+            console.log('Form data:', { platforms, message, type });
+            console.log('Form action:', this.action);
+            
+            // Debug: Log all form data
+            console.log('=== FORM DATA DEBUG ===');
+            for (let [key, value] of formData.entries()) {
+                console.log(`Form field ${key}:`, value);
+            }
+            console.log('=== END FORM DATA DEBUG ===');
+            
+            // Also log the raw form element
+            console.log('Form element:', this);
+            console.log('Form action attribute:', this.action);
+            
+            if (platforms.length === 0) {
+                alert('Please select at least one notification platform.');
+                return;
+            }
+            
+            if (!message.trim()) {
+                alert('Please enter a message.');
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = document.getElementById('send-notification-submit-btn');
+            if (!submitBtn) {
+                console.error('Submit button not found!');
+                alert('Error: Submit button not found');
+                return;
+            }
+            
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
+            
+            console.log('Submitting to:', this.action);
+            
+            // Submit the form
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            console.log('CSRF Token:', csrfToken);
+            console.log('Form action URL:', this.action);
+            
+            // Log the actual request being made
+            const requestData = {
+                method: 'POST',
+                url: this.action,
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: formData
+            };
+            console.log('Request data:', requestData);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                console.log('Response URL:', response.url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                if (data.success) {
+                    closeSendNotificationModal();
+                    // Show success message
+                    if (typeof showNotification === 'function') {
+                        showNotification('Notifications sent successfully!', 'success');
+                    } else {
+                        alert('Notifications sent successfully!');
+                    }
+                    // Refresh the page to show new notifications
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    throw new Error(data.message || 'Failed to send notifications');
+                }
+            })
+            .catch(error => {
+                console.error('Fetch Error:', error);
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                
+                if (typeof showNotification === 'function') {
+                    showNotification(error.message || 'Failed to send notifications', 'error');
+                } else {
+                    alert('Error: ' + error.message || 'Failed to send notifications');
+                }
+            })
+            .finally(() => {
+                // Reset button state
+                if (submitBtn) {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+    }
 });
 </script>
 @endif

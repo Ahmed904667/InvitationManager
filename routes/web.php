@@ -265,3 +265,40 @@ Route::get('/test-health/{id}', function($id) {
         'health' => $health
     ]);
 })->middleware('auth');
+
+// Twilio webhook for WhatsApp delivery status
+Route::post('/webhooks/twilio/status', [\App\Http\Controllers\TwilioWebhookController::class, 'handleStatusCallback'])->name('webhooks.twilio.status');
+
+// Test route to simulate Twilio webhook (remove in production)
+Route::get('/test/webhook/{notification_id}/{status}', function($notificationId, $status) {
+    $notification = \App\Shared\Models\Notification::find($notificationId);
+    if (!$notification) {
+        return response()->json(['error' => 'Notification not found'], 404);
+    }
+    
+    // Simulate Twilio webhook data
+    $request = new \Illuminate\Http\Request();
+    $request->merge([
+        'MessageSid' => $notification->external_id,
+        'MessageStatus' => $status,
+        'ErrorCode' => null,
+        'ErrorMessage' => null
+    ]);
+    
+    // Call the webhook controller
+    $controller = new \App\Http\Controllers\TwilioWebhookController();
+    $response = $controller->handleStatusCallback($request);
+    
+    // Refresh the notification to see the updated status
+    $notification->refresh();
+    
+    return response()->json([
+        'success' => true,
+        'notification_id' => $notification->id,
+        'old_status' => $notification->getOriginal('status'),
+        'new_status' => $notification->status,
+        'twilio_status' => $status
+    ]);
+});
+
+

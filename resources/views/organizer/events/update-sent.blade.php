@@ -25,7 +25,7 @@
             </h2>
         </div>
         <div class="card-body">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div class="bg-primary-50 border border-primary-200 rounded-lg p-4">
                     <div class="flex items-center mb-2">
                         <i class="fas fa-calendar text-primary-500 mr-2"></i>
@@ -54,6 +54,8 @@
                     <p class="text-sm text-secondary">{{ $invitationsSent }} sent</p>
                     <p class="text-xs text-secondary mt-1">{{ $invitationsPending }} pending</p>
                 </div>
+                
+
             </div>
         </div>
     </div>
@@ -111,12 +113,19 @@
                     
                     <div>
                         <label for="description" class="form-label">Event Description</label>
-                        <textarea id="description" name="description" rows="3" class="form-textarea">{{ old('description', $event->description) }}</textarea>
+                        <textarea id="description" name="description" rows="3" class="form-input @error('description') border-danger-500 @enderror">{{ old('description', $event->description) }}</textarea>
                     </div>
                     
                     <div>
                         <label for="venue_address" class="form-label">Venue Address</label>
                         <input type="text" id="venue_address" name="venue_address" value="{{ old('venue_address', $event->venue_address) }}" class="form-input">
+                        <small class="text-secondary text-sm">You can also select a point on the map below.</small>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div id="map" class="w-full rounded-lg border border-gray-200" style="height: 320px;"></div>
+                        <input type="hidden" id="latitude" name="latitude" value="{{ old('latitude', $event->latitude ?? '') }}">
+                        <input type="hidden" id="longitude" name="longitude" value="{{ old('longitude', $event->longitude ?? '') }}">
                     </div>
                     
                     <div class="flex justify-end">
@@ -611,13 +620,28 @@ function hideNewGuestsSection() {
 }
 
 function addNewGuestToGrid(guestData) {
+    console.log('addNewGuestToGrid called with:', guestData);
+    
     const newGuestsGrid = document.getElementById('new-guests-grid');
+    console.log('newGuestsGrid element:', newGuestsGrid);
+    
+    if (!newGuestsGrid) {
+        console.error('newGuestsGrid element not found!');
+        return;
+    }
+    
     const guestCard = createGuestCard(guestData);
+    console.log('guestCard created:', guestCard);
+    
     newGuestsGrid.appendChild(guestCard);
+    console.log('guestCard added to grid');
+    
     showNewGuestsSection();
+    console.log('new guests section shown');
     
     // Move guest to current guests section after 5 seconds (simulating "processed" state)
     setTimeout(() => {
+        console.log('Moving guest to current section after timeout');
         moveGuestToCurrentSection(guestData);
     }, 5000);
 }
@@ -794,6 +818,165 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Google Maps functionality for location selection
+function initMap() {
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+    const addressInput = document.getElementById('venue_address');
+    const venueNameInput = document.getElementById('venue_name');
+
+    // Default to Kuala Lumpur if we don't have a user location
+    const defaultLat = 3.139003;   // Kuala Lumpur
+    const defaultLng = 101.686855;
+    const initialLat = parseFloat(latInput.value);
+    const initialLng = parseFloat(lngInput.value);
+    const hasInitial = Number.isFinite(initialLat) && Number.isFinite(initialLng);
+
+    const map = new google.maps.Map(document.getElementById('map'), {
+        center: hasInitial ? { lat: initialLat, lng: initialLng } : { lat: defaultLat, lng: defaultLng },
+        zoom: hasInitial ? 14 : 12,
+        mapTypeControl: false,
+        streetViewControl: false
+    });
+
+    let marker = new google.maps.Marker({
+        position: hasInitial ? { lat: initialLat, lng: initialLng } : { lat: defaultLat, lng: defaultLng },
+        map,
+        draggable: true
+    });
+    if (!hasInitial) marker.setVisible(false);
+
+    const geocoder = new google.maps.Geocoder();
+    const placesService = new google.maps.places.PlacesService(map);
+
+    function reverseGeocodeAndSet(loc) {
+        geocoder.geocode({ location: loc }, (results, status) => {
+            if (status === 'OK' && results && results.length) {
+                const best = results[0];
+                if (best.formatted_address) {
+                    addressInput.value = best.formatted_address;
+                }
+                if (best.place_id) {
+                    placesService.getDetails({ placeId: best.place_id, fields: ['name'] }, (place, s) => {
+                        if (s === 'OK' && place && place.name) {
+                            venueNameInput.value = place.name;
+                        } else {
+                            // Fallback: use first segment of address as a rough venue name
+                            if (best.formatted_address) {
+                                venueNameInput.value = best.formatted_address.split(',')[0];
+                            }
+                        }
+                    });
+                } else if (best.formatted_address) {
+                    venueNameInput.value = best.formatted_address.split(',')[0];
+                }
+            }
+        });
+    }
+
+    const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+        fields: ['geometry', 'formatted_address', 'name'],
+        componentRestrictions: { country: ['my'] }
+    });
+    autocomplete.bindTo('bounds', map);
+
+    // Autocomplete for venue name (establishments)
+    const venueAutocomplete = new google.maps.places.Autocomplete(venueNameInput, {
+        fields: ['geometry', 'formatted_address', 'name'],
+        types: ['establishment'],
+        componentRestrictions: { country: ['my'] }
+    });
+    venueAutocomplete.bindTo('bounds', map);
+
+    function setAutocompleteBoundsFrom(latLng) {
+        const circle = new google.maps.Circle({ center: latLng, radius: 5000 }); // 5km bias
+        const bounds = circle.getBounds();
+        autocomplete.setBounds(bounds);
+        autocomplete.setOptions({ strictBounds: false }); // bias, not restrict
+        venueAutocomplete.setBounds(bounds);
+        venueAutocomplete.setOptions({ strictBounds: false });
+    }
+
+    autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) return;
+        const loc = place.geometry.location;
+        map.setCenter(loc);
+        map.setZoom(15);
+        marker.setPosition(loc);
+        marker.setVisible(true);
+        latInput.value = loc.lat().toFixed(6);
+        lngInput.value = loc.lng().toFixed(6);
+        if (place.formatted_address) {
+            addressInput.value = place.formatted_address;
+        }
+        if (place.name) {
+            venueNameInput.value = place.name;
+        }
+        setAutocompleteBoundsFrom(loc);
+    });
+
+    venueAutocomplete.addListener('place_changed', () => {
+        const place = venueAutocomplete.getPlace();
+        if (!place.geometry) return;
+        const loc = place.geometry.location;
+        map.setCenter(loc);
+        map.setZoom(15);
+        marker.setPosition(loc);
+        marker.setVisible(true);
+        latInput.value = loc.lat().toFixed(6);
+        lngInput.value = loc.lng().toFixed(6);
+        if (place.name) {
+            venueNameInput.value = place.name;
+        }
+        if (place.formatted_address) {
+            addressInput.value = place.formatted_address;
+        }
+        setAutocompleteBoundsFrom(loc);
+    });
+
+    map.addListener('click', (e) => {
+        const loc = e.latLng;
+        marker.setPosition(loc);
+        marker.setVisible(true);
+        latInput.value = loc.lat().toFixed(6);
+        lngInput.value = loc.lng().toFixed(6);
+        setAutocompleteBoundsFrom(loc);
+        reverseGeocodeAndSet(loc);
+    });
+
+    marker.addListener('dragend', (e) => {
+        const loc = e.latLng;
+        latInput.value = loc.lat().toFixed(6);
+        lngInput.value = loc.lng().toFixed(6);
+        setAutocompleteBoundsFrom(loc);
+        reverseGeocodeAndSet(loc);
+    });
+
+    // Try to use user's current location if no initial coordinates provided
+    if (!hasInitial && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                map.setCenter(loc);
+                map.setZoom(14);
+                marker.setPosition(loc);
+                marker.setVisible(true);
+                latInput.value = loc.lat.toFixed(6);
+                lngInput.value = loc.lng.toFixed(6);
+                setAutocompleteBoundsFrom(loc);
+                reverseGeocodeAndSet(loc);
+            },
+            () => {
+                // If denied or failed, we keep default KL
+                map.setCenter({ lat: defaultLat, lng: defaultLng });
+                map.setZoom(12);
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+        );
+    }
+}
 
 // Close modals when clicking outside
 document.addEventListener('click', function(e) {

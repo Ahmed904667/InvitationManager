@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 use App\Services\ContactService;
 use App\Services\TwilioService;
 use App\Shared\Models\Reminder;
+use App\Shared\Models\Notification;
+use App\Shared\Models\Event;
 
 class SendEventReminder implements ShouldQueue
 {
@@ -63,6 +65,11 @@ class SendEventReminder implements ShouldQueue
             
             // Mark as sent
             $reminder->markAsSent();
+            
+            // For localhost environments, manually check and update notification status
+            if (str_contains(config('app.url'), 'localhost') || str_contains(config('app.url'), '127.0.0.1')) {
+                $this->updateNotificationStatusForLocalhost($reminder);
+            }
             
             Log::info('Event reminder sent successfully', [
                 'reminder_id' => $this->reminderId,
@@ -121,6 +128,29 @@ class SendEventReminder implements ShouldQueue
             $mail->to($email)
                  ->subject($subject);
         });
+        
+        // Create notification record for tracking
+        // Try to find the event by name (since reminder doesn't have event_id)
+        $event = Event::where('name', $eventName)->first();
+        
+        if ($event) {
+            Notification::create([
+                'event_id' => $event->id,
+                'guest_id' => null, // We don't have guest_id in reminder
+                'user_id' => $reminder->user_id ?? 1, // Default to system user if not set
+                'type' => Notification::TYPE_EVENT_REMINDER,
+                'channel' => 'email',
+                'message' => $message,
+                'status' => Notification::STATUS_DELIVERED, // Emails are considered delivered when sent
+                'sent_at' => now(),
+                'delivery_details' => [
+                    'reminder_id' => $reminder->id,
+                    'guest_email' => $email,
+                    'guest_name' => $guestName,
+                    'subject' => $subject
+                ]
+            ]);
+        }
     }
 
     /**
@@ -151,7 +181,81 @@ class SendEventReminder implements ShouldQueue
         
         // Use Twilio service to send WhatsApp message
         $twilioService = app(TwilioService::class);
-        $twilioService->sendWhatsAppMessage($phone, $message);
+        $result = $twilioService->sendWhatsAppMessage($phone, $message);
+        
+        // Create notification record for tracking
+        if ($result['success']) {
+            // Try to find the event by name (since reminder doesn't have event_id)
+            $event = Event::where('name', $eventName)->first();
+            
+            if ($event) {
+                Notification::create([
+                    'event_id' => $event->id,
+                    'guest_id' => null, // We don't have guest_id in reminder
+                    'user_id' => $reminder->user_id ?? 1, // Default to system user if not set
+                    'type' => Notification::TYPE_EVENT_REMINDER,
+                    'channel' => 'whatsapp',
+                    'message' => $message,
+                    'status' => Notification::STATUS_QUEUED, // Will be updated by webhook
+                    'external_id' => $result['message_sid'],
+                    'sent_at' => now(),
+                    'delivery_details' => [
+                        'reminder_id' => $reminder->id,
+                        'guest_phone' => $phone,
+                        'guest_name' => $guestName,
+                        'twilio_status' => $result['status'],
+                        'twilio_response' => $result
+                    ]
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Update notification status for localhost environments where webhooks don't work
+     */
+    private function updateNotificationStatusForLocalhost(Reminder $reminder): void
+    {
+        try {
+            // Find the notification for this reminder
+            $notification = Notification::where('delivery_details->reminder_id', $reminder->id)
+                ->where('channel', 'whatsapp')
+                ->first();
+            
+            if ($notification && $notification->external_id) {
+                // Use Twilio service to get current message status
+                $twilioService = app(\App\Services\TwilioService::class);
+                $messageStatus = $twilioService->getMessageStatus($notification->external_id);
+                
+                if ($messageStatus) {
+                    // Update notification status based on Twilio status
+                    switch (strtolower($messageStatus->status)) {
+                        case 'delivered':
+                        case 'sent':
+                            $notification->markAsDelivered($notification->external_id);
+                            break;
+                        case 'failed':
+                        case 'undelivered':
+                            $notification->markAsFailed('Message delivery failed');
+                            break;
+                        default:
+                            // Keep as queued for intermediate statuses
+                            break;
+                    }
+                    
+                    Log::info('Updated notification status for localhost', [
+                        'notification_id' => $notification->id,
+                        'twilio_status' => $messageStatus->status,
+                        'final_status' => $notification->status
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to update notification status for localhost', [
+                'reminder_id' => $reminder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**
