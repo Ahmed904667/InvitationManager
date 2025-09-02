@@ -45,6 +45,49 @@ class EventController extends Controller
             ->where('status', 'completed')
             ->orderBy('start_date', 'desc') // Order by start date descending for completed events
             ->get();
+        
+        // Use EventGuestService to get accurate guest counts for all events
+        $eventGuestService = app(\App\Services\EventGuestService::class);
+        
+        // Load active guests for each active event to calculate accurate statistics
+        foreach ($activeEvents as $event) {
+            $activeEventGuests = $eventGuestService->getActiveGuestsForEvent($event);
+            $event->active_guests_count = $activeEventGuests->count();
+            $event->active_guests = $activeEventGuests;
+            
+            // Calculate active guest lists count (only lists with active guests)
+            $activeGuestLists = collect();
+            foreach ($event->guestLists as $guestList) {
+                $guestsInEvent = $activeEventGuests->filter(function($eventGuest) use ($guestList) {
+                    return $eventGuest->guest->guest_list_id === $guestList->id;
+                });
+                
+                if ($guestsInEvent->count() > 0) {
+                    $activeGuestLists->push($guestList);
+                }
+            }
+            $event->active_guest_lists_count = $activeGuestLists->count();
+        }
+        
+        // Load active guests for each completed event to calculate accurate statistics
+        foreach ($completedEvents as $event) {
+            $activeEventGuests = $eventGuestService->getActiveGuestsForEvent($event);
+            $event->active_guests_count = $activeEventGuests->count();
+            $event->active_guests = $activeEventGuests;
+            
+            // Calculate active guest lists count (only lists with active guests)
+            $activeGuestLists = collect();
+            foreach ($event->guestLists as $guestList) {
+                $guestsInEvent = $activeEventGuests->filter(function($eventGuest) use ($guestList) {
+                    return $eventGuest->guest->guest_list_id === $guestList->id;
+                });
+                
+                if ($guestsInEvent->count() > 0) {
+                    $activeGuestLists->push($guestList);
+                }
+            }
+            $event->active_guest_lists_count = $activeGuestLists->count();
+        }
             
         // Log for debugging
         Log::info('Events index loaded', [
@@ -1503,16 +1546,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             'event_id' => $event->id,
             'event_name' => $event->name,
             'active_event_guests_count' => $activeEventGuests->count(),
-            'guest_lists_count' => $event->guestLists->count(),
             'total_event_guest_records' => \App\EventGuest::where('event_id', $event->id)->count(),
             'active_event_guest_records' => \App\EventGuest::where('event_id', $event->id)->where('status', 'active')->count()
         ]);
         
-        // Load event with all related data
+        // Load event with guest list data (invitations are now loaded by EventGuestService)
         $event->load([
-            'guestLists.guests.invitations' => function($query) use ($event) {
-                $query->where('event_id', $event->id);
-            },
             'guestLists.guests.checkedInBy'
         ]);
         
@@ -1547,7 +1586,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             $guest = $eventGuest->guest;
             $totalGuests++;
             
-            // Check RSVP status
+            // Check RSVP status - only for active guests
             $invitation = $guest->invitations->where('event_id', $event->id)->first();
             if ($invitation) {
                 $rsvpStatus = $invitation->rsvp_status ?? 'no_response';
@@ -1568,11 +1607,25 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             }
         }
         
+
+        
+        // Count only guest lists that actually have guests in this event
+        $activeGuestLists = collect();
+        foreach ($event->guestLists as $guestList) {
+            $guestsInEvent = $activeEventGuests->filter(function($eventGuest) use ($guestList) {
+                return $eventGuest->guest->guest_list_id === $guestList->id;
+            });
+            
+            if ($guestsInEvent->count() > 0) {
+                $activeGuestLists->push($guestList);
+            }
+        }
+        
         return [
             'total_guests' => $totalGuests,
             'rsvp_stats' => $rsvpStats,
             'attendance_stats' => $attendanceStats,
-            'guest_lists_count' => $event->guestLists->count(),
+            'guest_lists_count' => $activeGuestLists->count(),
             'invitations_sent' => $event->invitations()->count(),
             'invitations_pending' => $event->invitations()->where('status', 'pending')->count(),
             'invitations_sent_count' => $event->invitations()->where('status', 'sent')->count(),
@@ -1747,7 +1800,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 $step2Data = [
                     'qr_checkin_enabled' => $qrToggleProvided
                         ? (bool) ($data['qr_checkin_enabled'] === true || $data['qr_checkin_enabled'] === '1' || $data['qr_checkin_enabled'] === 1 || $data['qr_checkin_enabled'] === 'on')
-                        : ($existingStep2Data['qr_checkin_enabled'] ?? false),
+                        : ($existingStep2Data['qr_checkin_enabled'] ?? true), // Enable QR check-in by default
                     'rsvp_enabled' => $rsvpToggleProvided
                         ? (bool) ($data['rsvp_enabled'] === true || $data['rsvp_enabled'] === '1' || $data['rsvp_enabled'] === 1 || $data['rsvp_enabled'] === 'on')
                         : ($existingStep2Data['rsvp_enabled'] ?? false),
@@ -2210,7 +2263,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 'rsvp_message' => $data['rsvp_message'] ?? '',
                 'rsvp_deadline' => $data['rsvp_deadline'] ?? '',
                 'rsvp_contact' => $data['rsvp_contact'] ?? '',
-                'qr_checkin_enabled' => $data['qr_checkin_enabled'] ?? false,
+                'qr_checkin_enabled' => $data['qr_checkin_enabled'] ?? true, // Enable QR check-in by default
                 'qr_description' => $data['qr_description'] ?? '',
                 'send_type' => $data['send_type'] ?? 'now',
                 'scheduled_at' => !empty($data['scheduled_at']) ? $data['scheduled_at'] : null,
@@ -2964,6 +3017,13 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             return back()->with('error', 'This feature is only available for sent events.');
         }
 
+        // Log the incoming request data for debugging
+        Log::info('Event update request received', [
+            'event_id' => $event->id,
+            'user_id' => Auth::id(),
+            'request_data' => $request->all(),
+        ]);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -2973,11 +3033,25 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             'venue_address' => 'nullable|string',
         ]);
 
+        // Log the validated data for debugging
+        Log::info('Event update validation completed', [
+            'event_id' => $event->id,
+            'user_id' => Auth::id(),
+            'validated_data' => $validated,
+        ]);
+
         // Store original values for comparison
         $originalEvent = $event->toArray();
         
         // Update the event
-        $event->update($validated);
+        $event->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+            'venue_name' => $validated['venue_name'],
+            'venue_address' => $validated['venue_address'],
+        ]);
 
         // Detect changes and notify guests if needed
         $changes = $this->detectChanges($originalEvent, $validated);
@@ -2991,7 +3065,229 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             ]);
         }
 
+        // Return JSON response for AJAX requests
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Event information updated successfully!',
+                'changes' => $changes
+            ]);
+        }
+
         return back()->with('success', 'Event information updated successfully!');
+    }
+
+    /**
+     * Send event update notifications using the existing notification system
+     */
+    private function sendEventUpdateNotificationsViaExistingSystem(Event $event, array $platforms, ?string $customMessage = null)
+    {
+        try {
+            // Prepare the notification message
+            $message = $customMessage ?: "Update for {$event->name}: There have been changes to the event details. Please check your invitation for the latest information.";
+            
+            // Get all active guests for this event
+            $activeGuests = $event->activeGuests()->get();
+            
+            if ($activeGuests->isEmpty()) {
+                Log::warning('No active guests found for event update notification', [
+                    'event_id' => $event->id,
+                    'user_id' => Auth::id()
+                ]);
+                return;
+            }
+            
+            $notificationsCreated = 0;
+            $errors = [];
+            
+            foreach ($activeGuests as $guest) {
+                foreach ($platforms as $platform) {
+                    try {
+                        // Check if guest has the required contact method
+                        if ($platform === 'whatsapp' && !$guest->phone) {
+                            continue; // Skip if no phone number for WhatsApp
+                        }
+                        
+                        if ($platform === 'email' && !$guest->email) {
+                            continue; // Skip if no email for email notifications
+                        }
+                        
+                        // Create notification record
+                        $notification = \App\Shared\Models\Notification::create([
+                            'event_id' => $event->id,
+                            'guest_id' => $guest->id,
+                            'user_id' => Auth::id(),
+                            'type' => \App\Shared\Models\Notification::TYPE_EVENT_UPDATE,
+                            'channel' => $platform,
+                            'message' => $message,
+                            'status' => \App\Shared\Models\Notification::STATUS_QUEUED,
+                            'sent_at' => now(),
+                        ]);
+                        
+                        $notificationsCreated++;
+                        
+                        // Send the actual notification based on platform
+                        if ($platform === 'whatsapp') {
+                            $this->sendWhatsAppNotification($notification, $guest, $message);
+                        } elseif ($platform === 'email') {
+                            $this->sendEmailNotification($notification, $guest, $message);
+                        }
+                        
+                    } catch (\Exception $e) {
+                        $errors[] = "Failed to send {$platform} notification to {$guest->name}: " . $e->getMessage();
+                        
+                        // Mark notification as failed
+                        if (isset($notification)) {
+                            $notification->markAsFailed($e->getMessage());
+                        }
+                    }
+                }
+            }
+            
+            // Log the notification results
+            Log::info('Event update notifications completed via existing system', [
+                'event_id' => $event->id,
+                'user_id' => Auth::id(),
+                'platforms' => $platforms,
+                'total_guests' => $activeGuests->count(),
+                'notifications_created' => $notificationsCreated,
+                'errors_count' => count($errors)
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to send event update notifications via existing system', [
+                'event_id' => $event->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Send event update notifications to all guests
+     */
+    private function sendEventUpdateNotifications(Event $event, array $platforms, ?string $customMessage = null)
+    {
+        try {
+            // Get all active guests for this event
+            $eventGuestService = app(\App\Services\EventGuestService::class);
+            $activeEventGuests = $eventGuestService->getActiveGuestsForEvent($event);
+            
+            if ($activeEventGuests->isEmpty()) {
+                Log::warning('No active guests found for event update notification', [
+                    'event_id' => $event->id,
+                    'user_id' => Auth::id()
+                ]);
+                return;
+            }
+
+            // Prepare the notification message
+            $message = $customMessage ?: "Update for {$event->name}: There have been changes to the event details. Please check your invitation for the latest information.";
+            
+            $sentCount = 0;
+            $failedCount = 0;
+            $notificationErrors = [];
+
+            foreach ($activeEventGuests as $eventGuest) {
+                $guest = $eventGuest->guest;
+                
+                foreach ($platforms as $platform) {
+                    try {
+                        // Check if guest has the required contact method
+                        if ($platform === 'whatsapp' && !$guest->phone) {
+                            continue; // Skip if no phone number for WhatsApp
+                        }
+                        
+                        if ($platform === 'email' && !$guest->email) {
+                            continue; // Skip if no email for email notifications
+                        }
+                        
+                        // Create notification record
+                        $notification = \App\Shared\Models\Notification::create([
+                            'event_id' => $event->id,
+                            'guest_id' => $guest->id,
+                            'user_id' => Auth::id(),
+                            'type' => \App\Shared\Models\Notification::TYPE_EVENT_UPDATE,
+                            'channel' => $platform,
+                            'message' => $message,
+                            'status' => \App\Shared\Models\Notification::STATUS_QUEUED,
+                            'sent_at' => now(),
+                        ]);
+                        
+                        // Send the actual notification based on platform
+                        if ($platform === 'whatsapp') {
+                            $result = $this->sendEventUpdateWhatsApp($guest, $event, $message);
+                            
+                            if ($result['success']) {
+                                $notification->update([
+                                    'external_id' => $result['message_sid'] ?? null,
+                                    'delivery_details' => [
+                                        'twilio_response' => $result,
+                                        'sent_at' => now()->toISOString(),
+                                        'twilio_status' => $result['status'] ?? 'accepted',
+                                        'message_accepted' => true,
+                                        'guest_phone' => $guest->phone,
+                                        'guest_name' => $guest->name
+                                    ]
+                                ]);
+                                $sentCount++;
+                            } else {
+                                $notification->markAsFailed($result['error'] ?? 'WhatsApp delivery failed');
+                                $notificationErrors[] = "WhatsApp for {$guest->name}: " . ($result['error'] ?? 'Failed to send WhatsApp message');
+                                $failedCount++;
+                            }
+                        } elseif ($platform === 'email') {
+                            try {
+                                $this->sendEventUpdateEmail($guest, $event, $message);
+                                
+                                $notification->update([
+                                    'status' => \App\Shared\Models\Notification::STATUS_DELIVERED,
+                                    'delivery_details' => [
+                                        'email_sent' => true,
+                                        'sent_at' => now()->toISOString(),
+                                        'delivered_at' => now()->toISOString(),
+                                        'recipient_email' => $guest->email
+                                    ]
+                                ]);
+                                $sentCount++;
+                            } catch (\Exception $e) {
+                                $notification->markAsFailed('Email service error: ' . $e->getMessage());
+                                $notificationErrors[] = "Email for {$guest->name}: " . $e->getMessage();
+                                $failedCount++;
+                            }
+                        }
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send update notification', [
+                            'guest_id' => $guest->id,
+                            'platform' => $platform,
+                            'error' => $e->getMessage()
+                        ]);
+                        $failedCount++;
+                    }
+                }
+            }
+
+            // Log the notification results
+            Log::info('Event update notifications completed', [
+                'event_id' => $event->id,
+                'user_id' => Auth::id(),
+                'platforms' => $platforms,
+                'total_guests' => $activeEventGuests->count(),
+                'sent_count' => $sentCount,
+                'failed_count' => $failedCount,
+                'errors' => $notificationErrors
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send event update notifications', [
+                'event_id' => $event->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 
     /**
@@ -3123,6 +3419,304 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         ];
 
         return response()->json($responseData);
+    }
+
+    /**
+     * Send invitations to new guests added to a sent event
+     */
+    public function sendNewGuestInvitations(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+        
+        if ($event->status !== 'sent') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This feature is only available for sent events.'
+            ], 400);
+        }
+
+        // Debug: Log the incoming request data
+        Log::info('New Guest Invitations Request Data', [
+            'event_id' => $event->id,
+            'request_data' => $request->all(),
+            'content_type' => $request->header('Content-Type'),
+            'user_id' => Auth::id()
+        ]);
+
+        $validated = $request->validate([
+            'pending_guests' => 'required|array|min:1',
+            'pending_guests.*.type' => 'required|in:individual,guest_list',
+            'pending_guests.*.name' => 'nullable|string|max:100',
+            'pending_guests.*.email' => 'nullable|email|max:100',
+            'pending_guests.*.phone' => 'nullable|string|max:30',
+            'pending_guests.*.guest_list_id' => 'nullable|integer',
+            'platforms' => 'required|array|min:1',
+            'platforms.*' => 'in:email,whatsapp',
+            'message_type' => 'required|in:general,individual',
+            'general_message' => 'nullable|string|max:2000',
+            'individual_messages' => 'nullable|array'
+        ]);
+
+        // Additional validation for individual guests
+        foreach ($validated['pending_guests'] as $index => $pendingGuest) {
+            if ($pendingGuest['type'] === 'individual' && empty($pendingGuest['name'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Guest name is required for individual guests.',
+                    'errors' => ["pending_guests.{$index}.name" => ['Guest name is required for individual guests.']]
+                ], 422);
+            }
+            
+            if ($pendingGuest['type'] === 'guest_list' && empty($pendingGuest['guest_list_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Guest list ID is required for guest list type.',
+                    'errors' => ["pending_guests.{$index}.guest_list_id" => ['Guest list ID is required for guest list type.']]
+                ], 422);
+            }
+        }
+
+        $createdGuests = [];
+        $eventGuestService = app(\App\Services\EventGuestService::class);
+
+        try {
+            foreach ($validated['pending_guests'] as $pendingGuest) {
+                if ($pendingGuest['type'] === 'individual') {
+                    // Create individual guest
+                    $guest = new \App\Shared\Models\Guest();
+                    $guest->name = $pendingGuest['name'];
+                    $guest->email = $pendingGuest['email'] ?? null;
+                    $guest->phone = $pendingGuest['phone'] ?? null;
+                    
+                    if (!empty($pendingGuest['guest_list_id'])) {
+                        // Verify guest list belongs to event
+                        $guestList = $event->guestLists()->where('guest_lists.id', $pendingGuest['guest_list_id'])->first();
+                        if ($guestList) {
+                            $guest->guest_list_id = $pendingGuest['guest_list_id'];
+                        }
+                    }
+                    
+                    $guest->save();
+                    
+                    // Add to event
+                    $eventGuest = $eventGuestService->addGuestToEvent($event, $guest);
+
+                    $createdGuests[] = [
+                        'id' => $guest->id,
+                        'name' => $guest->name,
+                        'email' => $guest->email,
+                        'phone' => $guest->phone,
+                        'guest_list_name' => $guest->getGuestListName()
+                    ];
+                    
+                } elseif ($pendingGuest['type'] === 'guest_list') {
+                    // Add entire guest list
+                    $guestList = GuestList::findOrFail($pendingGuest['guest_list_id']);
+                    
+                    // Verify user owns this guest list
+                    if ($guestList->user_id !== Auth::id()) {
+                        continue; // Skip unauthorized guest lists
+                    }
+                    
+                    $eventGuests = $eventGuestService->addGuestListToEvent($event, $guestList);
+                    
+                    foreach ($guestList->guests as $guest) {
+                        $createdGuests[] = [
+                            'id' => $guest->id,
+                            'name' => $guest->name,
+                            'email' => $guest->email,
+                            'phone' => $guest->phone,
+                            'guest_list_name' => $guest->getGuestListName()
+                        ];
+                    }
+                }
+            }
+
+            // Now send the invitations using the event creation service logic
+            $this->sendInvitationsToSpecificGuests($event, $createdGuests, $validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully added " . count($createdGuests) . " guests and sent invitations!",
+                'guests' => $createdGuests
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error sending new guest invitations', [
+                'event_id' => $event->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while processing the invitations. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Send invitations to specific guests using EventCreationService logic
+     */
+    private function sendInvitationsToSpecificGuests(Event $event, array $guestDataArray, array $invitationData)
+    {
+        // Get the platforms from invitation data
+        $platforms = $invitationData['platforms'];
+        
+        // Determine the message to use
+        $messageGeneral = $invitationData['general_message'] ?? '';
+        
+        // Fallback message if none provided
+        if (empty($messageGeneral)) {
+            $messageGeneral = "Hello! You're invited to {$event->name}!";
+        }
+
+        Log::info('📧 [NEW_GUEST_INVITATION] Sending invitations to new guests', [
+            'event_id' => $event->id,
+            'event_name' => $event->name,
+            'platforms' => $platforms,
+            'guest_count' => count($guestDataArray),
+            'message_type' => $invitationData['message_type'],
+            'has_general_message' => !empty($messageGeneral)
+        ]);
+
+        $totalInvitationsSent = 0;
+
+        foreach ($guestDataArray as $guestData) {
+            $guest = \App\Shared\Models\Guest::find($guestData['id']);
+            if (!$guest) {
+                Log::warning('Guest not found for invitation', ['guest_id' => $guestData['id']]);
+                continue;
+            }
+
+            // Determine message for this specific guest
+            $message = $messageGeneral;
+            if ($invitationData['message_type'] === 'individual' && 
+                isset($invitationData['individual_messages'][$guest->id])) {
+                $message = $invitationData['individual_messages'][$guest->id];
+            }
+
+            // Generate unique token for this guest (shared across all platforms)
+            $token = $this->generateUniqueInvitationToken();
+            $inviteUrl = route('public.invite.show', ['token' => $token]);
+
+            // Apply message placeholders (same as EventCreationService)
+            $personalized = $this->applyMessagePlaceholders($message, $guest, $event);
+
+            // Create complete message with invite URL (same as EventCreationService)
+            $completeMessage = trim(($personalized ?? '') . "\n\n" . $inviteUrl . "\n\n" . "Thank you!");
+
+            foreach ($platforms as $platform) {
+                Log::info('📧 [NEW_GUEST_INVITATION] Sending message to guest', [
+                    'event_id' => $event->id,
+                    'guest_id' => $guest->id,
+                    'guest_name' => $guest->name,
+                    'platform' => $platform,
+                    'message_length' => strlen($completeMessage)
+                ]);
+
+                $recipient = $platform === 'email' ? ($guest->email ?: '') : ($guest->phone ?: '');
+                if (!$recipient) {
+                    Log::warning('Skipping guest without recipient for platform', [
+                        'guest_id' => $guest->id,
+                        'platform' => $platform
+                    ]);
+                    continue;
+                }
+
+                // Create invitation record (same as EventCreationService)
+                $invitation = \App\Shared\Models\Invitation::create([
+                    'event_id' => $event->id,
+                    'guest_id' => $guest->id,
+                    'token' => $token,
+                    'channel' => $platform,
+                    'recipient' => $recipient,
+                    'message' => $completeMessage,
+                    'status' => 'pending',
+                ]);
+
+                Log::info('📧 [NEW_GUEST_INVITATION] Created invitation record', [
+                    'invitation_id' => $invitation->id,
+                    'guest_id' => $guest->id,
+                    'token' => $token,
+                    'invite_url' => $inviteUrl,
+                    'platform' => $platform
+                ]);
+
+                // Send via channel (same logic as EventCreationService)
+                $sent = false;
+                try {
+                    if ($platform === 'email') {
+                        \Mail::raw($completeMessage, function($mail) use ($recipient, $event) {
+                            $mail->to($recipient)->subject($event->invitation_title ?? ('Invitation: ' . $event->name));
+                        });
+                        $sent = true;
+                    } elseif ($platform === 'whatsapp') {
+                        $twilio = app(\App\Services\TwilioService::class);
+                        $result = $twilio->sendWhatsAppMessage($recipient, $completeMessage);
+                        $sent = $result['success'] ?? false;
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('Failed sending invitation to new guest', [
+                        'invitation_id' => $invitation->id,
+                        'guest_id' => $guest->id,
+                        'platform' => $platform,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $sent = false;
+                }
+
+                // Update status (same as EventCreationService)
+                $invitation->update([
+                    'status' => $sent ? 'sent' : 'failed',
+                    'sent_at' => $sent ? now() : null,
+                ]);
+
+                if ($sent) {
+                    $totalInvitationsSent++;
+                }
+            }
+        }
+
+        Log::info('📧 [NEW_GUEST_INVITATION] Completed sending invitations to new guests', [
+            'event_id' => $event->id,
+            'event_name' => $event->name,
+            'total_guests_processed' => count($guestDataArray),
+            'total_invitations_sent' => $totalInvitationsSent,
+            'platforms_used' => $platforms
+        ]);
+    }
+
+    /**
+     * Generate unique invitation token (same as EventCreationService)
+     */
+    private function generateUniqueInvitationToken(int $lengthBytes = 10): string
+    {
+        do {
+            $token = bin2hex(random_bytes($lengthBytes));
+        } while (\App\Shared\Models\Invitation::where('token', $token)->exists());
+        return $token;
+    }
+
+    /**
+     * Apply message placeholders (same as EventCreationService)
+     */
+    private function applyMessagePlaceholders(?string $message, \App\Shared\Models\Guest $guest, Event $event): string
+    {
+        $message = $message ?? '';
+        $userTimezone = Auth::user()->timezone ?? 'UTC';
+        $eventDateInTz = $event->start_date ? $event->start_date->setTimezone($userTimezone)->format('l, F j, Y g:i A') : '';
+        
+        $replacements = [
+            '{name}' => $guest->name ?? '',
+            '{event_name}' => $event->name ?? '',
+            '{date}' => $eventDateInTz,
+            '{venue}' => $event->venue_name ?? '',
+            '{address}' => $event->venue_address ?? '',
+        ];
+
+        return str_replace(array_keys($replacements), array_values($replacements), $message);
     }
 
     /**
@@ -4405,24 +4999,58 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     private function sendEmailNotification($notification, $guest, $message)
     {
         try {
-            // You can implement email sending logic here
-            // For now, we'll just mark it as queued and let a job handle it
+            if (!$guest->email) {
+                throw new \Exception('Guest has no email address');
+            }
+
+            // Load the event relationship to ensure it's available
+            $notification->load('event');
             
+            if (!$notification->event) {
+                throw new \Exception('Event relationship not found for notification');
+            }
+
+            // Replace placeholders in the message
+            $personalizedMessage = str_replace(
+                ['[Guest Name]', '[Event Name]', '[Your Name]'],
+                [$guest->name, $notification->event->name, Auth::user()->name],
+                $message
+            );
+
+            // Send email using Laravel's mail system
+            \Mail::raw($personalizedMessage, function($mail) use ($guest, $notification) {
+                $mail->to($guest->email)
+                     ->subject("Event Update - {$notification->event->name}")
+                     ->from(config('mail.from.address'), config('mail.from.name'));
+            });
+
+            // Update notification status to delivered
             $notification->update([
                 'status' => \App\Shared\Models\Notification::STATUS_DELIVERED,
                 'delivery_details' => [
                     'email_sent' => true,
                     'sent_at' => now()->toISOString(),
                     'delivered_at' => now()->toISOString(),
-                    'recipient_email' => $guest->email
+                    'recipient_email' => $guest->email,
+                    'subject' => "Event Update - {$notification->event->name}"
                 ]
             ]);
-            
-            // You could dispatch a job here to actually send the email
-            // dispatch(new SendEventNotificationEmail($notification));
+
+            \Log::info('Email notification sent successfully', [
+                'notification_id' => $notification->id,
+                'guest_id' => $guest->id,
+                'guest_email' => $guest->email,
+                'event_name' => $notification->event->name
+            ]);
             
         } catch (\Exception $e) {
             $notification->markAsFailed('Email service error: ' . $e->getMessage());
+            
+            \Log::error('Email notification failed', [
+                'notification_id' => $notification->id,
+                'guest_id' => $guest->id,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 

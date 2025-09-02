@@ -6,6 +6,7 @@ namespace App\Shared\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -27,6 +28,9 @@ class User extends Authenticatable
         'scanner_settings',
         'last_offline_sync',
         'timezone',
+        'phone',
+        'profile_photo_path',
+        'bio',
     ];
 
     public function guestLists()
@@ -104,5 +108,17 @@ class User extends Authenticatable
             'scanner' => 'Event Scanner',
             default => 'User'
         };
+    }
+
+    /**
+     * Get the user's profile photo URL.
+     */
+    public function getProfilePhotoUrlAttribute()
+    {
+        if ($this->profile_photo_path) {
+            return Storage::disk('public')->url($this->profile_photo_path);
+        }
+        
+        return null;
     }
 }

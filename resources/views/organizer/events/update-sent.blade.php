@@ -128,6 +128,19 @@
                         <input type="hidden" id="longitude" name="longitude" value="{{ old('longitude', $event->longitude ?? '') }}">
                     </div>
                     
+                    {{-- Update Notification Checkbox --}}
+                    <div class="border-t pt-6">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="send_update_notification" name="send_update_notification" class="form-checkbox h-5 w-5 text-primary-600" value="1">
+                            <label for="send_update_notification" class="form-label text-lg">
+                                <i class="fas fa-bell text-primary-500 mr-2"></i>Send update notification to all guests
+                            </label>
+                        </div>
+                        <p class="text-secondary text-sm mt-2 ml-8">
+                            Check this box if you want to notify all guests about the changes made to the event.
+                        </p>
+                    </div>
+
                     <div class="flex justify-end">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save mr-2"></i>Update Basic Information
@@ -150,31 +163,34 @@
                             </span>
                         </div>
                         <div class="flex items-center space-x-3">
-                            <button onclick="showAddGuestModal()" class="btn btn-primary btn-sm">
-                                <i class="fas fa-user-plus mr-1"></i>Add Guest
+                            <button onclick="showPendingGuestsModal()" class="btn btn-primary btn-sm">
+                                <i class="fas fa-user-plus mr-1"></i>Add Guests
                             </button>
-                            <button onclick="showAddGuestListModal()" class="btn btn-secondary btn-sm">
-                                <i class="fas fa-list-plus mr-1"></i>Add Guest List
+                            <button id="send-invitations-btn" onclick="showInvitationModal()" class="btn btn-success btn-sm" style="display: none;">
+                                <i class="fas fa-paper-plane mr-1"></i>Send Invitations (<span id="pending-count">0</span>)
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {{-- New Guests Section (Hidden by default) --}}
-                <div id="new-guests-section" class="mb-6" style="display: none;">
-                    <div class="bg-info-50 border border-info-200 rounded-lg p-4 mb-4">
+                {{-- Pending Guests Section (Hidden by default) --}}
+                <div id="pending-guests-section" class="mb-6" style="display: none;">
+                    <div class="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-4">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center">
-                                <i class="fas fa-star text-info-500 mr-2"></i>
-                                <h4 class="font-semibold text-info-700">New Guests Added</h4>
+                                <i class="fas fa-clock text-warning-500 mr-2"></i>
+                                <h4 class="font-semibold text-warning-700">Pending Guests - Ready for Invitation</h4>
                             </div>
-                            <button onclick="hideNewGuestsSection()" class="text-info-600 hover:text-info-800">
+                            <button onclick="hidePendingGuestsSection()" class="text-warning-600 hover:text-warning-800">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
+                        <p class="text-sm text-warning-600 mt-2">
+                            These guests have been added but haven't received invitations yet. Write personalized messages and send invitations when ready.
+                        </p>
                     </div>
-                    <div id="new-guests-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <!-- New guests will be dynamically added here -->
+                    <div id="pending-guests-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Pending guests will be dynamically added here -->
                     </div>
                 </div>
 
@@ -209,61 +225,56 @@
                     </div>
                 </div>
 
-                {{-- Add Guest Modal --}}
-                <div id="add-guest-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-                    <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                {{-- Pending Guests Modal --}}
+                <div id="pending-guests-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold text-primary">Add New Guest</h3>
-                            <button onclick="hideAddGuestModal()" class="text-gray-500 hover:text-gray-700">
+                            <h3 class="text-lg font-semibold text-primary">Add New Guests</h3>
+                            <button onclick="hidePendingGuestsModal()" class="text-gray-500 hover:text-gray-700">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <form id="add-guest-form" action="{{ route('organizer.events.update-sent.add-guest', $event) }}" method="POST" class="space-y-4">
-                            @csrf
+                        
+                        <div class="space-y-6">
+                            {{-- Individual Guest Form --}}
+                            <div class="border-b pb-4">
+                                <h4 class="font-medium text-primary mb-3">Add Individual Guest</h4>
+                                <form id="add-individual-guest-form" class="space-y-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label for="modal_guest_name" class="form-label">Guest Name <span class="text-danger-500">*</span></label>
-                                <input type="text" id="modal_guest_name" name="name" class="form-input" required>
+                                            <label for="individual_guest_name" class="form-label">Guest Name <span class="text-danger-500">*</span></label>
+                                            <input type="text" id="individual_guest_name" name="name" class="form-input" required>
                             </div>
                             <div>
-                                <label for="modal_guest_email" class="form-label">Email</label>
-                                <input type="email" id="modal_guest_email" name="email" class="form-input">
+                                            <label for="individual_guest_email" class="form-label">Email</label>
+                                            <input type="email" id="individual_guest_email" name="email" class="form-input">
+                            </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                            <label for="individual_guest_phone" class="form-label">Phone</label>
+                                            <input type="text" id="individual_guest_phone" name="phone" class="form-input">
                             </div>
                             <div>
-                                <label for="modal_guest_phone" class="form-label">Phone</label>
-                                <input type="text" id="modal_guest_phone" name="phone" class="form-input">
-                            </div>
-                            <div>
-                                <label for="modal_guest_list_id" class="form-label">Add to Guest List (Optional)</label>
-                                <select id="modal_guest_list_id" name="guest_list_id" class="form-select">
+                                            <label for="individual_guest_list_id" class="form-label">Add to Guest List (Optional)</label>
+                                            <select id="individual_guest_list_id" name="guest_list_id" class="form-select">
                                     <option value="">Add as standalone guest</option>
                                     @foreach($event->guestLists as $guestList)
                                         <option value="{{ $guestList->id }}">{{ $guestList->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="flex justify-end space-x-3">
-                                <button type="button" onclick="hideAddGuestModal()" class="btn btn-secondary">
-                                    Cancel
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-user-plus mr-1"></i>Add Guest
-                                </button>
                             </div>
+                                    <button type="button" onclick="addIndividualGuestToPending()" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-user-plus mr-1"></i>Add to Pending List
+                                    </button>
                         </form>
-                    </div>
                 </div>
 
-                {{-- Add Guest List Modal --}}
-                <div id="add-guest-list-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-                    <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold text-primary">Add Guest List</h3>
-                            <button onclick="hideAddGuestListModal()" class="text-gray-500 hover:text-gray-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <form id="add-guest-list-form" action="{{ route('organizer.events.update-sent.add-guest-list', $event) }}" method="POST" class="space-y-4">
-                            @csrf
+                            {{-- Guest List Selection --}}
+                            <div class="border-b pb-4">
+                                <h4 class="font-medium text-primary mb-3">Add Guest List</h4>
+                                <form id="add-guest-list-form" class="space-y-4">
                             <div>
                                 <label for="modal_guest_list_id" class="form-label">Select Guest List</label>
                                 <select id="modal_guest_list_id" name="guest_list_id" class="form-select" required>
@@ -275,12 +286,118 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="flex justify-end space-x-3">
-                                <button type="button" onclick="hideAddGuestListModal()" class="btn btn-secondary">
+                                    <button type="button" onclick="addGuestListToPending()" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-list-plus mr-1"></i>Add List to Pending
+                                    </button>
+                                </form>
+                            </div>
+
+                            {{-- Current Pending List --}}
+                            <div>
+                                <h4 class="font-medium text-primary mb-3">Pending Guests (<span id="pending-modal-count">0</span>)</h4>
+                                <div id="pending-modal-list" class="space-y-2 max-h-40 overflow-y-auto">
+                                    <p class="text-gray-500 text-sm">No pending guests yet. Add guests above.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                            <button type="button" onclick="hidePendingGuestsModal()" class="btn btn-secondary">
                                     Cancel
                                 </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-list-plus mr-1"></i>Add Guest List
+                            <button type="button" onclick="proceedToInvitations()" class="btn btn-success" id="proceed-btn" disabled>
+                                <i class="fas fa-arrow-right mr-1"></i>Proceed to Send Invitations
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Invitation Composition Modal --}}
+                <div id="invitation-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+                    <div class="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-primary">Send Invitations to New Guests</h3>
+                            <button onclick="hideInvitationModal()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <form id="send-invitations-form" class="space-y-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {{-- Platform Selection --}}
+                                <div>
+                                    <h4 class="font-medium text-primary mb-3">Invitation Platforms</h4>
+                                    <div class="space-y-3">
+                                        @if(in_array('email', $event->invitation_platforms ?? []))
+                                            <label class="flex items-center space-x-3">
+                                                <input type="checkbox" name="platforms[]" value="email" class="form-checkbox h-5 w-5 text-primary-600" checked>
+                                                <span class="text-primary">
+                                                    <i class="fas fa-envelope mr-2"></i>Email
+                                                </span>
+                                            </label>
+                                        @endif
+                                        @if(in_array('whatsapp', $event->invitation_platforms ?? []))
+                                            <label class="flex items-center space-x-3">
+                                                <input type="checkbox" name="platforms[]" value="whatsapp" class="form-checkbox h-5 w-5 text-primary-600" checked>
+                                                <span class="text-primary">
+                                                    <i class="fab fa-whatsapp mr-2"></i>WhatsApp
+                                                </span>
+                                            </label>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                {{-- Message Type Selection --}}
+                                <div>
+                                    <h4 class="font-medium text-primary mb-3">Message Type</h4>
+                                    <div class="space-y-3">
+                                        <label class="flex items-center space-x-3">
+                                            <input type="radio" name="message_type" value="general" class="form-radio h-5 w-5 text-primary-600" checked>
+                                            <span>Use general message for all guests</span>
+                                        </label>
+                                        <label class="flex items-center space-x-3">
+                                            <input type="radio" name="message_type" value="individual" class="form-radio h-5 w-5 text-primary-600">
+                                            <span>Create individual messages for each guest</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- General Message Section --}}
+                            <div id="general-message-section">
+                                <h4 class="font-medium text-primary mb-3">General Invitation Message</h4>
+                                <textarea id="general_message" name="general_message" rows="6" class="form-textarea w-full" 
+                                          placeholder="Write your invitation message here...">{{ $event->general_message ?? "Hello! You're invited to {$event->name}. Event details and RSVP link will be provided in your invitation." }}</textarea>
+                                <p class="text-secondary text-sm mt-2">
+                                    This message will be sent to all new guests. Event details and RSVP link will be automatically included.
+                                </p>
+                            </div>
+
+                            {{-- Individual Messages Section --}}
+                            <div id="individual-messages-section" class="hidden">
+                                <h4 class="font-medium text-primary mb-3">Individual Messages</h4>
+                                <div id="individual-messages-container">
+                                    <!-- Individual message forms will be populated here -->
+                                </div>
+                            </div>
+
+                            {{-- Guest Summary --}}
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-medium text-primary mb-3">Invitation Summary</h4>
+                                <div id="invitation-summary">
+                                    <p class="text-gray-600">No pending guests selected.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end space-x-3 pt-4 border-t">
+                                <button type="button" onclick="hideInvitationModal()" class="btn btn-secondary">
+                                    Cancel
+                                </button>
+                                <button type="button" onclick="generateAIMessages()" class="btn btn-info">
+                                    <i class="fas fa-magic mr-1"></i>Generate AI Messages
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-paper-plane mr-1"></i>Send Invitations
                                 </button>
                             </div>
                         </form>
@@ -513,21 +630,31 @@ function hideModal(modalId) {
     document.body.style.overflow = 'auto';
 }
 
-// Guest Management functions
-function showAddGuestModal() {
-    showModal('add-guest-modal');
+// Pending Guests Management
+let pendingGuestsList = [];
+
+function showPendingGuestsModal() {
+    showModal('pending-guests-modal');
 }
 
-function hideAddGuestModal() {
-    hideModal('add-guest-modal');
+function hidePendingGuestsModal() {
+    hideModal('pending-guests-modal');
+    clearPendingGuestsForms();
 }
 
-function showAddGuestListModal() {
-    showModal('add-guest-list-modal');
+function showInvitationModal() {
+    if (pendingGuestsList.length === 0) {
+        showNotification('No pending guests to send invitations to.', 'error');
+        return;
+    }
+    
+    updateInvitationSummary();
+    updateIndividualMessagesSection();
+    showModal('invitation-modal');
 }
 
-function hideAddGuestListModal() {
-    hideModal('add-guest-list-modal');
+function hideInvitationModal() {
+    hideModal('invitation-modal');
 }
 
 function showDeleteConfirmationModal() {
@@ -611,58 +738,109 @@ function saveMessage(guestId) {
     });
 }
 
-function showNewGuestsSection() {
-    document.getElementById('new-guests-section').style.display = 'block';
-}
-
-function hideNewGuestsSection() {
-    document.getElementById('new-guests-section').style.display = 'none';
-}
-
-function addNewGuestToGrid(guestData) {
-    console.log('addNewGuestToGrid called with:', guestData);
+function addIndividualGuestToPending() {
+    const form = document.getElementById('add-individual-guest-form');
+    const formData = new FormData(form);
     
-    const newGuestsGrid = document.getElementById('new-guests-grid');
-    console.log('newGuestsGrid element:', newGuestsGrid);
+    const guestData = {
+        id: 'temp_' + Date.now(),
+        name: formData.get('name'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        guest_list_id: formData.get('guest_list_id'),
+        guest_list_name: formData.get('guest_list_id') ? 
+            document.querySelector(`option[value="${formData.get('guest_list_id')}"]`).textContent : 
+            'Standalone Guest',
+        type: 'individual'
+    };
     
-    if (!newGuestsGrid) {
-        console.error('newGuestsGrid element not found!');
+    if (!guestData.name.trim()) {
+        showNotification('Guest name is required.', 'error');
         return;
     }
     
-    const guestCard = createGuestCard(guestData);
-    console.log('guestCard created:', guestCard);
-    
-    newGuestsGrid.appendChild(guestCard);
-    console.log('guestCard added to grid');
-    
-    showNewGuestsSection();
-    console.log('new guests section shown');
-    
-    // Move guest to current guests section after 5 seconds (simulating "processed" state)
-    setTimeout(() => {
-        console.log('Moving guest to current section after timeout');
-        moveGuestToCurrentSection(guestData);
-    }, 5000);
+    pendingGuestsList.push(guestData);
+    updatePendingGuestsDisplay();
+    form.reset();
+    showNotification('Guest added to pending list!', 'success');
 }
 
-function moveGuestToCurrentSection(guestData) {
-    // Remove from new guests section
-    const newGuestsGrid = document.getElementById('new-guests-grid');
-    const guestCard = newGuestsGrid.querySelector(`[data-guest-id="${guestData.id}"]`);
-    if (guestCard) {
-        guestCard.remove();
+function addGuestListToPending() {
+    const guestListId = document.getElementById('modal_guest_list_id').value;
+    if (!guestListId) {
+        showNotification('Please select a guest list.', 'error');
+        return;
     }
     
-    // Add to current guests section (without message functionality)
-    const currentGuestsGrid = document.getElementById('current-guests-grid');
-    const currentGuestCard = createCurrentGuestCard(guestData);
-    currentGuestsGrid.appendChild(currentGuestCard);
+    // In a real implementation, you'd fetch guest list data via AJAX
+    // For now, we'll simulate adding a guest list
+    const guestListOption = document.querySelector(`option[value="${guestListId}"]`);
+    const guestListData = {
+        id: 'list_' + guestListId + '_' + Date.now(),
+        guest_list_id: parseInt(guestListId),
+        guest_list_name: guestListOption.textContent,
+        type: 'guest_list'
+    };
     
-    // Hide new guests section if empty
-    if (newGuestsGrid.children.length === 0) {
-        hideNewGuestsSection();
+    pendingGuestsList.push(guestListData);
+    updatePendingGuestsDisplay();
+    document.getElementById('modal_guest_list_id').value = '';
+    showNotification('Guest list added to pending!', 'success');
+}
+
+function updatePendingGuestsDisplay() {
+    const pendingModalList = document.getElementById('pending-modal-list');
+    const pendingModalCount = document.getElementById('pending-modal-count');
+    const proceedBtn = document.getElementById('proceed-btn');
+    const sendInvitationsBtn = document.getElementById('send-invitations-btn');
+    const pendingCountSpan = document.getElementById('pending-count');
+    
+    pendingModalCount.textContent = pendingGuestsList.length;
+    pendingCountSpan.textContent = pendingGuestsList.length;
+    
+    if (pendingGuestsList.length === 0) {
+        pendingModalList.innerHTML = '<p class="text-gray-500 text-sm">No pending guests yet. Add guests above.</p>';
+        proceedBtn.disabled = true;
+        sendInvitationsBtn.style.display = 'none';
+    } else {
+        pendingModalList.innerHTML = pendingGuestsList.map((guest, index) => `
+            <div class="flex items-center justify-between bg-white border rounded p-2">
+                <div>
+                    <span class="font-medium">${guest.name || guest.guest_list_name}</span>
+                    <span class="text-sm text-gray-500 ml-2">(${guest.type === 'individual' ? 'Individual' : 'Guest List'})</span>
+                </div>
+                <button onclick="removePendingGuest(${index})" class="text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+        proceedBtn.disabled = false;
+        sendInvitationsBtn.style.display = 'inline-flex';
     }
+}
+
+function removePendingGuest(index) {
+    pendingGuestsList.splice(index, 1);
+    updatePendingGuestsDisplay();
+    showNotification('Guest removed from pending list.', 'info');
+}
+
+function clearPendingGuestsForms() {
+    document.getElementById('add-individual-guest-form').reset();
+    document.getElementById('modal_guest_list_id').value = '';
+}
+
+function proceedToInvitations() {
+    hidePendingGuestsModal();
+    showInvitationModal();
+}
+
+function showPendingGuestsSection() {
+    document.getElementById('pending-guests-section').style.display = 'block';
+}
+
+function hidePendingGuestsSection() {
+    document.getElementById('pending-guests-section').style.display = 'none';
 }
 
 function createCurrentGuestCard(guestData) {
@@ -689,45 +867,160 @@ function createCurrentGuestCard(guestData) {
     return card;
 }
 
-function createGuestCard(guestData) {
-    const card = document.createElement('div');
-    card.className = 'guest-card bg-white border border-info-200 rounded-lg p-4 hover:shadow-md transition-shadow';
-    card.setAttribute('data-guest-id', guestData.id);
+function updateInvitationSummary() {
+    const summaryDiv = document.getElementById('invitation-summary');
+    if (pendingGuestsList.length === 0) {
+        summaryDiv.innerHTML = '<p class="text-gray-600">No pending guests selected.</p>';
+        return;
+    }
     
-    card.innerHTML = `
-        <div class="flex items-start justify-between mb-3">
-            <div class="flex-1">
-                <h5 class="font-semibold text-primary">${guestData.name}</h5>
-                <p class="text-sm text-secondary">${guestData.guest_list_name || 'Standalone Guest'}</p>
-                ${guestData.email ? `<p class="text-xs text-gray-500">${guestData.email}</p>` : ''}
-                ${guestData.phone ? `<p class="text-xs text-gray-500">${guestData.phone}</p>` : ''}
+    const individualGuests = pendingGuestsList.filter(g => g.type === 'individual');
+    const guestLists = pendingGuestsList.filter(g => g.type === 'guest_list');
+    
+    let html = '<div class="space-y-2">';
+    
+    if (individualGuests.length > 0) {
+        html += `<div>
+            <span class="font-medium">Individual Guests (${individualGuests.length}):</span>
+            <div class="ml-4 text-sm text-gray-600">
+                ${individualGuests.map(g => g.name).join(', ')}
             </div>
-            <div class="flex items-center space-x-2">
-                <button onclick="toggleMessageBox(${guestData.id})" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-comment mr-1"></i>Message
-                </button>
-                <button onclick="confirmDeleteGuest(${guestData.id}, '${guestData.name}')" class="btn btn-sm btn-outline-danger">
-                    <i class="fas fa-trash"></i>
-                </button>
+        </div>`;
+    }
+    
+    if (guestLists.length > 0) {
+        html += `<div>
+            <span class="font-medium">Guest Lists (${guestLists.length}):</span>
+            <div class="ml-4 text-sm text-gray-600">
+                ${guestLists.map(g => g.guest_list_name).join(', ')}
             </div>
-        </div>
-        
-        <div id="message-box-${guestData.id}" class="message-box hidden mt-3">
+        </div>`;
+    }
+    
+    html += '</div>';
+    summaryDiv.innerHTML = html;
+}
+
+function updateIndividualMessagesSection() {
+    const messageTypeRadios = document.querySelectorAll('input[name="message_type"]');
+    const generalSection = document.getElementById('general-message-section');
+    const individualSection = document.getElementById('individual-messages-section');
+    const container = document.getElementById('individual-messages-container');
+    
+    // Add event listeners for message type change
+    messageTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'general') {
+                generalSection.classList.remove('hidden');
+                individualSection.classList.add('hidden');
+            } else {
+                generalSection.classList.add('hidden');
+                individualSection.classList.remove('hidden');
+                
+                // Generate individual message forms
+                const individualGuests = pendingGuestsList.filter(g => g.type === 'individual');
+                container.innerHTML = individualGuests.map(guest => `
+                    <div class="border rounded-lg p-4 mb-4">
+                        <h5 class="font-medium text-primary mb-2">${guest.name}</h5>
+                        <p class="text-sm text-gray-600 mb-3">${guest.email || 'No email'} | ${guest.phone || 'No phone'}</p>
             <textarea 
-                id="message-text-${guestData.id}" 
-                class="form-textarea w-full text-sm" 
-                rows="3" 
-                placeholder="Enter personalized message for ${guestData.name}..."
-            ></textarea>
-            <div class="flex justify-end mt-2">
-                <button onclick="saveMessage(${guestData.id})" class="btn btn-sm btn-primary">
-                    <i class="fas fa-save mr-1"></i>Save
-                </button>
+                            name="individual_messages[${guest.id}]" 
+                            rows="4" 
+                            class="form-textarea w-full" 
+                            placeholder="Write a personalized message for ${guest.name}..."
+                        >Hello ${guest.name}, you're invited to {{ $event->name }}...</textarea>
             </div>
-        </div>
-    `;
+                `).join('');
+            }
+        });
+    });
+}
+
+function generateAIMessages() {
+    showNotification('AI message generation coming soon!', 'info');
+}
+
+function sendInvitationsToNewGuests(invitationData) {
+    // Show loading state
+    const submitBtn = document.querySelector('#send-invitations-form button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Sending Invitations...';
+    submitBtn.disabled = true;
     
-    return card;
+    // Debug: Log the data being sent
+    console.log('Sending invitation data:', invitationData);
+    
+    // In a real implementation, this would send to a new backend route
+    // For now, we'll simulate the process
+    fetch('{{ route("organizer.events.update-sent.send-new-invitations", $event) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(invitationData)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                console.error('Server error response:', errorData);
+                throw new Error(`Server error: ${response.status} - ${JSON.stringify(errorData)}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Success response:', data);
+        if (data.success) {
+            showNotification('Invitations sent successfully!', 'success');
+            
+            // Move pending guests to the current guests section
+            movePendingGuestsToCurrent(data.guests || []);
+            
+            // Clear pending guests
+            pendingGuestsList = [];
+            updatePendingGuestsDisplay();
+            
+            // Hide modal
+            hideInvitationModal();
+            
+            // Optionally refresh the page after a delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            showNotification(data.message || 'Failed to send invitations.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred while sending invitations: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+function movePendingGuestsToCurrent(guestData) {
+    const currentGuestsGrid = document.getElementById('current-guests-grid');
+    
+    guestData.forEach(guest => {
+        const guestCard = createCurrentGuestCard(guest);
+        currentGuestsGrid.appendChild(guestCard);
+    });
+    
+    // Update total guests count if displayed
+    const totalGuestsSpan = document.querySelector('.bg-gray-100');
+    if (totalGuestsSpan && totalGuestsSpan.textContent.includes('total guests')) {
+        const currentCount = parseInt(totalGuestsSpan.textContent.match(/\d+/)[0]);
+        const newCount = currentCount + guestData.length;
+        totalGuestsSpan.textContent = `${newCount} total guests`;
+    }
 }
 
 function showNotification(message, type = 'info') {
@@ -750,71 +1043,45 @@ function showNotification(message, type = 'info') {
 document.addEventListener('DOMContentLoaded', function() {
     showTab('basic-info');
     
-    // Handle add guest form submission
-    const addGuestForm = document.getElementById('add-guest-form');
-    if (addGuestForm) {
-        addGuestForm.addEventListener('submit', function(e) {
+    // Handle send invitations form submission
+    const sendInvitationsForm = document.getElementById('send-invitations-form');
+    if (sendInvitationsForm) {
+        sendInvitationsForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
             const formData = new FormData(this);
+            const platforms = Array.from(formData.getAll('platforms[]'));
+            const messageType = formData.get('message_type');
             
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    addNewGuestToGrid(data.guest);
-                    hideAddGuestModal();
-                    this.reset();
-                    showNotification('Guest added successfully!', 'success');
-                } else {
-                    showNotification(data.message || 'Failed to add guest.', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('An error occurred. Please try again.', 'error');
-            });
-        });
-    }
-
-    // Handle add guest list form submission
-    const addGuestListForm = document.getElementById('add-guest-list-form');
-    if (addGuestListForm) {
-        addGuestListForm.addEventListener('submit', function(e) {
-            e.preventDefault();
+            if (platforms.length === 0) {
+                showNotification('Please select at least one platform.', 'error');
+                return;
+            }
             
-            const formData = new FormData(this);
+            if (pendingGuestsList.length === 0) {
+                showNotification('No pending guests to send invitations to.', 'error');
+                return;
+            }
             
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    data.guests.forEach(guest => {
-                        addNewGuestToGrid(guest);
-                    });
-                    hideAddGuestListModal();
-                    this.reset();
-                    showNotification(`Added ${data.guests.length} guests from guest list!`, 'success');
-                } else {
-                    showNotification(data.message || 'Failed to add guest list.', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('An error occurred. Please try again.', 'error');
-            });
+            // Prepare invitation data
+            const invitationData = {
+                pending_guests: pendingGuestsList,
+                platforms: platforms,
+                message_type: messageType,
+                general_message: formData.get('general_message'),
+                individual_messages: {}
+            };
+            
+            // Collect individual messages if selected
+            if (messageType === 'individual') {
+                const individualInputs = document.querySelectorAll('textarea[name^="individual_messages"]');
+                individualInputs.forEach(input => {
+                    const guestId = input.name.match(/\[(.*?)\]/)[1];
+                    invitationData.individual_messages[guestId] = input.value;
+                });
+            }
+            
+            sendInvitationsToNewGuests(invitationData);
         });
     }
 });
@@ -984,6 +1251,249 @@ document.addEventListener('click', function(e) {
         hideModal(e.target.id);
     }
 });
+
+// Update Notification Modal Functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const basicInfoForm = document.querySelector('form[action*="update-sent/basic"]');
+    const notificationCheckbox = document.getElementById('send_update_notification');
+    
+    if (basicInfoForm && notificationCheckbox) {
+        console.log('Found basic info form and notification checkbox');
+        basicInfoForm.addEventListener('submit', function(e) {
+            console.log('Basic info form submitted, checkbox checked:', notificationCheckbox.checked);
+            if (notificationCheckbox.checked) {
+                console.log('Checkbox is checked, preventing form submission and showing modal');
+                e.preventDefault();
+                console.log('Calling showModal with ID: updateNotificationModal');
+                showModal('updateNotificationModal');
+                console.log('Modal should now be visible');
+            } else {
+                console.log('Checkbox is not checked, allowing normal form submission');
+            }
+        });
+    } else {
+        console.error('Basic info form or notification checkbox not found!', {
+            basicInfoForm: !!basicInfoForm,
+            notificationCheckbox: !!notificationCheckbox
+        });
+    }
+    
+    // Handle notification form submission
+    const notificationForm = document.getElementById('updateNotificationForm');
+    if (notificationForm) {
+        console.log('Found notification form, adding event listener');
+        notificationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            console.log('Notification form submitted');
+            
+            // First update the event without notifications
+            const basicInfoForm = document.querySelector('form[action*="update-sent/basic"]');
+            if (!basicInfoForm) {
+                console.error('Basic info form not found!');
+                showErrorMessage('Basic info form not found. Please refresh the page.');
+                return;
+            }
+            
+            const basicInfoFormData = new FormData(basicInfoForm);
+            console.log('Basic info form data:', Object.fromEntries(basicInfoFormData));
+            console.log('Updating event first...');
+            
+            // Update event first
+            fetch(basicInfoForm.action, {
+                method: 'POST',
+                body: basicInfoFormData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                console.log('Event update response status:', response.status);
+                return response.json();
+            })
+                            .then(result => {
+                    console.log('Event update result:', result);
+                    if (result.success) {
+                        // Now send notifications using the existing notification system
+                        const notificationFormData = new FormData(notificationForm);
+                        console.log('Event updated successfully, now sending notifications...');
+                        console.log('Notification form data:', Object.fromEntries(notificationFormData));
+                        sendUpdateNotifications(notificationFormData);
+                    } else {
+                        showErrorMessage(result.message || 'Failed to update event.');
+                    }
+                })
+            .catch(error => {
+                console.error('Error updating event:', error);
+                showErrorMessage('Failed to update event. Please try again.');
+            });
+        });
+    } else {
+        console.error('Notification form not found!');
+    }
+    
+    // Function to send notifications using existing system
+    function sendUpdateNotifications(notificationFormData) {
+        const platforms = notificationFormData.getAll('platforms[]');
+        const message = notificationFormData.get('custom_message');
+        
+        console.log('Sending notifications:', { platforms, message });
+        
+        if (!platforms || platforms.length === 0) {
+            showErrorMessage('Please select at least one platform for notifications.');
+            return;
+        }
+        
+        if (!message || message.trim() === '') {
+            showErrorMessage('Please enter a message for the notification.');
+            return;
+        }
+        
+        // Create request data for existing notification endpoint
+        const notificationData = new FormData();
+        platforms.forEach(platform => notificationData.append('platforms[]', platform));
+        notificationData.append('type', 'event_update');
+        notificationData.append('message', message);
+        
+        console.log('Final notification data:', {
+            platforms: platforms,
+            type: 'event_update',
+            message: message
+        });
+        
+        console.log('Sending to notification endpoint:', `{{ route('organizer.events.notifications.send', $event) }}`);
+        
+        // Send to existing notification endpoint
+        fetch(`{{ route('organizer.events.notifications.send', $event) }}`, {
+            method: 'POST',
+            body: notificationData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            console.log('Notification response status:', response.status);
+            return response.json();
+        })
+        .then(result => {
+            console.log('Notification response:', result);
+            if (result.success) {
+                showSuccessMessage('Event updated and notifications sent successfully!');
+                hideModal('updateNotificationModal');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showSuccessMessage('Event updated successfully, but notifications failed: ' + result.message);
+                hideModal('updateNotificationModal');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            }
+        })
+        .catch(error => {
+            console.error('Error sending notifications:', error);
+            showSuccessMessage('Event updated successfully, but notifications failed. Please try sending notifications manually.');
+            hideModal('updateNotificationModal');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        });
+    }
+});
+
+function showSuccessMessage(message) {
+    // Create a temporary success message
+    const successDiv = document.createElement('div');
+    successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    successDiv.innerHTML = `<i class="fas fa-check mr-2"></i>${message}`;
+    document.body.appendChild(successDiv);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        successDiv.remove();
+    }, 3000);
+}
+
+function showErrorMessage(message) {
+    // Create a temporary error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>${message}`;
+    document.body.appendChild(errorDiv);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 3000);
+}
+
+// Test function to verify notification system works
+window.testNotificationSystem = function() {
+    console.log('Testing notification system...');
+    
+    // Get the actual selected platforms from the form
+    const platformCheckboxes = document.querySelectorAll('input[name="platforms[]"]:checked');
+    const platforms = Array.from(platformCheckboxes).map(cb => cb.value);
+    const message = document.getElementById('update_message').value;
+    
+    console.log('Test data from form:', { platforms, message });
+    
+    if (platforms.length === 0) {
+        showErrorMessage('Please select at least one platform for testing.');
+        return;
+    }
+    
+    if (!message || message.trim() === '') {
+        showErrorMessage('Please enter a message for testing.');
+        return;
+    }
+    
+    // Create request data for existing notification endpoint
+    const notificationData = new FormData();
+    platforms.forEach(platform => notificationData.append('platforms[]', platform));
+    notificationData.append('type', 'event_update');
+    notificationData.append('message', message);
+    
+    console.log('Final test notification data:', {
+        platforms: platforms,
+        type: 'event_update',
+        message: message
+    });
+    
+    console.log('Sending test notification to:', `{{ route('organizer.events.notifications.send', $event) }}`);
+    
+    // Send to existing notification endpoint
+    fetch(`{{ route('organizer.events.notifications.send', $event) }}`, {
+        method: 'POST',
+        body: notificationData,
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('Test notification response status:', response.status);
+        return response.json();
+    })
+    .then(result => {
+        console.log('Test notification response:', result);
+        if (result.success) {
+            showSuccessMessage('Test notification sent successfully!');
+        } else {
+            showErrorMessage('Test notification failed: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error sending test notification:', error);
+        showErrorMessage('Test notification failed: ' + error.message);
+    });
+};
 </script>
 
 <style>
@@ -1067,6 +1577,74 @@ document.addEventListener('click', function(e) {
     display: none !important;
 }
 </style>
+
+{{-- Update Notification Modal --}}
+<div id="updateNotificationModal" class="modal hidden">
+    <div class="modal-content max-w-2xl">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <i class="fas fa-bell text-primary-500 mr-2"></i>Send Update Notification
+            </h3>
+            <button onclick="hideModal('updateNotificationModal')" class="modal-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="updateNotificationForm" method="POST" class="space-y-6">
+                @csrf
+                
+                {{-- Platform Selection --}}
+                <div>
+                    <label class="form-label font-semibold">Notification Platforms</label>
+                    <div class="space-y-3 mt-2">
+                        @if(in_array('email', $event->invitation_platforms ?? []))
+                            <label class="flex items-center space-x-3">
+                                <input type="checkbox" name="platforms[]" value="email" class="form-checkbox h-5 w-5 text-primary-600" checked>
+                                <span class="text-primary">
+                                    <i class="fas fa-envelope mr-2"></i>Email
+                                </span>
+                            </label>
+                        @endif
+                        @if(in_array('whatsapp', $event->invitation_platforms ?? []))
+                            <label class="flex items-center space-x-3">
+                                <input type="checkbox" name="platforms[]" value="whatsapp" class="form-checkbox h-5 w-5 text-primary-600" checked>
+                                <span class="text-primary">
+                                    <i class="fab fa-whatsapp mr-2"></i>WhatsApp
+                                </span>
+                            </label>
+                        @endif
+                    </div>
+                    <p class="text-secondary text-sm mt-2">
+                        Notifications will be sent to all guests using the selected platforms.
+                    </p>
+                </div>
+
+                {{-- Message Field --}}
+                <div>
+                    <label for="update_message" class="form-label font-semibold">Update Message</label>
+                    <textarea id="update_message" name="custom_message" rows="6" class="form-textarea w-full" 
+                              placeholder="Enter your update message...">{{ $event->name }} has been updated with new information. Please check your invitation for the latest details.</textarea>
+                    <p class="text-secondary text-sm mt-2">
+                        This message will be sent to all guests to notify them about the event updates.
+                    </p>
+                </div>
+
+                {{-- Submit Button --}}
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="hideModal('updateNotificationModal')" class="btn btn-secondary">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="testNotificationSystem()" class="btn btn-info">
+                        <i class="fas fa-test mr-2"></i>Test Notification
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane mr-2"></i>Send Update Notification
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 {{-- Google Maps for location selection --}}
 <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places&language=en&region=MY&callback=initMap"></script>

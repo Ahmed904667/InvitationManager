@@ -46,18 +46,13 @@
     
     <div class="grid grid-cols-2 gap-4 mb-4">
         <div>
-            <p class="text-sm font-medium text-gray-600">Guests</p>
+            <p class="text-sm font-medium text-gray-600">Active Guests</p>
             <p class="text-lg font-bold text-primary">
-                @php
-                    $totalGuests = $event->guestLists->sum(function($guestList) {
-                        return $guestList->guests->count();
-                    });
-                @endphp
-                {{ $totalGuests }}
+                {{ $event->active_guests_count ?? 0 }}
             </p>
         </div>
         <div>
-            <p class="text-sm font-medium text-gray-600">{{ $isCompleted ? 'Attended' : 'Lists' }}</p>
+            <p class="text-sm font-medium text-gray-600">{{ $isCompleted ? 'Attended' : 'Active Lists' }}</p>
             <p class="text-lg font-bold text-primary">
                 @if($isCompleted)
                     @php
@@ -65,7 +60,7 @@
                     @endphp
                     {{ $attendedCount }}
                 @else
-                    {{ $event->guestLists->count() }}
+                    {{ $event->active_guest_lists_count ?? 0 }}
                 @endif
             </p>
         </div>
@@ -76,15 +71,60 @@
             <div class="grid grid-cols-3 gap-4 text-center">
                 <div>
                     <p class="text-sm font-medium text-gray-600">RSVP Yes</p>
-                    <p class="text-lg font-bold text-green-600">{{ $event->invitations->where('rsvp_status', 'yes')->count() }}</p>
+                    <p class="text-lg font-bold text-green-600">
+                        @php
+                            // Use active guests for accurate RSVP counts
+                            $rsvpYes = 0;
+                            if (isset($event->active_guests)) {
+                                foreach ($event->active_guests as $eventGuest) {
+                                    $guest = $eventGuest->guest;
+                                    $invitation = $guest->invitations->where('event_id', $event->id)->first();
+                                    if ($invitation && $invitation->rsvp_status === 'yes') {
+                                        $rsvpYes++;
+                                    }
+                                }
+                            }
+                        @endphp
+                        {{ $rsvpYes }}
+                    </p>
                 </div>
                 <div>
                     <p class="text-sm font-medium text-gray-600">RSVP No</p>
-                    <p class="text-lg font-bold text-red-600">{{ $event->invitations->where('rsvp_status', 'no')->count() }}</p>
+                    <p class="text-lg font-bold text-red-600">
+                        @php
+                            // Use active guests for accurate RSVP counts
+                            $rsvpNo = 0;
+                            if (isset($event->active_guests)) {
+                                foreach ($event->active_guests as $eventGuest) {
+                                    $guest = $eventGuest->guest;
+                                    $invitation = $guest->invitations->where('event_id', $event->id)->first();
+                                    if ($invitation && $invitation->rsvp_status === 'no') {
+                                        $rsvpNo++;
+                                    }
+                                }
+                            }
+                        @endphp
+                        {{ $rsvpNo }}
+                    </p>
                 </div>
                 <div>
                     <p class="text-sm font-medium text-gray-600">No Response</p>
-                    <p class="text-lg font-bold text-gray-600">{{ $event->invitations->whereIn('rsvp_status', ['none', null])->count() }}</p>
+                    <p class="text-lg font-bold text-gray-600">
+                        @php
+                            // Use active guests for accurate RSVP counts
+                            $rsvpNoResponse = 0;
+                            if (isset($event->active_guests)) {
+                                foreach ($event->active_guests as $eventGuest) {
+                                    $guest = $eventGuest->guest;
+                                    $invitation = $guest->invitations->where('event_id', $event->id)->first();
+                                    if (!$invitation || !$invitation->rsvp_status || $invitation->rsvp_status === 'none') {
+                                        $rsvpNoResponse++;
+                                    }
+                                }
+                            }
+                        @endphp
+                        {{ $rsvpNoResponse }}
+                    </p>
                 </div>
             </div>
         </div>

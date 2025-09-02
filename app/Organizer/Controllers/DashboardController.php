@@ -17,16 +17,22 @@ namespace App\Organizer\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Organizer\Services\OrganizerService;
+use App\Organizer\Services\EventReportService;
+use App\Organizer\Services\EventReportPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class DashboardController extends Controller
 {
     protected $organizerService;
+    protected $eventReportService;
+    protected $eventReportPdfService;
 
-    public function __construct(OrganizerService $organizerService)
+    public function __construct(OrganizerService $organizerService, EventReportService $eventReportService, EventReportPdfService $eventReportPdfService)
     {
         $this->organizerService = $organizerService;
+        $this->eventReportService = $eventReportService;
+        $this->eventReportPdfService = $eventReportPdfService;
     }
 
     /**
@@ -42,31 +48,27 @@ class DashboardController extends Controller
     }
 
     /**
-     * Show organizer reports view
+     * Display comprehensive reports and analytics
      */
     public function reports()
     {
-        Gate::authorize('view-organizer-reports');
+        Gate::authorize('organizer-access');
 
-        $reports = $this->organizerService->getReports();
+        $stats = $this->organizerService->getAccountStatistics();
         
-        return view('reports', compact('reports'));
+        return view('organizer.reports', compact('stats'));
     }
 
     /**
-     * Get dashboard statistics as JSON
+     * Get statistics as JSON for AJAX requests
      */
-    public function stats(Request $request)
+    public function stats()
     {
         Gate::authorize('organizer-access');
 
-        $stats = $this->organizerService->getDashboardStats();
+        $stats = $this->organizerService->getAccountStatistics();
         
-        return response()->json([
-            'total_lists' => $stats['total_guest_lists'],
-            'total_guests' => $stats['total_guests'],
-            'upcoming_events' => $stats['upcoming_events']->count(),
-        ]);
+        return response()->json($stats);
     }
 
     /**
@@ -85,5 +87,45 @@ class DashboardController extends Controller
         $guestLists = $this->organizerService->getMyGuestListsWithFilters($search, $health, $guestCount, $sortBy, $page);
         
         return response()->json($guestLists);
+    }
+
+    /**
+     * Get detailed report data for a specific completed event
+     */
+        public function getEventReport($eventId)
+    {
+        Gate::authorize('organizer-access');
+    
+        try {
+            $eventData = $this->eventReportService->getDetailedEventReport($eventId);
+            return response()->json($eventData);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Download event report as PDF
+     */
+    public function downloadEventReportPdf($eventId)
+    {
+        Gate::authorize('organizer-access');
+    
+        try {
+            $eventData = $this->eventReportService->getDetailedEventReport($eventId);
+            
+            // Generate PDF
+            $pdf = $this->eventReportPdfService->generateEventReportPdf($eventData);
+            
+            // Generate filename
+            $eventName = str_replace([' ', '/', '\\', ':', '*', '?', '"', '<', '>', '|'], '_', $eventData['event_name']);
+            $filename = "Event_Report_{$eventName}_{$eventId}.pdf";
+            
+            // Download PDF
+            return $pdf->download($filename);
+            
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error generating PDF: ' . $e->getMessage());
+        }
     }
 } 

@@ -162,16 +162,19 @@ class RsvpController extends Controller
             'attendance_rate' => 0,
         ];
 
-        foreach ($event->guestLists as $guestList) {
-            foreach ($guestList->guests as $guest) {
-                $stats['total_guests']++;
-                
-                $invitation = $guest->invitations->where('event_id', $event->id)->first();
-                if ($invitation && $invitation->rsvp_status && $invitation->rsvp_status !== 'none') {
-                    $stats['rsvp_responses'][$invitation->rsvp_status]++;
-                } else {
-                    $stats['rsvp_responses']['no_response']++;
-                }
+        // Use EventGuestService to get only active guests
+        $eventGuestService = app(\App\Services\EventGuestService::class);
+        $activeEventGuests = $eventGuestService->getActiveGuestsForEvent($event);
+
+        foreach ($activeEventGuests as $eventGuest) {
+            $guest = $eventGuest->guest;
+            $stats['total_guests']++;
+            
+            $invitation = $guest->invitations->where('event_id', $event->id)->first();
+            if ($invitation && $invitation->rsvp_status && $invitation->rsvp_status !== 'none') {
+                $stats['rsvp_responses'][$invitation->rsvp_status]++;
+            } else {
+                $stats['rsvp_responses']['no_response']++;
             }
         }
 
@@ -195,25 +198,37 @@ class RsvpController extends Controller
     {
         $details = [];
 
-        foreach ($event->guestLists as $guestList) {
-            foreach ($guestList->guests as $guest) {
-                $invitation = $guest->invitations->where('event_id', $event->id)->first();
-                
-                $guestDetail = [
-                    'guest_id' => $guest->id,
-                    'guest_name' => $guest->name,
-                    'guest_email' => $guest->email,
-                    'guest_phone' => $guest->phone,
-                    'guest_list_name' => $guestList->name,
-                    'rsvp_status' => $invitation ? ($invitation->rsvp_status ?? 'no_response') : 'no_response',
-                    'rsvp_note' => $invitation ? $invitation->rsvp_note : null,
-                    'rsvp_at' => $invitation ? $invitation->rsvp_at : null,
-                    'invitation_sent' => $invitation ? ($invitation->status === 'sent') : false,
-                    'checked_in' => $guest->checked_in ?? false,
-                ];
+        // Use EventGuestService to get only active guests
+        $eventGuestService = app(\App\Services\EventGuestService::class);
+        $activeEventGuests = $eventGuestService->getActiveGuestsForEvent($event);
 
-                $details[] = $guestDetail;
+        foreach ($activeEventGuests as $eventGuest) {
+            $guest = $eventGuest->guest;
+            $invitation = $guest->invitations->where('event_id', $event->id)->first();
+            
+            // Get guest list name if available
+            $guestListName = 'Standalone Guest';
+            if ($guest->guest_list_id) {
+                $guestList = $guest->guestList;
+                if ($guestList) {
+                    $guestListName = $guestList->name;
+                }
             }
+            
+            $guestDetail = [
+                'guest_id' => $guest->id,
+                'guest_name' => $guest->name,
+                'guest_email' => $guest->email,
+                'guest_phone' => $guest->phone,
+                'guest_list_name' => $guestListName,
+                'rsvp_status' => $invitation ? ($invitation->rsvp_status ?? 'no_response') : 'no_response',
+                'rsvp_note' => $invitation ? $invitation->rsvp_note : null,
+                'rsvp_at' => $invitation ? $invitation->rsvp_at : null,
+                'invitation_sent' => $invitation ? ($invitation->status === 'sent') : false,
+                'checked_in' => $eventGuest->checked_in ?? false,
+            ];
+
+            $details[] = $guestDetail;
         }
 
         // Sort by RSVP status and then by name

@@ -99,7 +99,9 @@ class EventGuestService
     {
         return EventGuest::where('event_id', $event->id)
                         ->where('status', EventGuest::STATUS_ACTIVE)
-                        ->with('guest.guestList')
+                        ->with(['guest.guestList', 'guest.invitations' => function($query) use ($event) {
+                            $query->where('event_id', $event->id);
+                        }])
                         ->get();
     }
 

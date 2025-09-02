@@ -118,10 +118,18 @@ class ScannerController extends Controller
         $event = $scanner->event;
         $search = $request->get('search', '');
         
-        // Get all guests for this event
-        $guestsQuery = Guest::whereHas('guestList', function($query) use ($event) {
-            $query->whereHas('events', function($subQuery) use ($event) {
-                $subQuery->where('events.id', $event->id);
+        // Get all guests for this event (both via guest lists and direct event associations)
+        $guestsQuery = Guest::where(function($query) use ($event) {
+            // Guests via guest lists
+            $query->whereHas('guestList', function($guestListQuery) use ($event) {
+                $guestListQuery->whereHas('events', function($eventQuery) use ($event) {
+                    $eventQuery->where('events.id', $event->id);
+                });
+            })
+            // OR guests directly associated with the event (like new guests)
+            ->orWhereHas('eventGuests', function($eventGuestQuery) use ($event) {
+                $eventGuestQuery->where('event_id', $event->id)
+                    ->where('status', \App\EventGuest::STATUS_ACTIVE);
             });
         });
         
@@ -182,15 +190,36 @@ class ScannerController extends Controller
         $guest = $this->findGuestByQRData($qrData, $scanner->event);
         
         if (!$guest) {
+            // Check if this is an expired invitation to provide better error message
+            $errorMessage = 'Guest not found';
+            
+            if (filter_var($qrData, FILTER_VALIDATE_URL)) {
+                $urlParts = parse_url($qrData);
+                $path = $urlParts['path'] ?? '';
+                
+                if (preg_match('/\/invite\/([a-zA-Z0-9]+)$/', $path, $matches)) {
+                    $invitationToken = $matches[1];
+                    $expiredInvitation = \App\Shared\Models\Invitation::where('token', $invitationToken)
+                        ->where('event_id', $scanner->event->id)
+                        ->where('status', 'expired')
+                        ->first();
+                        
+                    if ($expiredInvitation) {
+                        $errorMessage = 'This invitation has expired and is no longer valid';
+                    }
+                }
+            }
+            
             \Log::warning('QR Scanner - Guest not found', [
                 'scanner_token' => $token,
                 'event_id' => $scanner->event->id,
-                'qr_data' => $qrData
+                'qr_data' => $qrData,
+                'error_message' => $errorMessage
             ]);
             
             return response()->json([
                 'success' => false,
-                'message' => 'Guest not found',
+                'message' => $errorMessage,
                 'debug_info' => [
                     'qr_data' => $qrData,
                     'qr_data_length' => strlen($qrData),
@@ -355,6 +384,7 @@ class ScannerController extends Controller
                 // Find guest through invitation token - MUST be for the same event as scanner
                 $invitation = \App\Shared\Models\Invitation::where('token', $invitationToken)
                     ->where('event_id', $event->id)
+                    ->whereNotIn('status', ['expired']) // Don't allow expired invitations
                     ->first();
                     
                 if ($invitation) {
@@ -382,10 +412,24 @@ class ScannerController extends Controller
                         ]);
                     }
                 } else {
-                    \Log::warning('QR Scanner - No invitation found for token in this event', [
-                        'token' => $invitationToken,
-                        'scanner_event_id' => $event->id
-                    ]);
+                    // Check if invitation exists but is expired
+                    $expiredInvitation = \App\Shared\Models\Invitation::where('token', $invitationToken)
+                        ->where('event_id', $event->id)
+                        ->first();
+                        
+                    if ($expiredInvitation && $expiredInvitation->status === 'expired') {
+                        \Log::warning('QR Scanner - Invitation found but expired', [
+                            'token' => $invitationToken,
+                            'scanner_event_id' => $event->id,
+                            'invitation_status' => $expiredInvitation->status,
+                            'expired_at' => $expiredInvitation->expired_at
+                        ]);
+                    } else {
+                        \Log::warning('QR Scanner - No invitation found for token in this event', [
+                            'token' => $invitationToken,
+                            'scanner_event_id' => $event->id
+                        ]);
+                    }
                 }
             } else {
                 \Log::warning('QR Scanner - URL did not match invitation pattern', [
@@ -399,6 +443,7 @@ class ScannerController extends Controller
         if (preg_match('/^[a-zA-Z0-9]{20,}$/', $qrData)) {
             $invitation = \App\Shared\Models\Invitation::where('token', $qrData)
                 ->where('event_id', $event->id)
+                ->whereNotIn('status', ['expired']) // Don't allow expired invitations
                 ->first();
                 
             if ($invitation) {
@@ -423,9 +468,17 @@ class ScannerController extends Controller
         
         // Method 4: Email - only for guests in this specific event
         $guest = Guest::where('email', $qrData)
-            ->whereHas('guestList', function($query) use ($event) {
-                $query->whereHas('events', function($subQuery) use ($event) {
-                    $subQuery->where('events.id', $event->id);
+            ->where(function($query) use ($event) {
+                // Guests via guest lists
+                $query->whereHas('guestList', function($guestListQuery) use ($event) {
+                    $guestListQuery->whereHas('events', function($eventQuery) use ($event) {
+                        $eventQuery->where('events.id', $event->id);
+                    });
+                })
+                // OR guests directly associated with the event
+                ->orWhereHas('eventGuests', function($eventGuestQuery) use ($event) {
+                    $eventGuestQuery->where('event_id', $event->id)
+                        ->where('status', \App\EventGuest::STATUS_ACTIVE);
                 });
             })
             ->first();
@@ -436,9 +489,17 @@ class ScannerController extends Controller
         
         // Method 5: Phone number - only for guests in this specific event
         $guest = Guest::where('phone', $qrData)
-            ->whereHas('guestList', function($query) use ($event) {
-                $query->whereHas('events', function($subQuery) use ($event) {
-                    $subQuery->where('events.id', $event->id);
+            ->where(function($query) use ($event) {
+                // Guests via guest lists
+                $query->whereHas('guestList', function($guestListQuery) use ($event) {
+                    $guestListQuery->whereHas('events', function($eventQuery) use ($event) {
+                        $eventQuery->where('events.id', $event->id);
+                    });
+                })
+                // OR guests directly associated with the event
+                ->orWhereHas('eventGuests', function($eventGuestQuery) use ($event) {
+                    $eventGuestQuery->where('event_id', $event->id)
+                        ->where('status', \App\EventGuest::STATUS_ACTIVE);
                 });
             })
             ->first();
@@ -449,9 +510,17 @@ class ScannerController extends Controller
         
         // Method 6: Name (exact match) - only for guests in this specific event
         $guest = Guest::where('name', $qrData)
-            ->whereHas('guestList', function($query) use ($event) {
-                $query->whereHas('events', function($subQuery) use ($event) {
-                    $subQuery->where('events.id', $event->id);
+            ->where(function($query) use ($event) {
+                // Guests via guest lists
+                $query->whereHas('guestList', function($guestListQuery) use ($event) {
+                    $guestListQuery->whereHas('events', function($eventQuery) use ($event) {
+                        $eventQuery->where('events.id', $event->id);
+                    });
+                })
+                // OR guests directly associated with the event
+                ->orWhereHas('eventGuests', function($eventGuestQuery) use ($event) {
+                    $eventGuestQuery->where('event_id', $event->id)
+                        ->where('status', \App\EventGuest::STATUS_ACTIVE);
                 });
             })
             ->first();
@@ -464,7 +533,17 @@ class ScannerController extends Controller
      */
     private function isGuestInEvent(Guest $guest, Event $event): bool
     {
-        return $guest->guestList->events()->where('events.id', $event->id)->exists();
+        // Check via guest list (for guests that have a guest list)
+        if ($guest->guestList) {
+            return $guest->guestList->events()->where('events.id', $event->id)->exists();
+        }
+        
+        // For guests without a guest list (like new guests added directly to events),
+        // check via event_guest table
+        return \App\EventGuest::where('event_id', $event->id)
+            ->where('guest_id', $guest->id)
+            ->where('status', \App\EventGuest::STATUS_ACTIVE)
+            ->exists();
     }
 
     /**

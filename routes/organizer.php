@@ -7,6 +7,7 @@ use App\Organizer\Controllers\GuestController;
 use App\Organizer\Controllers\ImportController;
 use App\Organizer\Controllers\ExportController;
 use App\Organizer\Controllers\GoogleController;
+use App\Organizer\Controllers\ProfileController;
 
 Route::middleware(['auth', 'organizer'])->prefix('organizer')->name('organizer.')->group(function () {
     // -------------------- Dashboard --------------------
@@ -14,6 +15,20 @@ Route::middleware(['auth', 'organizer'])->prefix('organizer')->name('organizer.'
     Route::get('/reports', [DashboardController::class, 'reports'])->name('reports');
     Route::get('/stats', [DashboardController::class, 'stats'])->name('organizer.stats');
     Route::get('/guest-lists/json', [DashboardController::class, 'guestListsJson'])->name('guest-lists.json');
+    Route::get('/event-report/{eventId}', [DashboardController::class, 'getEventReport'])->name('event-report');
+    Route::get('/event-report/{eventId}/pdf', [DashboardController::class, 'downloadEventReportPdf'])->name('event-report-pdf');
+
+    // -------------------- Profile Management --------------------
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/email', [ProfileController::class, 'updateEmail'])->name('profile.email');
+    Route::post('/profile/email/verify', [ProfileController::class, 'verifyEmailOTP'])->name('profile.email.verify');
+    Route::put('/profile/phone', [ProfileController::class, 'updatePhone'])->name('profile.phone');
+    Route::post('/profile/phone/verify', [ProfileController::class, 'verifyPhoneOTP'])->name('profile.phone.verify');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::put('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.photo');
+    Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto'])->name('profile.photo.delete');
 
     // -------------------- Guest Lists Management --------------------
     Route::get('/guest-lists', [GuestListController::class, 'index'])->name('guest-lists.index');
@@ -140,6 +155,7 @@ Route::get('/events/{event}/notifications/stats', [\App\Organizer\Controllers\Ev
     Route::post('/events/{event}/update-sent/generate-messages', [\App\Organizer\Controllers\EventController::class, 'generateMessagesForNewGuests'])->name('events.update-sent.generate-messages');
     Route::post('/events/{event}/update-sent/save-message', [\App\Organizer\Controllers\EventController::class, 'saveGuestMessage'])->name('events.update-sent.save-message');
     Route::post('/events/{event}/update-sent/notify-guests', [\App\Organizer\Controllers\EventController::class, 'notifyGuestsOfUpdates'])->name('events.update-sent.notify-guests');
+    Route::post('/events/{event}/update-sent/send-new-invitations', [\App\Organizer\Controllers\EventController::class, 'sendNewGuestInvitations'])->name('events.update-sent.send-new-invitations');
     Route::get('/events/{event}/individual-messages', [\App\Organizer\Controllers\EventController::class, 'getIndividualMessages'])->name('events.individual-messages');
     
     // -------------------- Scheduled Messages --------------------

@@ -2,30 +2,445 @@
 
 namespace App\Organizer\Services;
 
-use App\Shared\Models\Guest;
 use App\Shared\Models\GuestList;
+use App\Shared\Models\Guest;
 use App\Shared\Models\GuestGroup;
-use App\Shared\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use Carbon\Carbon;
 
 class OrganizerService
 {
-    public function getDashboardStats(): array
+    /**
+     * Get comprehensive account statistics across all events
+     */
+    public function getAccountStatistics(): array
     {
         $user = Auth::user();
         
-        return [
-            'total_guest_lists' => $user->guestLists()->count(),
-            'total_guests' => $user->guestLists()->withCount('guests')->get()->sum('guests_count'),
-            'recent_guest_lists' => $user->guestLists()->withCount('guests')->latest()->limit(5)->get(),
-            'upcoming_events' => $user->guestLists()->withCount('guests')->where('event_date', '>=', Carbon::today())->get(),
+        // Get all events for this user
+        $events = $user->events()->with(['invitations', 'eventGuests'])->get();
+        
+        $stats = [
+            'overview' => $this->getOverviewStats($user, $events),
+            'event_performance' => $this->getEventPerformanceStats($events),
+            'invitation_metrics' => $this->getInvitationMetrics($events),
+            'checkin_analytics' => $this->getCheckinAnalytics($events),
+            'guest_engagement' => $this->getGuestEngagementStats($events),
+            'guest_list_health' => $this->getGuestListHealthStats($user),
+            'completed_events' => $this->getCompletedEventsForReports($events),
             'recent_activity' => $this->getRecentActivity($user),
+        ];
+        
+        return $stats;
+    }
+
+    /**
+     * Get overview statistics
+     */
+    private function getOverviewStats($user, $events): array
+    {
+        $totalEvents = $events->count();
+        $totalGuestLists = $user->guestLists()->count();
+        $totalGuests = $user->guestLists()->withCount('guests')->get()->sum('guests_count');
+        
+        // Calculate total invitations sent
+        $totalInvitationsSent = $events->sum(function($event) {
+            return $event->invitations()->where('status', 'sent')->count();
+        });
+        
+        // Calculate total check-ins across all events
+        $totalCheckins = $events->sum(function($event) {
+            return $event->eventGuests()->where('checked_in', true)->count();
+        });
+        
+        // Calculate overall check-in rate
+        $overallCheckinRate = $totalGuests > 0 ? round(($totalCheckins / $totalGuests) * 100, 1) : 0;
+        
+        return [
+            'total_events' => $totalEvents,
+            'total_guest_lists' => $totalGuestLists,
+            'total_guests' => $totalGuests,
+            'total_invitations_sent' => $totalInvitationsSent,
+            'total_checkins' => $totalCheckins,
+            'overall_checkin_rate' => $overallCheckinRate,
+            'active_events' => $events->where('status', 'active')->count(),
+            'completed_events' => $events->where('status', 'completed')->count(),
         ];
     }
 
+    /**
+     * Get event performance statistics
+     */
+    private function getEventPerformanceStats($events): array
+    {
+        $performanceData = [];
+        
+        foreach ($events as $event) {
+            $totalGuests = $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count();
+            $checkedInGuests = $event->eventGuests()->where('checked_in', true)->count();
+            $checkinRate = $totalGuests > 0 ? round(($checkedInGuests / $totalGuests) * 100, 1) : 0;
+            
+            $performanceData[] = [
+                'event_id' => $event->id,
+                'event_name' => $event->name,
+                'start_date' => $event->start_date,
+                'status' => $event->status,
+                'total_guests' => $totalGuests,
+                'checked_in_guests' => $checkedInGuests,
+                'checkin_rate' => $checkinRate,
+                'invitations_sent' => $event->invitations()->where('status', 'sent')->count(),
+                'rsvp_responses' => $event->invitations()->whereNotNull('rsvp_status')->where('rsvp_status', '!=', 'none')->count(),
+            ];
+        }
+        
+        // Sort by start date (most recent first)
+        usort($performanceData, function($a, $b) {
+            return $b['start_date'] <=> $a['start_date'];
+        });
+        
+        return $performanceData;
+    }
+
+    /**
+     * Get invitation metrics
+     */
+    private function getInvitationMetrics($events): array
+    {
+        $totalInvitations = 0;
+        $sentInvitations = 0;
+        $failedInvitations = 0;
+        $expiredInvitations = 0;
+        $rsvpResponses = 0;
+        $rsvpYes = 0;
+        $rsvpNo = 0;
+        $rsvpMaybe = 0;
+        
+        foreach ($events as $event) {
+            $invitations = $event->invitations();
+            
+            $totalInvitations += $invitations->count();
+            $sentInvitations += $invitations->where('status', 'sent')->count();
+            $failedInvitations += $invitations->where('status', 'failed')->count();
+            $expiredInvitations += $invitations->where('status', 'expired')->count();
+            
+            $rsvpResponses += $invitations->whereNotNull('rsvp_status')->where('rsvp_status', '!=', 'none')->count();
+            $rsvpYes += $invitations->where('rsvp_status', 'yes')->count();
+            $rsvpNo += $invitations->where('rsvp_status', 'no')->count();
+            $rsvpMaybe += $invitations->where('rsvp_status', 'maybe')->count();
+        }
+        
+        $deliveryRate = $totalInvitations > 0 ? round(($sentInvitations / $totalInvitations) * 100, 1) : 0;
+        $responseRate = $sentInvitations > 0 ? round(($rsvpResponses / $sentInvitations) * 100, 1) : 0;
+        
+        return [
+            'total_invitations' => $totalInvitations,
+            'sent_invitations' => $sentInvitations,
+            'failed_invitations' => $failedInvitations,
+            'expired_invitations' => $expiredInvitations,
+            'delivery_rate' => $deliveryRate,
+            'rsvp_responses' => $rsvpResponses,
+            'rsvp_yes' => $rsvpYes,
+            'rsvp_no' => $rsvpNo,
+            'rsvp_maybe' => $rsvpMaybe,
+            'response_rate' => $responseRate,
+        ];
+    }
+
+    /**
+     * Get check-in analytics
+     */
+    private function getCheckinAnalytics($events): array
+    {
+        $totalGuests = 0;
+        $totalCheckins = 0;
+        $checkinsByEvent = [];
+        $checkinTrends = [];
+        
+        foreach ($events as $event) {
+            $eventGuests = $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE);
+            $eventTotalGuests = $eventGuests->count();
+            $eventCheckins = $eventGuests->where('checked_in', true)->count();
+            
+            $totalGuests += $eventTotalGuests;
+            $totalCheckins += $eventCheckins;
+            
+            if ($eventTotalGuests > 0) {
+                $checkinRate = round(($eventCheckins / $eventTotalGuests) * 100, 1);
+                
+                $checkinsByEvent[] = [
+                    'event_name' => $event->name,
+                    'total_guests' => $eventTotalGuests,
+                    'checked_in' => $eventCheckins,
+                    'checkin_rate' => $checkinRate,
+                ];
+                
+                // Get recent check-ins for trends
+                $recentCheckins = $event->eventGuests()
+                    ->where('checked_in', true)
+                    ->where('checked_in_at', '>=', now()->subDays(7))
+                    ->count();
+                
+                $checkinTrends[] = [
+                    'event_name' => $event->name,
+                    'recent_checkins' => $recentCheckins,
+                    'total_checkins' => $eventCheckins,
+                ];
+            }
+        }
+        
+        $overallCheckinRate = $totalGuests > 0 ? round(($totalCheckins / $totalGuests) * 100, 1) : 0;
+        
+        return [
+            'overall_checkin_rate' => $overallCheckinRate,
+            'total_guests' => $totalGuests,
+            'total_checkins' => $totalCheckins,
+            'checkins_by_event' => $checkinsByEvent,
+            'checkin_trends' => $checkinTrends,
+        ];
+    }
+
+    /**
+     * Get guest engagement statistics
+     */
+    private function getGuestEngagementStats($events): array
+    {
+        $totalGuests = 0;
+        $engagedGuests = 0;
+        $rsvpEngagement = 0;
+        $checkinEngagement = 0;
+        
+        foreach ($events as $event) {
+            $eventGuests = $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE);
+            $eventTotalGuests = $eventGuests->count();
+            $eventCheckins = $eventGuests->where('checked_in', true)->count();
+            
+            $totalGuests += $eventTotalGuests;
+            $checkinEngagement += $eventCheckins;
+            
+            // Count RSVP responses
+            $rsvpResponses = $event->invitations()
+                ->whereNotNull('rsvp_status')
+                ->where('rsvp_status', '!=', 'none')
+                ->count();
+            
+            $rsvpEngagement += $rsvpResponses;
+        }
+        
+        $engagementRate = $totalGuests > 0 ? round((($rsvpEngagement + $checkinEngagement) / ($totalGuests * 2)) * 100, 1) : 0;
+        $rsvpRate = $totalGuests > 0 ? round(($rsvpEngagement / $totalGuests) * 100, 1) : 0;
+        $checkinRate = $totalGuests > 0 ? round(($checkinEngagement / $totalGuests) * 100, 1) : 0;
+        
+        return [
+            'total_guests' => $totalGuests,
+            'engagement_rate' => $engagementRate,
+            'rsvp_rate' => $rsvpRate,
+            'checkin_rate' => $checkinRate,
+            'rsvp_engagement' => $rsvpEngagement,
+            'checkin_engagement' => $checkinEngagement,
+        ];
+    }
+
+    /**
+     * Get recent activity for the user
+     */
+    private function getRecentActivity($user): array
+    {
+        $recentEvents = $user->events()
+            ->latest('start_date')
+            ->take(5)
+            ->get()
+            ->map(function($event) {
+                return [
+                    'id' => $event->id,
+                    'name' => $event->name,
+                    'start_date' => $event->start_date,
+                    'status' => $event->status,
+                ];
+            });
+        
+        $recentGuestLists = $user->guestLists()
+            ->latest('created_at')
+            ->take(5)
+            ->get()
+            ->map(function($guestList) {
+                return [
+                    'id' => $guestList->id,
+                    'name' => $guestList->name,
+                    'created_at' => $guestList->created_at,
+                ];
+            });
+        
+        return [
+            'recent_events' => $recentEvents,
+            'recent_guest_lists' => $recentGuestLists,
+        ];
+    }
+
+    /**
+     * Get completed events for reports dropdown
+     */
+    private function getCompletedEventsForReports($events): array
+    {
+        $completedEvents = [];
+        foreach ($events as $event) {
+            // Check both status and dates to ensure we catch all completed events
+            if ($event->status === 'completed' || $event->isCompleted()) {
+                $completedEvents[] = [
+                    'id' => $event->id,
+                    'name' => $event->name,
+                    'start_date' => $event->start_date,
+                    'end_date' => $event->end_date,
+                    'total_guests' => $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count(),
+                    'checked_in_guests' => $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->where('checked_in', true)->count(),
+                    'checkin_rate' => $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count() > 0 ? round(($event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->where('checked_in', true)->count() / $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count()) * 100, 1) : 0,
+                    'invitations_sent' => $event->invitations()->where('status', 'sent')->count(),
+                    'rsvp_responses' => $event->invitations()->whereNotNull('rsvp_status')->where('rsvp_status', '!=', 'none')->count(),
+                    'rsvp_yes' => $event->invitations()->where('rsvp_status', 'yes')->count(),
+                    'rsvp_no' => $event->invitations()->where('rsvp_status', 'no')->count(),
+                    'rsvp_maybe' => $event->invitations()->where('rsvp_status', 'maybe')->count(),
+                ];
+            }
+        }
+        return $completedEvents;
+    }
+
+    /**
+     * Get guest list health statistics
+     */
+    private function getGuestListHealthStats($user): array
+    {
+        $guestLists = $user->guestLists()->withCount('guests')->get();
+        
+        $excellent = 0;
+        $good = 0;
+        $needsAttention = 0;
+        $critical = 0;
+        $totalGuests = 0;
+        
+        foreach ($guestLists as $guestList) {
+            $guestCount = $guestList->guests_count;
+            $totalGuests += $guestCount;
+            
+            // Simple health scoring based on guest count
+            if ($guestCount >= 50) {
+                $excellent++;
+            } elseif ($guestCount >= 20) {
+                $good++;
+            } elseif ($guestCount >= 5) {
+                $needsAttention++;
+            } else {
+                $critical++;
+            }
+        }
+        
+        $totalLists = $guestLists->count();
+        $averageScore = $totalLists > 0 ? round(($excellent * 100 + $good * 75 + $needsAttention * 50 + $critical * 25) / $totalLists) : 0;
+        
+        return [
+            'excellent' => $excellent,
+            'good' => $good,
+            'needs_attention' => $needsAttention,
+            'critical' => $critical,
+            'total_guests' => $totalGuests,
+            'average_score' => $averageScore,
+        ];
+    }
+
+    /**
+     * Get dashboard statistics
+     */
+    public function getDashboardStats(): array
+    {
+        try {
+            $user = Auth::user();
+            $events = $user->events()->get(); // Convert to collection
+            $eventIds = $events->pluck('id')->toArray();
+            
+            // Get total guests across all guest lists
+            $totalGuests = $user->guestLists()->withCount('guests')->get()->sum('guests_count');
+            
+            // Get total check-ins across all events
+            $totalCheckins = \App\EventGuest::whereIn('event_id', $eventIds)
+                ->where('status', \App\EventGuest::STATUS_ACTIVE)
+                ->where('checked_in', true)
+                ->count();
+            
+            // Calculate total invitations sent using collection methods
+            $totalInvitationsSent = $events->sum(function($event) {
+                return $event->invitations()->where('status', 'sent')->count();
+            });
+            
+            // Get upcoming events (events that haven't started yet)
+            $upcomingEvents = $events->filter(function($event) {
+                return $event->start_date > now() && $event->status !== 'completed';
+            })->take(5);
+            
+            // Get recent activity (recent events and guest lists)
+            $recentActivity = collect();
+            
+            // Add recent events
+            $recentEvents = $events->sortByDesc('created_at')->take(3);
+            foreach ($recentEvents as $event) {
+                $recentActivity->push([
+                    'type' => 'event',
+                    'id' => $event->id,
+                    'name' => $event->name,
+                    'created_at' => $event->created_at,
+                    'status' => $event->status,
+                ]);
+            }
+            
+            // Add recent guest lists
+            $recentGuestLists = $user->guestLists()->latest('created_at')->take(3)->get();
+            foreach ($recentGuestLists as $guestList) {
+                $recentActivity->push([
+                    'type' => 'guest_list',
+                    'id' => $guestList->id,
+                    'name' => $guestList->name,
+                    'created_at' => $guestList->created_at,
+                ]);
+            }
+            
+            // Sort recent activity by creation date
+            $recentActivity = $recentActivity->sortByDesc('created_at')->take(5);
+            
+            // Get recent guest lists for the dedicated section
+            $recentGuestLists = $user->guestLists()->latest('created_at')->take(5)->get();
+            
+            return [
+                'total_events' => $events->count(),
+                'total_guest_lists' => $user->guestLists()->count(),
+                'total_guests' => $totalGuests,
+                'total_invitations_sent' => $totalInvitationsSent,
+                'total_checkins' => $totalCheckins,
+                'overall_checkin_rate' => $totalGuests > 0 ? round(($totalCheckins / $totalGuests) * 100, 1) : 0,
+                'active_events' => $events->where('status', 'active')->count(),
+                'completed_events' => $events->where('status', 'completed')->count(),
+                'upcoming_events' => $upcomingEvents,
+                'recent_activity' => $recentActivity,
+                'recent_guest_lists' => $recentGuestLists,
+            ];
+        } catch (\Exception $e) {
+            \Log::error('Dashboard stats error: ' . $e->getMessage());
+            // Return default values on error
+            return [
+                'total_events' => 0,
+                'total_guest_lists' => 0,
+                'total_guests' => 0,
+                'total_invitations_sent' => 0,
+                'total_checkins' => 0,
+                'overall_checkin_rate' => 0,
+                'active_events' => 0,
+                'completed_events' => 0,
+                'upcoming_events' => collect(),
+                'recent_activity' => collect(),
+                'recent_guest_lists' => collect(),
+            ];
+        }
+    }
+
+    /**
+     * Get my guest lists
+     */
     public function getMyGuestLists()
     {
         $user = Auth::user();
@@ -34,6 +449,9 @@ class OrganizerService
         return $guestLists;
     }
 
+    /**
+     * Get my guest lists with filters
+     */
     public function getMyGuestListsWithFilters($search = '', $health = '', $guestCount = '', $sortBy = 'created_at_desc', $page = 1)
     {
         $user = Auth::user();
@@ -72,288 +490,34 @@ class OrganizerService
             }
         }
 
-        // Sorting
+        // Sort by
         switch ($sortBy) {
-            case 'created_at_asc':
-                $query->orderBy('created_at', 'asc');
-                break;
-            case 'updated_at_desc':
-                $query->orderBy('updated_at', 'desc');
-                break;
-            case 'updated_at_asc':
-                $query->orderBy('updated_at', 'asc');
-                break;
             case 'name_asc':
                 $query->orderBy('name', 'asc');
                 break;
             case 'name_desc':
                 $query->orderBy('name', 'desc');
                 break;
-            case 'guests_count_desc':
-                $query->orderBy('guests_count', 'desc');
-                break;
-            case 'guests_count_asc':
+            case 'guests_asc':
                 $query->orderBy('guests_count', 'asc');
                 break;
-            default: // created_at_desc
+            case 'guests_desc':
+                $query->orderBy('guests_count', 'desc');
+                break;
+            case 'created_at_asc':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'created_at_desc':
+            default:
                 $query->orderBy('created_at', 'desc');
                 break;
         }
 
-        $guestLists = $query->paginate(10, ['*'], 'page', $page);
-        
-        return $guestLists;
-    }
-
-    public function createGuestList(array $data): GuestList
-    {
-        $user = Auth::user();
-        
-        $guestList = new GuestList();
-        $guestList->user_id = $user->id;
-        $guestList->name = $data['name'];
-        $guestList->description = $data['description'] ?? null;
-        $guestList->max_guests = $data['max_guests'] ?? null;
-        $guestList->settings = $data['settings'] ?? $guestList->getDefaultSettings();
-        $guestList->save();
-
-        return $guestList;
-    }
-
-    public function updateGuestList(GuestList $guestList, array $data): void
-    {
-        $guestList->update($data);
-    }
-
-    public function deleteGuestList(GuestList $guestList): void
-    {
-        $guestList->delete();
-    }
-
-    public function getGuestListGuests(GuestList $guestList)
-    {
-        return $guestList->guests()->with('group')->latest()->get();
-    }
-
-    public function getGuestListStats(GuestList $guestList): array
-    {
-        return [
-            'total_guests' => $guestList->guests()->count(),
-            'groups_count' => $guestList->guestGroups()->count(),
-            'recent_additions' => $guestList->guests()->latest()->limit(5)->get(),
-        ];
-    }
-
-    public function addGuest(GuestList $guestList, array $data): Guest
-    {
-        $guest = new Guest();
-        $guest->guest_list_id = $guestList->id;
-        $guest->name = $data['name'];
-        $guest->email = $data['email'] ?? null;
-        $guest->phone = $data['phone'] ?? null;
-        $guest->group_id = $data['group_id'] ?? null;
-        $guest->language = $data['language'] ?? null;
-        $guest->notes = $data['notes'] ?? null;
-        $guest->save();
-
-        // Recalculate health after adding guest
-        $guestList->calculateAndStoreHealth();
-
-        return $guest;
+        return $query->paginate(10, ['*'], 'page', $page);
     }
 
     /**
-     * Add guest without validation (for imports)
-     */
-    public function addGuestWithoutValidation(GuestList $guestList, array $data): Guest
-    {
-        $guest = new Guest();
-        $guest->guest_list_id = $guestList->id;
-        $guest->name = $data['name'];
-        $guest->email = $data['email'] ?? null;
-        $guest->phone = $data['phone'] ?? null;
-        $guest->group_id = $data['group_id'] ?? null;
-        $guest->language = $data['language'] ?? null;
-        $guest->notes = $data['notes'] ?? null;
-        $guest->save();
-
-        return $guest;
-    }
-
-    public function updateGuest(Guest $guest, array $data): void
-    {
-        $guest->update($data);
-        
-        // Recalculate health after updating guest
-        $guest->guestList->calculateAndStoreHealth();
-    }
-
-    public function deleteGuest(Guest $guest): void
-    {
-        $guestList = $guest->guestList;
-        $guest->delete();
-        
-        // Recalculate health after deleting guest
-        $guestList->calculateAndStoreHealth();
-    }
-
-    public function importGuests(GuestList $guestList, $file): array
-    {
-        try {
-            $spreadsheet = IOFactory::load($file->getPathname());
-            $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
-
-            // Skip header row
-            array_shift($rows);
-
-            $imported = 0;
-            $errors = [];
-
-            foreach ($rows as $index => $row) {
-                if (empty(array_filter($row))) continue; // Skip empty rows
-
-                try {
-                    $guest = new Guest();
-                    $guest->guest_list_id = $guestList->id;
-                    $guest->name = $row[0] ?? '';
-                    $guest->email = $row[1] ?? null;
-                    $guest->phone = $row[2] ?? null;
-                    $guest->notes = $row[3] ?? null;
-
-                    // Handle group if provided
-                    if (!empty($row[4])) {
-                        $groupName = trim($row[4]);
-                        $group = $guestList->guestGroups()->where('name', $groupName)->first();
-                        
-                        if (!$group) {
-                            $group = new GuestGroup();
-                            $group->guest_list_id = $guestList->id;
-                            $group->name = $groupName;
-                            $group->save();
-                        }
-                        
-                        $guest->group_id = $group->id;
-                    }
-
-                    $guest->save();
-                    $imported++;
-                } catch (\Exception $e) {
-                    $errors[] = "Row " . ($index + 2) . ": " . $e->getMessage();
-                }
-            }
-
-            $message = "Successfully imported {$imported} guests.";
-            if (!empty($errors)) {
-                $message .= " Errors: " . implode(', ', $errors);
-            }
-
-            return [
-                'success' => true,
-                'message' => $message,
-                'imported' => $imported,
-                'errors' => $errors
-            ];
-
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'Import failed: ' . $e->getMessage()
-            ];
-        }
-    }
-
-    public function exportGuests(GuestList $guestList)
-    {
-        $guests = $guestList->guests()->with('group')->get();
-
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-
-        // Headers
-        $sheet->setCellValue('A1', 'Name');
-        $sheet->setCellValue('B1', 'Email');
-        $sheet->setCellValue('C1', 'Phone');
-        $sheet->setCellValue('D1', 'Notes');
-        $sheet->setCellValue('E1', 'Group');
-        $sheet->setCellValue('F1', 'Checked In');
-
-        $row = 2;
-        foreach ($guests as $guest) {
-            $sheet->setCellValue('A' . $row, $guest->name);
-            $sheet->setCellValue('B' . $row, $guest->email);
-            $sheet->setCellValue('C' . $row, $guest->phone);
-            $sheet->setCellValue('D' . $row, $guest->notes);
-            $sheet->setCellValue('E' . $row, $guest->group ? $guest->group->name : '');
-            $sheet->setCellValue('F' . $row, $guest->checked_in ? 'Yes' : 'No');
-            $row++;
-        }
-
-        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
-        $filename = 'guest-list-' . $guestList->id . '-' . date('Y-m-d') . '.xlsx';
-        
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
-
-        $writer->save('php://output');
-        exit;
-    }
-
-    public function getReports(): array
-    {
-        $user = Auth::user();
-        
-        return [
-            'guest_list_summary' => $this->getGuestListSummary($user),
-            'guest_statistics' => $this->getGuestStatistics($user),
-            'recent_activity' => $this->getRecentActivity($user),
-        ];
-    }
-
-    private function getRecentActivity(User $user): array
-    {
-        // Implementation for recent activity
-        return [];
-    }
-
-    private function getGuestListSummary(User $user): array
-    {
-        return [
-            'total_lists' => $user->guestLists()->count(),
-            'active_lists' => $user->guestLists()->where('event_date', '>=', Carbon::today())->count(),
-            'completed_lists' => $user->guestLists()->where('event_date', '<', Carbon::today())->count(),
-        ];
-    }
-
-    private function getGuestStatistics(User $user): array
-    {
-        // Get all events for this user's guest lists
-        $eventIds = $user->guestLists()->with('events')->get()
-            ->pluck('events')->flatten()->pluck('id')->unique();
-        
-        // Get total guests across all events
-        $totalGuests = \App\EventGuest::whereIn('event_id', $eventIds)
-            ->where('status', \App\EventGuest::STATUS_ACTIVE)
-            ->count();
-        
-        // Get checked-in guests across all events
-        $checkedInGuests = \App\EventGuest::whereIn('event_id', $eventIds)
-            ->where('status', \App\EventGuest::STATUS_ACTIVE)
-            ->where('checked_in', true)
-            ->count();
-        
-        return [
-            'total_guests' => $totalGuests,
-            'checked_in_guests' => $checkedInGuests,
-            'average_guests_per_list' => $user->guestLists()->withCount('guests')->get()->avg('guests_count'),
-        ];
-    }
-
-
-
-    /**
-     * Get display data for a guest list
+     * Get guest list display data
      */
     public function getGuestListDisplayData(GuestList $guestList): array
     {
@@ -378,6 +542,51 @@ class OrganizerService
     }
 
     /**
+     * Get guest list guests
+     */
+    public function getGuestListGuests(GuestList $guestList): array
+    {
+        $guests = $guestList->guests()->with('group')->orderBy('name')->get();
+        
+        return $guests->map(function($guest) {
+            return [
+                'id' => $guest->id,
+                'name' => $guest->name,
+                'email' => $guest->email,
+                'phone' => $guest->phone,
+                'group_id' => $guest->group_id,
+                'group_name' => $guest->guestGroup ? $guest->guestGroup->name : '',
+                'language' => $guest->language ?? '',
+                'created_at' => $guest->created_at,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Get guest list statistics
+     */
+    public function getGuestListStats(GuestList $guestList): array
+    {
+        $totalGuests = $guestList->guests()->count();
+        $guestsWithEmail = $guestList->guests()->whereNotNull('email')->count();
+        $guestsWithPhone = $guestList->guests()->whereNotNull('phone')->count();
+        $guestsWithGroup = $guestList->guests()->whereNotNull('group_id')->count();
+        $guestsWithLanguage = $guestList->guests()->whereNotNull('language')->count();
+        
+        return [
+            'total_guests' => $totalGuests,
+            'guests_with_email' => $guestsWithEmail,
+            'guests_with_phone' => $guestsWithPhone,
+            'guests_with_group' => $guestsWithGroup,
+            'guests_with_language' => $guestsWithLanguage,
+            'email_percentage' => $totalGuests > 0 ? round(($guestsWithEmail / $totalGuests) * 100, 1) : 0,
+            'phone_percentage' => $totalGuests > 0 ? round(($guestsWithPhone / $totalGuests) * 100, 1) : 0,
+            'group_percentage' => $totalGuests > 0 ? round(($guestsWithGroup / $totalGuests) * 100, 1) : 0,
+            'language_percentage' => $totalGuests > 0 ? round(($guestsWithLanguage / $totalGuests) * 100, 1) : 0,
+        ];
+    }
+
+    /**
      * Update guest list settings
      */
     public function updateGuestListSettings(GuestList $guestList, array $data): array
@@ -394,18 +603,8 @@ class OrganizerService
         $settings['default_country_code'] = $data['default_country_code'] ?? $settings['default_country_code'] ?? '+1';
         $settings['default_language'] = $data['default_language'] ?? $settings['default_language'] ?? 'en';
         
-        $guestList->settings = $settings;
-
-        if (isset($data['name'])) {
-            $guestList->name = $data['name'];
-        }
-        if (isset($data['description'])) {
-            $guestList->description = $data['description'];
-        }
+        $guestList->update(['settings' => $settings]);
         
-        $guestList->save();
-        $guestList->refresh();
-
         return [
             'success' => true,
             'name' => $guestList->name,
@@ -505,4 +704,11 @@ class OrganizerService
         ];
     }
 
-} 
+    /**
+     * Delete a guest
+     */
+    private function deleteGuest(Guest $guest): void
+    {
+        $guest->delete();
+    }
+}
