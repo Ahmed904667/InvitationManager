@@ -521,6 +521,12 @@ html[data-theme="light"] {
         background-color: #fee2e2;
         color: #991b1b;
     }
+    
+    .badge-emerald {
+        background-color: #ecfdf5;
+        color: #059669;
+        border: 1px solid #a7f3d0;
+    }
 
     /* Status Badge Styles */
     .status-badge {

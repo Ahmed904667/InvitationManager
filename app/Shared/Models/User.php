@@ -26,6 +26,7 @@ class User extends Authenticatable
         'is_active',
         'last_login_at',
         'scanner_settings',
+        'organizer_settings',
         'last_offline_sync',
         'timezone',
         'phone',
@@ -66,11 +67,12 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'last_login_at' => 'datetime',
-            'last_offline_sync' => 'datetime',
-            'scanner_settings' => 'array',
+                    'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'last_login_at' => 'datetime',
+        'last_offline_sync' => 'datetime',
+        'scanner_settings' => 'array',
+        'organizer_settings' => 'array',
         ];
     }
 

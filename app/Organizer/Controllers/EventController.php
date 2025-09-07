@@ -490,8 +490,12 @@ class EventController extends Controller
         $userTimezone = Auth::user()->timezone ?? 'UTC';
         
         if (!empty($validated['start_date'])) {
-            $startDateInUserTz = \Carbon\Carbon::createFromFormat('Y-m-d\TH:i', $validated['start_date'], $userTimezone);
-            $validated['start_date'] = $startDateInUserTz->utc()->format('Y-m-d H:i:s');
+        // Parse the input as if it's in the user's timezone
+        $startDateInUserTz = \Carbon\Carbon::createFromFormat('Y-m-d\TH:i', $validated['start_date'], $userTimezone);
+
+        // Convert to UTC while preserving the intended local time
+        $utcStartDate = $startDateInUserTz->copy()->utc();
+        $validated['start_date'] = $utcStartDate->format('Y-m-d H:i:s');
             
             Log::info('🕐 [TIMEZONE] Converted start date to UTC', [
                 'user_id' => Auth::id(),
@@ -920,10 +924,8 @@ class EventController extends Controller
             'scheduled_at' => 'nullable|date|required_if:send_type,scheduled',
         ];
 
-        if (!empty($allData['start_date'])) {
-            $eventStart = \Carbon\Carbon::parse($allData['start_date'])->toDateTimeString();
-            $rules['scheduled_at'] .= '|before:' . $eventStart;
-        }
+        // Note: We'll handle the "before event start" validation in custom validation logic
+        // after the frontend converts the time to UTC
 
         $messages = [
             'scheduled_at.before' => 'Scheduled time must be before the event start time.',
@@ -933,25 +935,19 @@ class EventController extends Controller
         try {
             $validated = $request->validate($rules, $messages);
             
-            // Custom validation for scheduled_at timezone handling
+            // Custom validation for scheduled_at (raw datetime-local input from frontend)
             if (($validated['send_type'] ?? null) === 'scheduled' && !empty($validated['scheduled_at'])) {
+                // Parse the raw datetime-local input as being in the user's timezone
                 $userTimezone = Auth::user()->timezone ?? 'UTC';
-                $inputTime = $validated['scheduled_at'];
-                
-                // Create Carbon instance from input time (interpreted as user's local time)
-                $userTime = \Carbon\Carbon::parse($inputTime);
-                
-                // Convert to UTC for comparison with current time
-                $utcTime = $userTime->copy();
                 if ($userTimezone !== 'UTC') {
-                    $timezone = new \DateTimeZone($userTimezone);
-                    $offset = $timezone->getOffset($userTime) / 3600; // Convert seconds to hours
-                    $utcTime = $userTime->subHours($offset);
+                    $scheduledUtcTime = \Carbon\Carbon::parse($validated['scheduled_at'], $userTimezone)->setTimezone('UTC');
+                } else {
+                    $scheduledUtcTime = \Carbon\Carbon::parse($validated['scheduled_at'], 'UTC');
                 }
-                
+
                 // Check if the time is in the future (in UTC)
                 $now = \Carbon\Carbon::now('UTC');
-                if ($utcTime->lte($now)) {
+                if ($scheduledUtcTime->lte($now)) {
                     throw new \Illuminate\Validation\ValidationException(
                         validator([], []),
                         response()->json([
@@ -961,16 +957,64 @@ class EventController extends Controller
                         ], 422)
                     );
                 }
-                
-                // Update validated data with UTC time for storage
-                $validated['scheduled_at'] = $utcTime->toDateTimeString();
-                
-                Log::info('🕐 [TIMEZONE] Converted scheduled time to UTC', [
+
+                // Check if scheduled time is before event start time
+                if (!empty($allData['start_date'])) {
+                    $userTimezone = Auth::user()->timezone ?? 'UTC';
+                    
+                    // Check if the event start date is already in UTC format
+                    // If it contains 'T' or looks like a datetime string, it's likely already UTC
+                    $eventStartDate = $allData['start_date'];
+                    
+                    if (strpos($eventStartDate, 'T') !== false || preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $eventStartDate)) {
+                        // Already in UTC format, parse directly
+                        $eventStartAt = \Carbon\Carbon::parse($eventStartDate, 'UTC');
+                    } else {
+                        // Parse as user timezone and convert to UTC
+                        if ($userTimezone !== 'UTC') {
+                            $eventStartAt = \Carbon\Carbon::parse($eventStartDate, $userTimezone)->setTimezone('UTC');
+                        } else {
+                            $eventStartAt = \Carbon\Carbon::parse($eventStartDate, 'UTC');
+                        }
+                    }
+
+                    // Debug logging for time validation
+                    \Log::info('🕐 [BACKEND] Time validation in custom validation', [
+                        'user_id' => Auth::id(),
+                        'raw_scheduled_at' => $validated['scheduled_at'],
+                        'user_timezone' => $userTimezone,
+                        'raw_event_start' => $allData['start_date'],
+                        'event_start_parsing_method' => strpos($eventStartDate, 'T') !== false || preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $eventStartDate) ? 'UTC_direct' : 'timezone_conversion',
+                        'scheduled_at_utc' => $scheduledUtcTime->toDateTimeString(),
+                        'event_start_utc' => $eventStartAt->toDateTimeString(),
+                        'event_start_minus_one' => $eventStartAt->copy()->subMinute()->toDateTimeString(),
+                        'scheduled_is_after_event_minus_one' => $scheduledUtcTime->gte($eventStartAt->copy()->subMinute()),
+                        'time_difference_minutes' => $scheduledUtcTime->diffInMinutes($eventStartAt, false),
+                        'validation_passes' => $scheduledUtcTime->lt($eventStartAt->copy()->subMinute())
+                    ]);
+
+                    // Allow scheduling up to 1 minute before event start
+                    $eventStartMinusOne = $eventStartAt->copy()->subMinute();
+                    if ($scheduledUtcTime->gte($eventStartMinusOne)) {
+                        throw new \Illuminate\Validation\ValidationException(
+                            validator([], []),
+                            response()->json([
+                                'success' => false,
+                                'message' => 'Scheduled time must be before the event start time.',
+                                'errors' => ['scheduled_at' => ['Scheduled time must be before the event start time.']]
+                            ], 422)
+                        );
+                    }
+                }
+
+                // Ensure the time is stored in UTC format
+                $validated['scheduled_at'] = $scheduledUtcTime->toDateTimeString();
+
+                Log::info('🕐 [BACKEND] Received and converted scheduled time from frontend', [
                     'user_id' => Auth::id(),
                     'user_timezone' => $userTimezone,
-                    'input_time' => $inputTime,
-                    'utc_time' => $utcTime->toDateTimeString(),
-                    'timezone_offset_hours' => $userTimezone !== 'UTC' ? $offset : 0
+                    'raw_input' => $validated['scheduled_at'],
+                    'utc_time' => $validated['scheduled_at']
                 ]);
             }
             
@@ -1001,38 +1045,8 @@ class EventController extends Controller
                 ->with('error', 'Your session expired or is incomplete. Please re-enter event details (Step 1).');
         }
 
-        // Extra guard in case of timezone mismatches
-        if (($validated['send_type'] ?? null) === 'scheduled' && !empty($validated['scheduled_at']) && !empty($allData['start_date'])) {
-            $scheduledAt = \Carbon\Carbon::parse($validated['scheduled_at']);
-            $eventStartAt = \Carbon\Carbon::parse($allData['start_date']);
-            if ($scheduledAt->gte($eventStartAt)) {
-                if ($request->expectsJson() || $request->hasHeader('X-Form-Submission')) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Scheduled time must be before the event start time.',
-                        'errors' => ['scheduled_at' => ['Scheduled time must be before the event start time.']]
-                    ], 422);
-                }
-                return back()
-                    ->withErrors(['scheduled_at' => 'Scheduled time must be before the event start time.'])
-                    ->withInput();
-            }
-
-            // Enforce at least one minute before start (strictly less than start)
-            $eventStartMinusOne = $eventStartAt->copy()->subMinute();
-            if ($scheduledAt->gt($eventStartMinusOne)) {
-                if ($request->expectsJson() || $request->hasHeader('X-Form-Submission')) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Scheduled time must be at least one minute before the event start time.',
-                        'errors' => ['scheduled_at' => ['Scheduled time must be at least one minute before the event start time.']]
-                    ], 422);
-                }
-                return back()
-                    ->withErrors(['scheduled_at' => 'Scheduled time must be at least one minute before the event start time.'])
-                    ->withInput();
-            }
-        }
+        // Note: All time validation is now handled in the custom validation section above
+        // This ensures consistent timezone handling and validation logic
 
         $this->eventCreationService->storeStep(4, $validated);
 
@@ -2681,6 +2695,19 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('delete', $event);
         
+        // Check if event can be deleted (only completed, cancelled, or scheduled events)
+        if (!in_array($event->status, ['completed', 'cancelled', 'scheduled'])) {
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only completed, cancelled, or scheduled events can be deleted.'
+                ], 400);
+            }
+            
+            return redirect()->route('organizer.events.index')
+                ->with('error', 'Only completed, cancelled, or scheduled events can be deleted.');
+        }
+        
         try {
             $event->delete();
             
@@ -4169,6 +4196,89 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     }
     
     /**
+     * Update invitation status from Twilio data
+     */
+    private function updateInvitationFromTwilio($invitation, $twilioMessage)
+    {
+        // Get existing delivery details and merge with new status
+        $existingDetails = $invitation->delivery_details ?? [];
+        $deliveryDetails = array_merge($existingDetails, [
+            'twilio_status' => $twilioMessage->status,
+            'updated_at' => now()->toISOString(),
+            'last_checked' => now()->toISOString()
+        ]);
+        
+        switch (strtolower($twilioMessage->status)) {
+            case 'queued':
+            case 'sending':
+            case 'accepted':
+            case 'scheduled':
+            case 'partially_delivered':
+            case 'receiving':
+            case 'received':
+                // Map intermediate statuses to 'queued'
+                $invitation->update([
+                    'status' => 'queued',
+                    'delivery_details' => $deliveryDetails
+                ]);
+                break;
+            case 'sent':
+                // Map 'sent' to 'delivered' since it means message was accepted and sent
+                $invitation->update([
+                    'status' => 'delivered',
+                    'sent_at' => now(),
+                    'delivery_details' => $deliveryDetails
+                ]);
+                break;
+            case 'delivered':
+                $invitation->update([
+                    'status' => 'delivered',
+                    'sent_at' => now(),
+                    'delivery_details' => $deliveryDetails
+                ]);
+                break;
+            case 'read':
+                // Message delivered and read by recipient (only for WhatsApp)
+                if ($invitation->channel === 'whatsapp') {
+                    $invitation->update([
+                        'status' => 'read',
+                        'delivery_details' => $deliveryDetails
+                    ]);
+                } else {
+                    // For non-WhatsApp channels, just update delivery details
+                    $invitation->update([
+                        'delivery_details' => $deliveryDetails
+                    ]);
+                }
+                break;
+            case 'undelivered':
+                $invitation->update([
+                    'status' => 'failed',
+                    'delivery_details' => $deliveryDetails
+                ]);
+                break;
+            case 'failed':
+                $invitation->update([
+                    'status' => 'failed',
+                    'delivery_details' => $deliveryDetails
+                ]);
+                break;
+            case 'canceled':
+                $invitation->update([
+                    'status' => 'failed',
+                    'delivery_details' => $deliveryDetails
+                ]);
+                break;
+            default:
+                // For any other status, just update delivery details
+                $invitation->update([
+                    'delivery_details' => $deliveryDetails
+                ]);
+                break;
+        }
+    }
+    
+    /**
      * Silently refresh notification statuses without user feedback
      * This is called automatically when viewing the event page
      */
@@ -4243,7 +4353,119 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         }
     }
     
-
+    /**
+     * Refresh invitation statuses for an event
+     */
+    public function refreshInvitationStatuses(Request $request, Event $event)
+    {
+        $this->authorize('view', $event);
+        
+        // Get all invitations for this event
+        $invitations = $event->invitations()
+            ->with(['guest'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        $updatedCount = 0;
+        $errors = [];
+        
+        // Check WhatsApp invitation statuses using Twilio SID
+        foreach ($invitations as $invitation) {
+            if ($invitation->channel === 'whatsapp') {
+                try {
+                    // Check if we have external_id (Twilio SID)
+                    if (!$invitation->external_id) {
+                        // Try to extract from delivery_details or other fields
+                        $deliveryDetails = $invitation->delivery_details ?? [];
+                        $messageSid = $deliveryDetails['twilio_response']['message_sid'] ?? 
+                                     $deliveryDetails['message_sid'] ?? 
+                                     $deliveryDetails['sid'] ?? null;
+                        
+                        if ($messageSid) {
+                            $invitation->update(['external_id' => $messageSid]);
+                            \Log::info('Fixed missing external_id for invitation', [
+                                'invitation_id' => $invitation->id,
+                                'message_sid' => $messageSid
+                            ]);
+                        } else {
+                            continue; // Skip this invitation
+                        }
+                    }
+                    
+                    // Get message status from Twilio
+                    $twilioService = app(TwilioService::class);
+                    $messageStatus = $twilioService->getMessageStatus($invitation->external_id);
+                    
+                    if ($messageStatus) {
+                        // Check if status actually needs updating
+                        $currentTwilioStatus = strtolower($messageStatus->status);
+                        $currentInvitationStatus = strtolower($invitation->status);
+                        $deliveryDetails = $invitation->delivery_details ?? [];
+                        $lastTwilioStatus = strtolower($deliveryDetails['twilio_status'] ?? '');
+                        
+                        // Only update if Twilio status has changed
+                        if ($currentTwilioStatus !== $lastTwilioStatus) {
+                            // Update the invitation status based on Twilio status
+                            $this->updateInvitationFromTwilio($invitation, $messageStatus);
+                            $updatedCount++;
+                            
+                            \Log::info('Updated invitation status from Twilio', [
+                                'invitation_id' => $invitation->id,
+                                'message_sid' => $invitation->external_id,
+                                'old_status' => $invitation->getOriginal('status'),
+                                'new_status' => $invitation->status,
+                                'old_twilio_status' => $lastTwilioStatus,
+                                'new_twilio_status' => $currentTwilioStatus
+                            ]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Failed to update invitation {$invitation->id}: " . $e->getMessage();
+                    \Log::error('Failed to update invitation status', [
+                        'invitation_id' => $invitation->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+        }
+        
+        // Refresh invitations data after updates
+        $invitations = $event->invitations()
+            ->with(['guest'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        // Calculate updated statistics
+        $stats = [
+            'queued' => $invitations->whereIn('status', ['queued', 'sending', 'pending'])->count(),
+            'delivered' => $invitations->whereIn('status', ['delivered', 'sent'])->count(),
+            'read' => $invitations->where('status', 'read')->count(),
+            'failed' => $invitations->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
+        ];
+        
+        $message = "Updated {$updatedCount} invitation statuses.";
+        if (!empty($errors)) {
+            $message .= " Errors: " . implode('; ', array_slice($errors, 0, 3));
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'updated_count' => $updatedCount,
+            'stats' => $stats,
+            'invitations' => $invitations->map(function ($invitation) {
+                return [
+                    'id' => $invitation->id,
+                    'status' => $invitation->status,
+                    'channel' => $invitation->channel,
+                    'created_at' => $invitation->created_at->toISOString(),
+                    'sent_at' => $invitation->sent_at ? $invitation->sent_at->toISOString() : null,
+                    'guest_name' => $invitation->guest ? $invitation->guest->name : null,
+                    'token' => $invitation->token
+                ];
+            })
+        ]);
+    }
 
     /**
      * Remove a guest list from a sent event
@@ -5051,6 +5273,115 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 'guest_id' => $guest->id,
                 'error' => $e->getMessage()
             ]);
+        }
+    }
+
+    /**
+     * Cancel an event and send apology message to all guests
+     */
+    public function cancel(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+        
+        // Check if event can be cancelled
+        if (in_array($event->status, ['running', 'completed', 'cancelled'])) {
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This event cannot be cancelled.'
+                ], 400);
+            }
+            
+            return redirect()->route('organizer.events.index')
+                ->with('error', 'This event cannot be cancelled.');
+        }
+        
+        $request->validate([
+            'apology_message' => 'required|string|max:1000'
+        ]);
+        
+        try {
+            \DB::beginTransaction();
+            
+            // Get all active guests for this event
+            $activeGuests = $event->activeGuests()->get();
+            
+            // Send apology message to all guests
+            if ($activeGuests->count() > 0) {
+                $twilioService = app(\App\Services\TwilioService::class);
+                
+                foreach ($activeGuests as $guest) {
+                    try {
+                        // Send SMS apology if guest has phone
+                        if ($guest->phone) {
+                            $twilioService->sendSms(
+                                $guest->phone,
+                                $request->apology_message
+                            );
+                        }
+                        
+                        // Send email apology if guest has email
+                        if ($guest->email) {
+                            \Mail::to($guest->email)->send(new \App\Mail\EventCancellationMail(
+                                $event,
+                                $request->apology_message
+                            ));
+                        }
+                    } catch (\Exception $e) {
+                        \Log::warning("Failed to send cancellation message to guest {$guest->id}: " . $e->getMessage());
+                        // Continue with other guests even if one fails
+                    }
+                }
+            }
+            
+            // Delete all invitations for this event
+            $event->invitations()->delete();
+            
+            // Remove all scheduled messages for this event
+            // Cancel any pending jobs in the queue for this event
+            \DB::table('jobs')
+                ->where('payload', 'like', '%"event_id":' . $event->id . '%')
+                ->orWhere('payload', 'like', '%SendScheduledEventInvitations%')
+                ->where('payload', 'like', '%"event_id":' . $event->id . '%')
+                ->delete();
+            
+            // Also cancel any job batches related to this event
+            \DB::table('job_batches')
+                ->where('payload', 'like', '%"event_id":' . $event->id . '%')
+                ->update(['cancelled_at' => now()->timestamp]);
+            
+            // Update event status to cancelled
+            $event->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'cancellation_reason' => $request->apology_message
+            ]);
+            
+            \DB::commit();
+            
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Event cancelled successfully. Apology messages sent to all guests.'
+                ]);
+            }
+            
+            return redirect()->route('organizer.events.index')
+                ->with('success', 'Event cancelled successfully. Apology messages sent to all guests.');
+                
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error cancelling event: ' . $e->getMessage());
+            
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error cancelling event. Please try again.'
+                ], 500);
+            }
+            
+            return redirect()->route('organizer.events.index')
+                ->with('error', 'Error cancelling event. Please try again.');
         }
     }
 

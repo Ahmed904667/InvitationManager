@@ -99,24 +99,48 @@
                 <span class="stat-number">{{ $guests->count() }}</span>
                 <span class="stat-label">Total Guests</span>
             </div>
-            @if($guestList->settings['enable_email'] ?? false)
+            @if($guestList->settings['fields']['email'] ?? false)
             <div class="stat">
                 <span class="stat-number">{{ $guests->whereNotNull('email')->count() }}</span>
                 <span class="stat-label">With Email</span>
             </div>
             @endif
-            @if($guestList->settings['enable_phone'] ?? false)
+            @if($guestList->settings['fields']['phone'] ?? false)
             <div class="stat">
                 <span class="stat-number">{{ $guests->whereNotNull('phone')->count() }}</span>
                 <span class="stat-label">With Phone</span>
             </div>
             @endif
-            @if($guestList->settings['enable_group'] ?? false)
+            @if($guestList->settings['fields']['group'] ?? false)
             <div class="stat">
                 <span class="stat-number">{{ $guests->pluck('group_id')->unique()->count() }}</span>
                 <span class="stat-label">Groups</span>
             </div>
             @endif
+        </div>
+        
+        <!-- Debug info - remove this after fixing -->
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin-top: 10px; font-size: 10px;">
+            <strong>Debug Info:</strong><br>
+            Settings: {{ json_encode($guestList->settings) }}<br>
+            Fields: {{ json_encode($guestList->settings['fields'] ?? 'No fields') }}<br>
+            Email enabled: {{ $guestList->settings['fields']['email'] ?? false ? 'Yes' : 'No' }}<br>
+            Phone enabled: {{ $guestList->settings['fields']['phone'] ?? false ? 'Yes' : 'No' }}<br>
+            Group enabled: {{ $guestList->settings['fields']['group'] ?? false ? 'Yes' : 'No' }}<br>
+            Language enabled: {{ $guestList->settings['fields']['language'] ?? false ? 'Yes' : 'No' }}<br>
+            Notes enabled: {{ $guestList->settings['fields']['notes'] ?? false ? 'Yes' : 'No' }}
+        </div>
+        
+        <!-- Debug info - remove this after fixing -->
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin-top: 10px; font-size: 10px;">
+            <strong>Debug Info:</strong><br>
+            Settings: {{ json_encode($guestList->settings) }}<br>
+            Fields: {{ json_encode($guestList->settings['fields'] ?? 'No fields') }}<br>
+            Email enabled: {{ $guestList->settings['fields']['email'] ?? false ? 'Yes' : 'No' }}<br>
+            Phone enabled: {{ $guestList->settings['fields']['phone'] ?? false ? 'Yes' : 'No' }}<br>
+            Group enabled: {{ $guestList->settings['fields']['group'] ?? false ? 'Yes' : 'No' }}<br>
+            Language enabled: {{ $guestList->settings['fields']['language'] ?? false ? 'Yes' : 'No' }}<br>
+            Notes enabled: {{ $guestList->settings['fields']['notes'] ?? false ? 'Yes' : 'No' }}
         </div>
     </div>
 
@@ -124,36 +148,44 @@
         <thead>
             <tr>
                 <th>Name</th>
-                @if($guestList->settings['enable_email'] ?? false)
+                @if($guestList->settings['fields']['email'] ?? false)
                     <th>Email</th>
                 @endif
-                @if($guestList->settings['enable_phone'] ?? false)
+                @if($guestList->settings['fields']['phone'] ?? false)
                     <th>Phone</th>
                 @endif
-                @if($guestList->settings['enable_language'] ?? false)
+                @if($guestList->settings['fields']['language'] ?? false)
                     <th>Language</th>
                 @endif
-                @if($guestList->settings['enable_group'] ?? false)
+                @if($guestList->settings['fields']['group'] ?? false)
                     <th>Group</th>
                 @endif
+                @if($guestList->settings['fields']['notes'] ?? false)
+                    <th>Notes</th>
+                @endif
+                <th>Created Date</th>
             </tr>
         </thead>
         <tbody>
             @foreach($guests as $guest)
                 <tr>
                     <td>{{ $guest->name }}</td>
-                    @if($guestList->settings['enable_email'] ?? false)
+                    @if($guestList->settings['fields']['email'] ?? false)
                         <td>{{ $guest->email ?? '-' }}</td>
                     @endif
-                    @if($guestList->settings['enable_phone'] ?? false)
+                    @if($guestList->settings['fields']['phone'] ?? false)
                         <td>{{ $guest->phone ?? '-' }}</td>
                     @endif
-                    @if($guestList->settings['enable_language'] ?? false)
+                    @if($guestList->settings['fields']['language'] ?? false)
                         <td>{{ $guest->language ?? '-' }}</td>
                     @endif
-                    @if($guestList->settings['enable_group'] ?? false)
+                    @if($guestList->settings['fields']['group'] ?? false)
                         <td>{{ $guest->group ? $guest->group->name : 'No Group' }}</td>
                     @endif
+                    @if($guestList->settings['fields']['notes'] ?? false)
+                        <td>{{ $guest->notes ?? '-' }}</td>
+                    @endif
+                    <td>{{ $guest->created_at ? $guest->created_at->format('M j, Y') : '-' }}</td>
                 </tr>
             @endforeach
         </tbody>

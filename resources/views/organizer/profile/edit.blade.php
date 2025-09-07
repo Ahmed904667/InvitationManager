@@ -119,46 +119,41 @@
             </div>
         </div>
 
-        <!-- Change Password Form -->
+        <!-- Password Reset Section -->
         <div class="bg-secondary rounded-xl shadow-sm border border-white/20 mb-8 p-6">
-            <h3 class="text-lg font-semibold text-primary mb-4">Change Password</h3>
+            <h3 class="text-lg font-semibold text-primary mb-4">Password</h3>
             
-            <form action="{{ route('organizer.profile.password') }}" method="POST">
-                @csrf
-                @method('PUT')
+            <div class="space-y-4">
+                <div class="bg-blue-500/10 dark:bg-blue-900/20 border border-blue-500/20 dark:border-blue-800 rounded-lg p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-400 dark:text-blue-300">
+                                Secure Password Reset
+                            </h3>
+                            <div class="mt-2 text-sm text-blue-300 dark:text-blue-400">
+                                <p>Click the button below to receive a secure password reset link via email. This link will be valid for 24 hours and can only be used once.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="current_password" class="block text-sm font-medium text-primary mb-2">Current Password</label>
-                        <input type="password" id="current_password" name="current_password" 
-                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-primary dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200 @error('current_password') border-red-500 @enderror">
-                        @error('current_password')
-                            <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-primary mb-2">New Password</label>
-                        <input type="password" id="password" name="password" 
-                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-primary dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200 @error('password') border-red-500 @enderror">
-                        @error('password')
-                            <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label for="password_confirmation" class="block text-sm font-medium text-primary mb-2">Confirm New Password</label>
-                        <input type="password" id="password_confirmation" name="password_confirmation" 
-                               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-primary dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200">
-                    </div>
-                </div>
-
-                <div class="mt-6">
-                    <button type="submit" class="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
-                        Change Password
-                    </button>
-                </div>
-            </form>
+                <button 
+                    type="button" 
+                    onclick="sendPasswordResetLink()"
+                    id="passwordResetBtn"
+                    class="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors duration-200 flex items-center justify-center"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    Send Password Reset Link
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -408,7 +403,7 @@ function sendEmailOTP() {
     const email = document.getElementById('newEmail').value.trim();
     
     if (!email) {
-        showNotification('Please enter a valid email address', 'error');
+        safeShowNotification('Please enter a valid email address', 'error');
         return;
     }
     
@@ -428,14 +423,14 @@ function sendEmailOTP() {
             currentEmail = email;
             document.getElementById('emailForm').classList.add('hidden');
             document.getElementById('emailOTPForm').classList.remove('hidden');
-            showNotification('OTP sent! Check your email for the verification code.', 'success');
+            safeShowNotification('OTP sent! Check your email for the verification code.', 'success');
         } else {
-            showNotification('Error: ' + data.message, 'error');
+            safeShowNotification('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('Error sending OTP. Please try again. If the problem persists, try refreshing the page.', 'error');
+        safeShowNotification('Error sending OTP. Please try again. If the problem persists, try refreshing the page.', 'error');
     });
 }
 
@@ -444,7 +439,7 @@ function verifyEmailOTP() {
     const otp = document.getElementById('emailOTP').value.trim();
     
     if (!otp || otp.length !== 6) {
-        showNotification('Please enter a valid 6-digit OTP', 'error');
+        safeShowNotification('Please enter a valid 6-digit OTP', 'error');
         return;
     }
     
@@ -464,16 +459,16 @@ function verifyEmailOTP() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification('Email updated successfully!', 'success');
+            safeShowNotification('Email updated successfully!', 'success');
             closeEmailModal();
             window.location.reload();
         } else {
-            showNotification('Error: ' + data.message, 'error');
+            safeShowNotification('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('Error verifying OTP. Please try again.', 'error');
+        safeShowNotification('Error verifying OTP. Please try again.', 'error');
     });
 }
 
@@ -482,7 +477,7 @@ function sendPhoneOTP() {
     const phone = document.getElementById('newPhone').value.trim();
     
     if (!phone) {
-        showNotification('Please enter a valid phone number', 'error');
+        safeShowNotification('Please enter a valid phone number', 'error');
         return;
     }
     
@@ -502,14 +497,14 @@ function sendPhoneOTP() {
             currentPhone = phone;
             document.getElementById('phoneForm').classList.add('hidden');
             document.getElementById('phoneOTPForm').classList.remove('hidden');
-            showNotification('OTP sent! Check your WhatsApp for the verification code.', 'success');
+            safeShowNotification('OTP sent! Check your WhatsApp for the verification code.', 'success');
         } else {
-            showNotification('Error: ' + data.message, 'error');
+            safeShowNotification('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('Error sending OTP. Please try again. If the problem persists, try refreshing the page.', 'error');
+        safeShowNotification('Error sending OTP. Please try again. If the problem persists, try refreshing the page.', 'error');
     });
 }
 
@@ -518,7 +513,7 @@ function verifyPhoneOTP() {
     const otp = document.getElementById('phoneOTP').value.trim();
     
     if (!otp || otp.length !== 6) {
-        showNotification('Please enter a valid 6-digit OTP', 'error');
+        safeShowNotification('Please enter a valid 6-digit OTP', 'error');
         return;
     }
     
@@ -538,16 +533,16 @@ function verifyPhoneOTP() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification('Phone updated successfully!', 'success');
+            safeShowNotification('Phone updated successfully!', 'success');
             closePhoneModal();
             window.location.reload();
         } else {
-            showNotification('Error: ' + data.message, 'error');
+            safeShowNotification('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('Error verifying OTP. Please try again.', 'error');
+        safeShowNotification('Error verifying OTP. Please try again.', 'error');
     });
 }
 
@@ -649,16 +644,16 @@ document.getElementById('cropAndUpload').addEventListener('click', function() {
                 })
                 .then(data => {
                     if (data.success) {
-                        showNotification('Profile photo updated successfully!', 'success');
+                        safeShowNotification('Profile photo updated successfully!', 'success');
                         closePhotoModal();
                         window.location.reload();
                     } else {
-                        showNotification('Error uploading photo: ' + (data.message || 'Unknown error'), 'error');
+                        safeShowNotification('Error uploading photo: ' + (data.message || 'Unknown error'), 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showNotification('Error uploading photo. Please try again.', 'error');
+                    safeShowNotification('Error uploading photo. Please try again.', 'error');
                 })
                 .finally(() => {
                     button.textContent = originalText;
@@ -667,7 +662,7 @@ document.getElementById('cropAndUpload').addEventListener('click', function() {
             }, 'image/jpeg', 0.9);
         } catch (error) {
             console.error('Cropper error:', error);
-            showNotification('Error processing image. Please try again.', 'error');
+            safeShowNotification('Error processing image. Please try again.', 'error');
             button.textContent = originalText;
             button.disabled = false;
         }
@@ -710,5 +705,79 @@ document.getElementById('emailOTP').addEventListener('input', function(e) {
 document.getElementById('phoneOTP').addEventListener('input', function(e) {
     this.value = this.value.replace(/\D/g, '').substring(0, 6);
 });
+
+// Fallback notification function if showNotification is not available
+function fallbackNotification(message, type = 'info') {
+    // Try to use the global showNotification first
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, type);
+        return;
+    }
+    
+    // Fallback to alert if showNotification is not available
+    alert(`${type.toUpperCase()}: ${message}`);
+}
+
+// Ensure showNotification is available
+function safeShowNotification(message, type = 'info') {
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, type);
+    } else {
+        fallbackNotification(message, type);
+    }
+}
+
+// Send Password Reset Link
+function sendPasswordResetLink() {
+    const button = document.getElementById('passwordResetBtn');
+    const originalText = button.innerHTML;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Sending...
+    `;
+    
+    fetch('{{ route("organizer.profile.password.reset-link") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            safeShowNotification('Password reset link sent to your email successfully!', 'success');
+            // Update button text to show success
+            button.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Link Sent Successfully
+            `;
+            button.classList.remove('bg-primary-500', 'hover:bg-primary-600');
+            button.classList.add('bg-green-500', 'hover:bg-green-600');
+        } else {
+            safeShowNotification('Error: ' + data.message, 'error');
+            // Reset button to original state
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        safeShowNotification('Error sending password reset link. Please try again.', 'error');
+        // Reset button to original state
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
 </script>
 @endsection

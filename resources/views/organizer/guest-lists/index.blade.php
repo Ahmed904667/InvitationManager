@@ -13,12 +13,6 @@
             <p class="text-gray-600 mt-2">Manage your event guest lists</p>
         </div>
         <div class="flex space-x-3">
-            <button class="btn-secondary" onclick="exportAllLists()">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                Export All
-            </button>
             <button class="btn-primary" onclick="showCreateModal()">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -58,14 +52,14 @@
         </div>
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
-                <div class="p-2 rounded-lg" style="background: var(--yellow-100);">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--yellow-600);">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                <div class="p-2 rounded-lg" style="background: var(--green-100);">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--green-600);">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
                 <div class="ml-4">
-                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Upcoming Events</p>
-                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="upcomingEvents">0</p>
+                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Ready to Go Lists</p>
+                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="readyToGoLists">0</p>
                 </div>
             </div>
         </div>
@@ -286,14 +280,7 @@ function setupEventListeners() {
         loadGuestLists();
     });
 
-    // File upload preview
-    document.getElementById('file-upload').addEventListener('change', function(e) {
-        const fileName = e.target.files[0]?.name;
-        if (fileName) {
-            const label = document.querySelector('label[for="file-upload"] span');
-            label.textContent = fileName;
-        }
-    });
+
 }
 
 function loadGuestLists(append = false) {
@@ -439,11 +426,7 @@ function renderGuestLists(lists, append = false) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>
                     </button>
-                    <button class="btn-secondary" onclick="showImportModal(${list.id})">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
-                        </svg>
-                    </button>
+
                     <button class="btn-danger" onclick="confirmDeleteList(${list.id}, '${list.name}')" title="Delete List">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -493,42 +476,19 @@ function hideCreateModal() {
 }
 
 function showImportModal(listId = null) {
-    const modal = document.getElementById('importModal');
-    const select = modal.querySelector('select[name="guest_list_id"]');
-    
-    if (listId) {
-        select.value = listId;
-        select.disabled = true;
-    } else {
-        select.disabled = false;
-        loadGuestListsForImport();
-    }
-    
-    modal.classList.remove('hidden');
+    // Import functionality not implemented in this view
+    console.log('Import functionality not available');
+    window.GuestManager.showNotification('Import functionality not available', 'info');
 }
 
 function hideImportModal() {
-    document.getElementById('importModal').classList.add('hidden');
-    document.getElementById('importForm').reset();
-    const select = document.querySelector('#importModal select[name="guest_list_id"]');
-    select.disabled = false;
+    // Import functionality not implemented in this view
+    console.log('Import functionality not available');
 }
 
 function loadGuestListsForImport() {
-    fetch('/organizer/guest-lists?per_page=100')
-        .then(response => response.json())
-        .then(data => {
-            const select = document.querySelector('#importModal select[name="guest_list_id"]');
-            select.innerHTML = '<option value="">Choose a list</option>';
-            
-            data.data.forEach(list => {
-                const option = document.createElement('option');
-                option.value = list.id;
-                option.textContent = list.name;
-                select.appendChild(option);
-            });
-        })
-        .catch(error => console.error('Error loading lists for import:', error));
+    // Import functionality not implemented in this view
+    console.log('Import functionality not available');
 }
 
 function viewList(listId) {
@@ -567,32 +527,7 @@ document.getElementById('createGuestListForm').addEventListener('submit', functi
     });
 });
 
-document.getElementById('importForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    
-    fetch('/organizer/guest-lists/import', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            hideImportModal();
-            loadGuestLists();
-            window.GuestManager.showNotification('Guest updated!', 'success');(`Successfully imported ${data.imported_count} guests`, 'success');
-        } else {
-            window.GuestManager.showNotification('Guest updated!', 'success');(data.message || 'Error importing guests', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        window.GuestManager.showNotification('Guest updated!', 'success');('Error importing guests', 'error');
-    });
-});
+// Import form event listener removed - form not present in this view
 
 // Date formatting function
 function formatDate(dateString) {
@@ -634,15 +569,25 @@ function formatTimeAgo(dateString) {
 
 // Utility functions
 function loadStats() {
+    // Load basic stats from the stats endpoint
     fetch('/organizer/stats')
         .then(response => response.json())
         .then(data => {
-            document.getElementById('totalLists').textContent = data.total_lists || 0;
-            document.getElementById('totalGuests').textContent = data.total_guests || 0;
-            document.getElementById('upcomingEvents').textContent = data.upcoming_events || 0;
+            // Use the correct data structure from getAccountStatistics()
+            document.getElementById('totalLists').textContent = data.overview?.total_guest_lists || 0;
+            document.getElementById('totalGuests').textContent = data.overview?.total_guests || 0;
         })
         .catch(error => console.error('Error loading stats:', error));
+    
+    // Load guest lists to count excellent health status lists
+    fetch('/organizer/guest-lists/json?health=excellent')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('readyToGoLists').textContent = data.total || 0;
+        })
+        .catch(error => console.error('Error loading ready to go lists count:', error));
 }
+
 
 function debounce(func, wait) {
     let timeout;

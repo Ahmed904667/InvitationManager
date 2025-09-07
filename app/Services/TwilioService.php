@@ -25,19 +25,29 @@ class TwilioService
             // Format the phone number for WhatsApp
             $formattedTo = $this->formatPhoneNumber($to);
             
-            // Get webhook URL for status updates (only if not localhost)
-            $webhookUrl = $this->getWebhookUrl();
-            
             // Prepare message parameters
             $messageParams = [
                 'from' => config('services.twilio.whatsapp_from'),
                 'body' => $message
             ];
             
-            // Only add webhook if we have a valid public URL
-            if ($webhookUrl) {
-                $messageParams['statusCallback'] = $webhookUrl;
-                $messageParams['statusCallbackMethod'] = 'POST';
+            // Try to get webhook URL for status updates, but don't fail if it's not available
+            try {
+                $webhookUrl = $this->getWebhookUrl();
+                if ($webhookUrl) {
+                    $messageParams['statusCallback'] = $webhookUrl;
+                    $messageParams['statusCallbackMethod'] = 'POST';
+                    Log::info('WhatsApp webhook configured', [
+                        'webhook_url' => $webhookUrl
+                    ]);
+                } else {
+                    Log::info('WhatsApp webhook not configured (localhost or no valid URL)');
+                }
+            } catch (\Exception $webhookError) {
+                Log::warning('Failed to configure WhatsApp webhook, continuing without it', [
+                    'error' => $webhookError->getMessage()
+                ]);
+                // Continue without webhook - don't fail the entire message
             }
             
             // Send WhatsApp message
@@ -77,19 +87,29 @@ class TwilioService
             // Format the phone number for SMS
             $formattedTo = $this->formatPhoneNumber($to);
             
-            // Get webhook URL for status updates (only if not localhost)
-            $webhookUrl = $this->getWebhookUrl();
-            
             // Prepare message parameters
             $messageParams = [
                 'from' => $this->fromNumber,
                 'body' => $message
             ];
             
-            // Only add webhook if we have a valid public URL
-            if ($webhookUrl) {
-                $messageParams['statusCallback'] = $webhookUrl;
-                $messageParams['statusCallbackMethod'] = 'POST';
+            // Try to get webhook URL for status updates, but don't fail if it's not available
+            try {
+                $webhookUrl = $this->getWebhookUrl();
+                if ($webhookUrl) {
+                    $messageParams['statusCallback'] = $webhookUrl;
+                    $messageParams['statusCallbackMethod'] = 'POST';
+                    Log::info('SMS webhook configured', [
+                        'webhook_url' => $webhookUrl
+                    ]);
+                } else {
+                    Log::info('SMS webhook not configured (localhost or no valid URL)');
+                }
+            } catch (\Exception $webhookError) {
+                Log::warning('Failed to configure SMS webhook, continuing without it', [
+                    'error' => $webhookError->getMessage()
+                ]);
+                // Continue without webhook - don't fail the entire message
             }
             
             // Send SMS message
@@ -167,18 +187,27 @@ class TwilioService
             return $customWebhookUrl;
         }
         
-        // Generate the webhook URL
-        $webhookUrl = route('webhooks.twilio.status');
-        
-        // Check if it's localhost (Twilio doesn't accept localhost URLs)
-        if (str_contains($webhookUrl, 'localhost') || str_contains($webhookUrl, '127.0.0.1')) {
-            Log::info('Skipping webhook for localhost environment', [
-                'webhook_url' => $webhookUrl
+        // Try to generate the webhook URL, but handle route resolution errors gracefully
+        try {
+            // Use app() helper to ensure we're in the right context
+            $webhookUrl = app('url')->to('/webhooks/twilio/status');
+            
+            // Check if it's localhost (Twilio doesn't accept localhost URLs)
+            if (str_contains($webhookUrl, 'localhost') || str_contains($webhookUrl, '127.0.0.1')) {
+                Log::info('Skipping webhook for localhost environment', [
+                    'webhook_url' => $webhookUrl
+                ]);
+                return null;
+            }
+            
+            return $webhookUrl;
+        } catch (\Exception $e) {
+            Log::warning('Failed to resolve webhook route, continuing without webhook', [
+                'error' => $e->getMessage(),
+                'route_name' => 'webhooks.twilio.status'
             ]);
             return null;
         }
-        
-        return $webhookUrl;
     }
     
     /**

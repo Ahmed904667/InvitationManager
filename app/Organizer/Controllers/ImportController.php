@@ -66,6 +66,7 @@ class ImportController extends Controller
         $imported = 0;
         $failed = 0;
         $errors = [];
+        $duplicates = [];
 
         // Log the group_id for debugging
         \Log::info('Google contacts import - group_id: ' . ($validated['group_id'] ?? 'null'));
@@ -76,6 +77,32 @@ class ImportController extends Controller
             if (empty($contact['name'])) continue;
 
             try {
+                // Check for duplicate email
+                if (!empty($contact['email'])) {
+                    $existingGuest = $guestList->guests()
+                        ->where('email', $contact['email'])
+                        ->first();
+                    
+                    if ($existingGuest) {
+                        $duplicates[] = "Email '{$contact['email']}' already exists for guest '{$existingGuest->name}'";
+                        $failed++;
+                        continue;
+                    }
+                }
+
+                // Check for duplicate phone
+                if (!empty($contact['phone'])) {
+                    $existingGuest = $guestList->guests()
+                        ->where('phone', $contact['phone'])
+                        ->first();
+                    
+                    if ($existingGuest) {
+                        $duplicates[] = "Phone '{$contact['phone']}' already exists for guest '{$existingGuest->name}'";
+                        $failed++;
+                        continue;
+                    }
+                }
+
                 $guestData = [
                     'name' => $contact['name'],
                     'email' => $contact['email'] ?? null,
@@ -99,7 +126,7 @@ class ImportController extends Controller
 
         $message = "Successfully imported {$imported} contacts.";
         if ($failed > 0) {
-            $message .= " Failed to import {$failed} contacts.";
+            $message .= " Failed to import {$failed} contacts due to duplicates or errors.";
         }
 
         return response()->json([
@@ -107,7 +134,8 @@ class ImportController extends Controller
             'message' => $message,
             'imported' => $imported,
             'failed' => $failed,
-            'errors' => $errors
+            'errors' => $errors,
+            'duplicates' => $duplicates
         ]);
     }
 

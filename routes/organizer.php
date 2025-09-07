@@ -8,6 +8,7 @@ use App\Organizer\Controllers\ImportController;
 use App\Organizer\Controllers\ExportController;
 use App\Organizer\Controllers\GoogleController;
 use App\Organizer\Controllers\ProfileController;
+use App\Organizer\Controllers\OrganizerSettingsController;
 
 Route::middleware(['auth', 'organizer'])->prefix('organizer')->name('organizer.')->group(function () {
     // -------------------- Dashboard --------------------
@@ -27,6 +28,9 @@ Route::middleware(['auth', 'organizer'])->prefix('organizer')->name('organizer.'
     Route::put('/profile/phone', [ProfileController::class, 'updatePhone'])->name('profile.phone');
     Route::post('/profile/phone/verify', [ProfileController::class, 'verifyPhoneOTP'])->name('profile.phone.verify');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::post('/profile/password/reset-link', [ProfileController::class, 'sendPasswordResetLink'])->name('profile.password.reset-link');
+    Route::get('/profile/password/reset/{token}', [ProfileController::class, 'showPasswordResetForm'])->name('profile.password.reset');
+    Route::post('/profile/password/reset', [ProfileController::class, 'resetPassword'])->name('profile.password.reset.submit');
     Route::put('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.photo');
     Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto'])->name('profile.photo.delete');
 
@@ -124,6 +128,7 @@ Route::delete('/guest-lists/{guestList}/groups/{group}', [GuestListController::c
     Route::get('/events/{event}/edit', [\App\Organizer\Controllers\EventController::class, 'edit'])->name('events.edit');
     Route::put('/events/{event}', [\App\Organizer\Controllers\EventController::class, 'update'])->name('events.update');
     Route::delete('/events/{event}', [\App\Organizer\Controllers\EventController::class, 'destroy'])->name('events.delete');
+    Route::post('/events/{event}/cancel', [\App\Organizer\Controllers\EventController::class, 'cancel'])->name('events.cancel');
     Route::get('/events/{event}/preview', [\App\Organizer\Controllers\EventController::class, 'preview'])->name('events.preview');
     Route::post('/events/{event}/send-invitations', [\App\Organizer\Controllers\EventController::class, 'sendInvitations'])->name('events.send-invitations');
     
@@ -150,6 +155,9 @@ Route::get('/events/{event}/notifications/stats', [\App\Organizer\Controllers\Ev
             'user_id' => auth()->id()
         ]);
     })->name('events.notifications.test');
+    
+    // -------------------- Invitation Management --------------------
+    Route::post('/events/{event}/invitations/refresh', [\App\Organizer\Controllers\EventController::class, 'refreshInvitationStatuses'])->name('events.invitations.refresh');
 
     Route::post('/events/{event}/update-sent/remove-guest-list', [\App\Organizer\Controllers\EventController::class, 'removeGuestListFromSentEvent'])->name('events.update-sent.remove-guest-list');
     Route::post('/events/{event}/update-sent/generate-messages', [\App\Organizer\Controllers\EventController::class, 'generateMessagesForNewGuests'])->name('events.update-sent.generate-messages');
@@ -171,4 +179,9 @@ Route::get('/events/{event}/notifications/stats', [\App\Organizer\Controllers\Ev
     Route::get('/events/{event}/guests/{guest}', [App\Http\Controllers\GuestController::class, 'show'])->name('events.guests.show');
     Route::get('/events/{event}/guests/{guest}/rsvp-history', [App\Http\Controllers\GuestController::class, 'getRsvpHistory'])->name('events.guests.rsvp-history');
     Route::get('/events/{event}/guests/{guest}/check-in-status', [App\Http\Controllers\GuestController::class, 'getCheckInStatus'])->name('events.guests.check-in-status');
+    
+    // -------------------- Settings --------------------
+    Route::get('/settings', [OrganizerSettingsController::class, 'index'])->name('settings');
+    Route::put('/settings/notifications', [OrganizerSettingsController::class, 'updateNotifications'])->name('settings.notifications');
+    Route::put('/settings/preferred-list', [OrganizerSettingsController::class, 'updatePreferredListSettings'])->name('settings.preferred-list');
 }); 

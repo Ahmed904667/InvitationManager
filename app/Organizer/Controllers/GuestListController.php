@@ -337,11 +337,43 @@ class GuestListController extends Controller
     /**
      * Get guests for a guest list (JSON response)
      */
-    public function getGuests(GuestList $guestList)
+    public function getGuests(Request $request, GuestList $guestList)
     {
         Gate::authorize('view-guest-list', $guestList);
 
-        $guests = $guestList->guests()->with('group')->get();
+        $query = $guestList->guests()->with('group');
+
+        // Search by name or email
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by language
+        if ($request->filled('language')) {
+            if ($request->language === 'no_language') {
+                $query->whereNull('language');
+            } else {
+                $query->where('language', $request->language);
+            }
+        }
+
+        // Filter by group
+        if ($request->filled('group')) {
+            if ($request->group === 'no_group') {
+                $query->whereNull('group_id');
+            } else {
+                $query->where('group_id', $request->group);
+            }
+        }
+
+        // Sort by name (default)
+        $query->orderBy('name', 'asc');
+
+        $guests = $query->get();
 
         return response()->json([
             'guests' => $guests->map(function($guest) {
@@ -353,7 +385,13 @@ class GuestListController extends Controller
                     'group' => $guest->group ? [
                         'id' => $guest->group->id,
                         'name' => $guest->group->name
-                    ] : null
+                    ] : null,
+                    'group_id' => $guest->group_id,
+                    'language' => $guest->language,
+                    'checked_in' => $guest->checked_in,
+                    'checked_in_at' => $guest->checked_in_at,
+                    'created_at' => $guest->created_at,
+                    'notes' => $guest->notes
                 ];
             })
         ]);

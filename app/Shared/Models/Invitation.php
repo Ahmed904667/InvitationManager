@@ -19,12 +19,15 @@ class Invitation extends Model
         'rsvp_status',
         'rsvp_at',
         'rsvp_note',
+        'external_id',
+        'delivery_details',
     ];
 
     protected $casts = [
         'sent_at' => 'datetime',
         'expired_at' => 'datetime',
         'rsvp_at' => 'datetime',
+        'delivery_details' => 'array',
     ];
 
     // Status constants

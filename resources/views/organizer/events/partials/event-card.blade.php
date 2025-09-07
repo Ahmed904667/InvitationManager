@@ -3,6 +3,9 @@
     $isDraft = isset($isDraft) ? $isDraft : false;
     $isCompleted = isset($isCompleted) ? $isCompleted : false;
     
+    // Get user timezone for date conversion
+    $userTimezone = auth()->user()->timezone ?? 'UTC';
+    
     $cardClasses = 'rounded-lg shadow-sm border p-6';
     $iconClasses = 'h-10 w-10 rounded-full flex items-center justify-center';
     
@@ -136,13 +139,13 @@
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
-                {{ $event->start_date->format('D, M j, Y') }}
+                {{ $event->start_date->setTimezone($userTimezone)->format('D, M j, Y') }}
             </div>
             <div class="flex items-center text-sm text-gray-600 mt-1">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                {{ $event->start_date->format('g:i A') }}
+                {{ $event->start_date->setTimezone($userTimezone)->format('g:i A') }}
             </div>
         @else
             <div class="flex items-center text-sm text-gray-600">
@@ -176,14 +179,14 @@
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                Last saved: {{ $event->updated_at->diffForHumans() }}
+                Last saved: {{ $event->updated_at->setTimezone($userTimezone)->diffForHumans() }}
             </div>
         @elseif($isCompleted)
             <div class="flex items-center text-sm text-gray-600 mt-2 font-medium">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                Completed: {{ $event->updated_at->diffForHumans() }}
+                Completed: {{ $event->updated_at->setTimezone($userTimezone)->diffForHumans() }}
             </div>
         @endif
     </div>
@@ -229,10 +232,23 @@
             </button>
         @endif
         
-        <button class="btn-danger" onclick="confirmDeleteEvent({{ $event->id }}, '{{ $event->name ?: 'Untitled Event' }}')" title="Delete Event">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-            </svg>
-        </button>
+        @php
+            $canDelete = in_array($event->status, ['completed', 'cancelled', 'scheduled']);
+            $canCancel = !in_array($event->status, ['running', 'completed', 'cancelled']);
+        @endphp
+        
+        @if($canDelete)
+            <button class="btn-danger" onclick="confirmDeleteEvent({{ $event->id }}, '{{ $event->name ?: 'Untitled Event' }}')" title="Delete Event">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+            </button>
+        @elseif($canCancel)
+            <button class="btn-warning" onclick="showCancelEventModal({{ $event->id }}, '{{ $event->name ?: 'Untitled Event' }}')" title="Cancel Event">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        @endif
     </div>
 </div>

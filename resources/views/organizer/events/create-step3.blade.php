@@ -173,14 +173,11 @@
                                                                 </div>
                                                             </div>
                                                             <div class="flex items-center space-x-3">
-                                                                <button type="button" class="inline-flex items-center px-3 py-2 border border-[var(--border-secondary)] rounded-lg text-sm font-medium text-[var(--text-primary)] bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-500)] transition-all duration-200" onclick="toggleGroupTemplate({{ $listId }}, {{ $groupId }})">
+                                                                <button type="button" class="inline-flex items-center px-3 py-2 border border-[var(--border-secondary)] rounded-lg text-sm font-medium text-[var(--text-primary)] bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-500)] transition-all duration-200 hidden" id="template_btn_{{ $listId }}_{{ $groupId }}" onclick="toggleGroupTemplate({{ $listId }}, {{ $groupId }})">
                                                                     <i class="fas fa-chevron-down mr-2" id="group_template_icon_{{ $listId }}_{{ $groupId }}"></i>Template
                                                                 </button>
-                                                                <button type="button" class="inline-flex items-center px-3 py-2 border border-[var(--border-secondary)] rounded-lg text-sm font-medium text-[var(--text-primary)] bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-500)] transition-all duration-200" onclick="toggleGroup({{ $listId }}, {{ $groupId }})">
-                                                                    <i class="fas fa-chevron-down mr-2" id="icon_{{ $listId }}_{{ $groupId }}"></i>Toggle
-                                                                </button>
-                                                                <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-gradient-to-r from-[var(--primary-600)] to-[var(--primary-700)] hover:from-[var(--primary-700)] hover:to-[var(--primary-800)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-500)] transition-all duration-200 shadow-sm" onclick="askAssistant('Generate a message for {{ $groupData['group_name'] }}')">
-                                                                    <i class="fas fa-robot mr-2"></i> Ask AI
+                                                                <button type="button" class="inline-flex items-center px-3 py-2 border border-[var(--border-secondary)] rounded-lg text-sm font-medium text-[var(--primary-600)] bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-500)] transition-all duration-200" onclick="toggleGroup({{ $listId }}, {{ $groupId }})">
+                                                                    <img src="{{ asset('images/right-arrow.svg') }}" alt="Toggle" class="w-4 h-4" id="icon_{{ $listId }}_{{ $groupId }}">
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -493,13 +490,11 @@
             <div class="bg-gradient-to-r from-[var(--primary-600)] to-[var(--primary-700)] text-white p-4 rounded-t-2xl relative">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
-                        <div class="w-10 h-10 bg-[var(--bg-primary)]/20 backdrop-blur-sm rounded-full flex items-center justify-center mr-3">
-                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
+                        <div class="w-10 h-10 bg-[var(--bg-primary)]/20 backdrop-blur-sm rounded-full flex items-center justify-center mr-3 overflow-hidden">
+                            <img src="{{ asset('images/invaroAI.png') }}" alt="AI Assistant" class="h-full w-full object-cover">
                         </div>
                         <div>
-                            <h3 class="text-base font-semibold">AI Assistant</h3>
+                            <h3 class="text-base font-semibold">InvaroAI</h3>
                             <p class="text-xs text-white/80">Usually responds in seconds</p>
                         </div>
                     </div>
@@ -547,10 +542,8 @@
                 @endif
                 <div class="chat-message assistant">
                     <div class="flex items-start space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-br from-[var(--primary-500)] to-[var(--primary-600)] rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
-                            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden">
+                            <img src="{{ asset('images/invaroAI.png') }}" alt="AI Assistant" class="h-full w-full object-cover">
                         </div>
                         <div class="bg-[var(--bg-primary)] rounded-2xl p-4 max-w-xs shadow-sm border border-[var(--border-primary)]">
                             <p class="text-[var(--text-primary)] text-sm leading-relaxed">Hello! I'm your AI assistant. I can help you customize invitation messages for your event in multiple languages based on your guests' preferred languages. What would you like to do?</p>
@@ -609,8 +602,8 @@
             title="AI Assistant"
         >
             <div class="relative">
-                <svg class="w-6 h-6 group-hover:scale-110 transition-transform duration-200" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <svg class="w-6 h-6 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                 </svg>
                 <div class="absolute -top-1 -right-1 w-3 h-3 bg-[var(--success-400)] rounded-full animate-pulse"></div>
             </div>
@@ -804,13 +797,16 @@ window.addEventListener('beforeunload', function() {
 function toggleGroup(listId, groupId) {
     const content = document.getElementById(`group_content_${listId}_${groupId}`);
     const icon = document.getElementById(`icon_${listId}_${groupId}`);
+    const templateBtn = document.getElementById(`template_btn_${listId}_${groupId}`);
     
     if (content.style.display === 'none') {
         content.style.display = 'block';
-        icon.className = 'fas fa-chevron-up';
+        icon.src = '{{ asset("images/bottom-arrow.svg") }}';
+        templateBtn.classList.remove('hidden');
     } else {
         content.style.display = 'none';
-        icon.className = 'fas fa-chevron-down';
+        icon.src = '{{ asset("images/right-arrow.svg") }}';
+        templateBtn.classList.add('hidden');
     }
 }
 
@@ -1022,18 +1018,20 @@ function addChatMessage(sender, message) {
     
     messageDiv.innerHTML = `
         <div class="flex items-start space-x-3 ${sender === 'user' ? 'justify-end' : ''}">
-            ${sender === 'assistant' ? `<div class="w-8 h-8 bg-gradient-to-br from-[var(--primary-500)] to-[var(--primary-600)] rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
-                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+            ${sender === 'assistant' ? `<div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden">
+                <img src="{{ asset('images/invaroAI.png') }}" alt="AI Assistant" class="h-full w-full object-cover">
             </div>` : ''}
             <div class="${bgColor} rounded-2xl p-4 max-w-xs shadow-sm ${borderColor}">
                 <div class="${textColor} text-sm leading-relaxed">${formattedMessage}</div>
             </div>
-            ${sender === 'user' ? `<div class="w-8 h-8 bg-gradient-to-br from-[var(--gray-500)] to-[var(--gray-600)] rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
-                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
+            ${sender === 'user' ? `<div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden">
+                @if(Auth::user()->profile_photo_url ?? false)
+                    <img src="{{ Auth::user()->profile_photo_url }}" alt="{{ Auth::user()->name }}" class="h-full w-full object-cover">
+                @else
+                    <div class="w-full h-full bg-gradient-to-br from-[var(--primary-500)] to-[var(--primary-600)] flex items-center justify-center">
+                        <span class="text-white font-medium text-sm">{{ substr(Auth::user()->name, 0, 1) }}</span>
+                    </div>
+                @endif
             </div>` : ''}
         </div>
     `;

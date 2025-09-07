@@ -273,7 +273,18 @@ window.addEventListener('DOMContentLoaded', function() {
                         location.reload();
                     }, 1000);
                 } else {
-                    window.GuestManager?.showNotification(data.message || 'Error importing contacts.', 'error');
+                    // Show detailed error message including duplicates
+                    let errorMessage = data.message || 'Error importing contacts.';
+                    
+                    if (data.duplicates && data.duplicates.length > 0) {
+                        errorMessage += '\n\nDuplicates found:\n' + data.duplicates.join('\n');
+                    }
+                    
+                    if (data.errors && data.errors.length > 0) {
+                        errorMessage += '\n\nOther errors:\n' + data.errors.join('\n');
+                    }
+                    
+                    window.GuestManager?.showNotification(errorMessage, 'error');
                 }
             })
             .catch((error) => {
@@ -811,7 +822,18 @@ window.addEventListener('DOMContentLoaded', function() {
                         location.reload();
                     }, 1000);
                 } else {
-                    window.GuestManager?.showNotification(data.message || 'Error importing from Google Sheet.', 'error');
+                    // Show detailed error message including duplicates
+                    let errorMessage = data.message || 'Error importing from Google Sheet.';
+                    
+                    if (data.duplicates && data.duplicates.length > 0) {
+                        errorMessage += '\n\nDuplicates found:\n' + data.duplicates.join('\n');
+                    }
+                    
+                    if (data.errors && data.errors.length > 0) {
+                        errorMessage += '\n\nOther errors:\n' + data.errors.join('\n');
+                    }
+                    
+                    window.GuestManager?.showNotification(errorMessage, 'error');
                 }
             })
             .catch((error) => {

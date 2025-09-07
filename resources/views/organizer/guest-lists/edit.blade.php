@@ -246,7 +246,7 @@
                         <button class="w-full flex items-center px-4 py-3 rounded-xl transition-all duration-150 group ddm-hover-bg" onclick="exportToCSV()">
                             <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center mr-3">
                                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
                             </div>
                             <div class="text-left">
@@ -257,7 +257,7 @@
                         <button class="w-full flex items-center px-4 py-3 rounded-xl transition-all duration-150 group ddm-hover-bg" onclick="exportToExcel()">
                             <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
                                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
                             </div>
                             <div class="text-left">
@@ -268,7 +268,7 @@
                         <button class="w-full flex items-center px-4 py-3 rounded-xl transition-all duration-150 group ddm-hover-bg" onclick="exportToPDF()">
                             <div class="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center mr-3">
                                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707L13.293 3.293A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707L13.293 3.293A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                 </svg>
                             </div>
                             <div class="text-left">
@@ -453,7 +453,7 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
                 <div class="p-2 rounded-lg" style="background: var(--primary-100);">
@@ -480,20 +480,7 @@
                 </div>
             </div>
         </div>
-        <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
-            <div class="flex items-center">
-                <div class="p-2 rounded-lg" style="background: var(--yellow-100);">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--yellow-600);">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Pending</p>
-                    <p class="text-2xl font-bold" style="color: var(--text-primary);">{{ $guestList->guests->where('checked_in_at', null)->count() }}</p>
-                </div>
-            </div>
-        </div>
-                <div class="rounded-xl shadow-sm border p-6 cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" 
+        <div class="rounded-xl shadow-sm border p-6 cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" 
              style="background: var(--bg-primary); border-color: var(--border-primary);" 
              onclick="showValidationDetails()">
             <div class="flex items-center justify-between">
@@ -553,27 +540,33 @@
     </div>
 
     <!-- Search and Filters -->
+    @php
+        $filterCount = 1; // Always show search
+        if ($guestList->settings['fields']['language'] ?? false) $filterCount++;
+        if ($guestList->settings['fields']['group'] ?? false) $filterCount++;
+        $filterCount++; // Always show clear filters button
+    @endphp
     <div class="rounded-lg shadow-sm border p-6 mb-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="search-filters-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-{{ $filterCount }} gap-4">
             <div>
-                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Search Guests</label>
+                <label class="block text-sm font-medium text-primary mb-2">Search Guests</label>
                 <input type="text" id="searchInput" placeholder="Search by name or email..." class="form-input">
             </div>
+            @if($guestList->settings['fields']['language'] ?? false)
             <div>
-                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Status</label>
-                <select id="statusFilter" class="form-select">
-                    <option value="">All Guests</option>
-                    <option value="checked_in">Checked In</option>
-                    <option value="pending">Pending</option>
-                </select>
+                <label class="block text-sm font-medium text-primary mb-2">Language</label>
+                <input type="text" id="languageFilter" placeholder="Search by language..." class="form-input">
             </div>
+            @endif
+            @if($guestList->settings['fields']['group'] ?? false)
             <div>
-                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Group</label>
+                <label class="block text-sm font-medium text-primary mb-2">Group</label>
                 <select id="groupFilter" class="form-select">
                     <option value="">All Groups</option>
                     <!-- Will be populated via AJAX -->
                 </select>
             </div>
+            @endif
             <div class="flex items-end">
                 <button class="btn-secondary w-full" onclick="clearFilters()">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1004,6 +997,7 @@
 <script>
 let selectedGuests = [];
 let isExpandedAll = false;
+let guestSearchPage = 1;
 window.guestListSettings = @json($guestList->settings);
 window.guestListId = {{ $guestList->id }};
 
@@ -1013,8 +1007,22 @@ window.guestListGuests = @json($allGuests);
 document.addEventListener('DOMContentLoaded', function() {
     loadGroups();
     setupEventListeners();
-    if (window.guestListSettings && window.guestListGuests && window.renderGuestTable) {
+    // Load initial guests and render table
+    if (window.guestListSettings && window.guestListGuests) {
         window.renderGuestTable(window.guestListSettings, window.guestListGuests);
+    }
+    loadGuests(); // Load guests with server-side search
+    
+    // Set initial filter state
+    setTimeout(() => {
+        refreshFilters();
+    }, 500);
+    
+    // Listen for settings changes to refresh filters
+    if (window.guestListSettings) {
+        window.addEventListener('settingsUpdated', function() {
+            refreshFilters();
+        });
     }
 });
 
@@ -1023,18 +1031,25 @@ function setupEventListeners() {
     var searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', debounce(function() {
-            filterGuests();
+            guestSearchPage = 1;
+            loadGuests();
         }, 300));
     }
 
     // Filters
-    var statusFilter = document.getElementById('statusFilter');
-    if (statusFilter) {
-        statusFilter.addEventListener('change', filterGuests);
+    var languageFilter = document.getElementById('languageFilter');
+    if (languageFilter) {
+        languageFilter.addEventListener('change', function() {
+            guestSearchPage = 1;
+            loadGuests();
+        });
     }
     var groupFilter = document.getElementById('groupFilter');
     if (groupFilter) {
-        groupFilter.addEventListener('change', filterGuests);
+        groupFilter.addEventListener('change', function() {
+            guestSearchPage = 1;
+            loadGuests();
+        });
     }
 
     // Select all checkbox
@@ -1066,35 +1081,105 @@ function setupEventListeners() {
     }
 }
 
-function filterGuests() {
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    const status = document.getElementById('statusFilter').value;
-    const group = document.getElementById('groupFilter').value;
+function loadGuests(append = false) {
+    const search = document.getElementById('searchInput').value;
+    const languageFilter = document.getElementById('languageFilter');
+    const groupFilter = document.getElementById('groupFilter');
     
-    const rows = document.querySelectorAll('#guestsTable tr');
-    
-    rows.forEach(row => {
-        const name = row.querySelector('td:nth-child(2) .text-primary').textContent.toLowerCase();
-        const email = row.querySelector('td:nth-child(2) .text-gray-500').textContent.toLowerCase();
-        const statusCell = row.querySelector('td:nth-child(4) .badge').textContent;
-        const groupCell = row.querySelector('td:nth-child(3) .badge, td:nth-child(3) .text-gray-400');
-        const groupText = groupCell ? groupCell.textContent : '';
-        
-        const matchesSearch = name.includes(search) || email.includes(search);
-        const matchesStatus = !status || 
-            (status === 'checked_in' && statusCell === 'Checked In') ||
-            (status === 'pending' && statusCell === 'Pending');
-        const matchesGroup = !group || groupText === group;
-        
-        row.style.display = matchesSearch && matchesStatus && matchesGroup ? '' : 'none';
+    const language = languageFilter ? languageFilter.value : '';
+    const group = groupFilter ? groupFilter.value : '';
+
+    const params = new URLSearchParams({
+        search: search,
+        language: language,
+        group: group
     });
+
+    fetch(`/organizer/guest-lists/{{ $guestList->id }}/guests?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            // Update the global guests variable and re-render the table
+            window.guestListGuests = data.guests;
+            if (window.renderGuestTable && window.guestListSettings) {
+                window.renderGuestTable(window.guestListSettings, data.guests);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading guests:', error);
+            window.GuestManager.showNotification('Error loading guests', 'error');
+        });
 }
+
+
 
 function clearFilters() {
     document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('groupFilter').value = '';
-    filterGuests();
+    
+    const languageFilter = document.getElementById('languageFilter');
+    if (languageFilter) {
+        languageFilter.value = '';
+    }
+    
+    const groupFilter = document.getElementById('groupFilter');
+    if (groupFilter) {
+        groupFilter.value = '';
+    }
+    
+    loadGuests();
+}
+
+function refreshFilters() {
+    // Update filter visibility based on current settings
+    const languageFilter = document.getElementById('languageFilter');
+    const groupFilter = document.getElementById('groupFilter');
+    
+    if (languageFilter) {
+        const languageEnabled = window.guestListSettings && window.guestListSettings.fields && window.guestListSettings.fields.language;
+        
+        
+        if (languageEnabled) {
+            languageFilter.parentElement.style.display = '';
+           
+        } else {
+            languageFilter.parentElement.style.display = 'none';
+            languageFilter.value = '';
+        }
+    }
+    
+    if (groupFilter) {
+        const groupEnabled = window.guestListSettings && window.guestListSettings.fields && window.guestListSettings.fields.group;
+        
+        if (groupEnabled) {
+            groupFilter.parentElement.style.display = '';
+            // Reload groups if they were hidden before
+            if (groupFilter.options.length <= 1) {
+                loadGroups();
+            }
+
+        } else {
+            groupFilter.parentElement.style.display = 'none';
+            groupFilter.value = '';
+        }
+    }
+    
+    // Update grid layout
+    updateFilterGridLayout();
+    
+    // Reload guests to apply any filter changes
+    loadGuests();
+}
+
+function updateFilterGridLayout() {
+    const filterContainer = document.querySelector('.search-filters-grid');
+    if (!filterContainer) return;
+    
+    let filterCount = 1; // Always show search
+    if (window.guestListSettings && window.guestListSettings.fields && window.guestListSettings.fields.language) filterCount++;
+    if (window.guestListSettings && window.guestListSettings.fields && window.guestListSettings.fields.group) filterCount++;
+    filterCount++; // Always show clear filters button
+    
+    // Update grid classes
+    filterContainer.className = `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${filterCount} gap-4`;
 }
 
 
@@ -1105,26 +1190,43 @@ function hideAddGuestModal() {
 
 
 
-// function loadGroups() {
-//     fetch(`/organizer/guest-lists/{{ $guestList->id }}/groups`)
-//         .then(response => response.json())
-//         .then(data => {
-//             const select = document.querySelector('select[name="group_id"]');
-//             const filterSelect = document.getElementById('groupFilter');
+function loadGroups() {
+    // Only load groups if the group field is enabled in settings
+    if (!(window.guestListSettings && window.guestListSettings.fields && window.guestListSettings.fields.group)) {
+        return;
+    }
+    
+    fetch(`/organizer/guest-lists/{{ $guestList->id }}/groups`)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.querySelector('select[name="group_id"]');
+            const filterSelect = document.getElementById('groupFilter');
             
-//             select.innerHTML = '<option value="">No group</option>';
-//             filterSelect.innerHTML = '<option value="">All Groups</option>';
+            if (select) {
+                select.innerHTML = '<option value="">No group</option>';
+                data.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group.id;
+                    option.textContent = group.name;
+                    select.appendChild(option);
+                });
+            }
             
-//             data.forEach(group => {
-//                 const option = document.createElement('option');
-//                 option.value = group.id;
-//                 option.textContent = group.name;
-//                 select.appendChild(option.cloneNode(true));
-//                 filterSelect.appendChild(option);
-//             });
-//         })
-//         .catch(error => console.error('Error loading groups:', error));
-// }
+            if (filterSelect) {
+                filterSelect.innerHTML = '<option value="">All Groups</option>';
+                filterSelect.innerHTML += '<option value="no_group">No Group</option>';
+                data.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group.id;
+                    option.textContent = group.name;
+                    filterSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading groups:', error);
+        });
+}
 
 
 
@@ -1139,10 +1241,13 @@ function editGuest(guestId) {
 
 function exportGuests() {
     const search = document.getElementById('searchInput').value;
-    const status = document.getElementById('statusFilter').value;
-    const group = document.getElementById('groupFilter').value;
+    const languageFilter = document.getElementById('languageFilter');
+    const groupFilter = document.getElementById('groupFilter');
     
-    const url = `/organizer/guest-lists/{{ $guestList->id }}/export?search=${search}&status=${status}&group=${group}`;
+    const language = languageFilter ? languageFilter.value : '';
+    const group = groupFilter ? groupFilter.value : '';
+    
+    const url = `/organizer/guest-lists/{{ $guestList->id }}/export?search=${search}&language=${language}&group=${group}`;
     window.location.href = url;
 }
 
@@ -1163,7 +1268,7 @@ function debounce(func, wait) {
 let activeDropdown = null;
 
 function toggleSelectionMode() {
-    console.log('Selection mode toggled');
+    
     // Add visual feedback
     const button = event.currentTarget;
     button.style.transform = 'scale(0.95)';
@@ -1389,6 +1494,19 @@ if (addGuestForm) {
             formData.delete('group_id');
         }
         
+        // Handle phone field - country code is already included in the value
+        const phoneField = addGuestForm.querySelector('input[name="phone"]');
+        if (phoneField && phoneField.value.trim()) {
+            // The phone field already contains the country code, so no need to combine
+            // Just make sure it's properly formatted
+            const phoneValue = phoneField.value.trim();
+            if (phoneValue && !phoneValue.startsWith('+')) {
+                // If somehow the country code is missing, add the guest list's default
+                const defaultCountryCode = window.guestListSettings?.default_country_code || window.guestListSettings?.defaults?.country_code || '+1';
+                formData.set('phone', defaultCountryCode + phoneValue);
+            }
+        }
+        
         // Add _method field for POST request
         formData.append('_method', 'POST');
         
@@ -1447,6 +1565,16 @@ if (editGuestForm) {
         // Handle empty group_id - remove if empty to avoid validation issues
         if (formDataObj.group_id === '') {
             delete formDataObj.group_id;
+        }
+        
+        // Handle phone field - ensure country code is present
+        if (formDataObj.phone && formDataObj.phone.trim()) {
+            const phoneValue = formDataObj.phone.trim();
+            if (phoneValue && !phoneValue.startsWith('+')) {
+                // If country code is missing, add the guest list's default
+                const defaultCountryCode = window.guestListSettings?.default_country_code || window.guestListSettings?.defaults?.country_code || '+1';
+                formDataObj.phone = defaultCountryCode + phoneValue;
+            }
         }
         
         const errorDiv = document.getElementById('editGuestError');

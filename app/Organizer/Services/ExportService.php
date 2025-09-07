@@ -152,16 +152,20 @@ class ExportService
             });
         }
 
-        if ($request->filled('status')) {
-            if ($request->status === 'checked_in') {
-                $query->where('checked_in', true);
-            } elseif ($request->status === 'pending') {
-                $query->where('checked_in', false);
+        if ($request->filled('language')) {
+            if ($request->language === 'no_language') {
+                $query->whereNull('language');
+            } else {
+                $query->where('language', $request->language);
             }
         }
 
-        if ($request->filled('group_id')) {
-            $query->where('group_id', $request->group_id);
+        if ($request->filled('group')) {
+            if ($request->group === 'no_group') {
+                $query->whereNull('group_id');
+            } else {
+                $query->where('group_id', $request->group);
+            }
         }
 
         return $query->orderBy('name')->get();
@@ -175,19 +179,26 @@ class ExportService
         $headers = ['Name'];
         
         $settings = $guestList->settings ?? [];
+        $fields = $settings['fields'] ?? [];
         
-        if ($settings['enable_email'] ?? false) {
+        if ($fields['email'] ?? false) {
             $headers[] = 'Email';
         }
-        if ($settings['enable_phone'] ?? false) {
+        if ($fields['phone'] ?? false) {
             $headers[] = 'Phone';
         }
-        if ($settings['enable_language'] ?? false) {
+        if ($fields['language'] ?? false) {
             $headers[] = 'Language';
         }
-        if ($settings['enable_group'] ?? false) {
+        if ($fields['group'] ?? false) {
             $headers[] = 'Group';
         }
+        if ($fields['notes'] ?? false) {
+            $headers[] = 'Notes';
+        }
+        
+        // Always include created date for tracking
+        $headers[] = 'Created Date';
         
         return $headers;
     }
@@ -198,21 +209,28 @@ class ExportService
     protected function formatGuestForExport($guest, GuestList $guestList): array
     {
         $settings = $guestList->settings ?? [];
+        $fields = $settings['fields'] ?? [];
         
         $row = [$guest->name];
         
-        if ($settings['enable_email'] ?? false) {
+        if ($fields['email'] ?? false) {
             $row[] = $guest->email ?? '';
         }
-        if ($settings['enable_phone'] ?? false) {
+        if ($fields['phone'] ?? false) {
             $row[] = $guest->phone ?? '';
         }
-        if ($settings['enable_language'] ?? false) {
+        if ($fields['language'] ?? false) {
             $row[] = $guest->language ?? '';
         }
-        if ($settings['enable_group'] ?? false) {
+        if ($fields['group'] ?? false) {
             $row[] = $guest->group ? $guest->group->name : '';
         }
+        if ($fields['notes'] ?? false) {
+            $row[] = $guest->notes ?? '';
+        }
+        
+        // Always include created date for tracking
+        $row[] = $guest->created_at ? $guest->created_at->format('Y-m-d H:i:s') : '';
         
         return $row;
     }

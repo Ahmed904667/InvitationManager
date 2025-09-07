@@ -107,10 +107,16 @@ class ProcessScheduledEvents extends Command
      */
     private function sendDueEvents(): void
     {
+        // Find events that are due to be sent (scheduled time has passed)
+        // Only process events that are exactly due or slightly overdue (within 1 minute)
+        // This prevents the command from processing events that were scheduled for the future
+        // and ensures proper timing for scheduled events
+        $now = now();
         $dueEvents = Event::where('status', 'scheduled')
             ->where('send_type', 'scheduled')
             ->whereNotNull('scheduled_at')
-            ->where('scheduled_at', '<=', now())
+            ->where('scheduled_at', '<=', $now)
+            ->where('scheduled_at', '>=', $now->copy()->subMinute()) // Only process events scheduled within the last minute
             ->get();
         
         if ($dueEvents->isEmpty()) {

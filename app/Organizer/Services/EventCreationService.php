@@ -718,17 +718,54 @@ class EventCreationService
 
         // If this is a scheduled event, dispatch the job to send invitations later
         if ($event->status === 'scheduled' && $event->scheduled_at) {
-            $scheduledAt = \Carbon\Carbon::parse($event->scheduled_at);
-            dispatch(new \App\Jobs\SendScheduledEventInvitations($event->id))->delay($scheduledAt);
+            // Parse the scheduled_at as UTC since it's already stored in UTC format
+            // Use createFromFormat to ensure proper UTC parsing
+            $scheduledAt = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $event->scheduled_at, 'UTC');
+            $now = \Carbon\Carbon::now('UTC');
             
-            Log::info('📅 [EVENT_CREATION] Dispatched job for scheduled event invitations', [
+            // Calculate the delay in seconds from now until the scheduled time
+            // Use diffInSeconds with the correct order: scheduled time - current time
+            $delaySeconds = $now->diffInSeconds($scheduledAt, false);
+            
+            // Debug logging for timing calculation
+            Log::info('📅 [EVENT_CREATION] Job dispatch timing calculation', [
                 'event_id' => $event->id,
                 'event_name' => $event->name,
-                'scheduled_at' => $scheduledAt,
-                'job_delay' => $scheduledAt->diffForHumans(),
-                'has_stored_messages' => !empty($event->general_message) || !empty($event->group_messages) || !empty($event->per_guest_messages),
-                'stored_platforms' => $event->invitation_platforms
+                'raw_scheduled_at' => $event->scheduled_at,
+                'parsed_scheduled_at' => $scheduledAt->toISOString(),
+                'current_utc' => $now->toISOString(),
+                'delay_seconds' => $delaySeconds,
+                'scheduled_at_timezone' => $scheduledAt->timezoneName,
+                'current_timezone' => $now->timezoneName
             ]);
+            
+            // Only dispatch if the scheduled time is in the future
+            if ($delaySeconds > 0) {
+                dispatch(new \App\Jobs\SendScheduledEventInvitations($event->id))->delay($delaySeconds);
+                
+                Log::info('📅 [EVENT_CREATION] Dispatched job for scheduled event invitations', [
+                    'event_id' => $event->id,
+                    'event_name' => $event->name,
+                    'scheduled_at' => $scheduledAt,
+                    'scheduled_at_utc' => $scheduledAt->toISOString(),
+                    'current_utc' => $now->toISOString(),
+                    'job_delay_seconds' => $delaySeconds,
+                    'job_delay' => $scheduledAt->diffForHumans(),
+                    'has_stored_messages' => !empty($event->general_message) || !empty($event->group_messages) || !empty($event->per_guest_messages),
+                    'stored_platforms' => $event->invitation_platforms
+                ]);
+            } else {
+                Log::warning('📅 [EVENT_CREATION] Scheduled time is in the past, dispatching immediately', [
+                    'event_id' => $event->id,
+                    'event_name' => $event->name,
+                    'scheduled_at' => $scheduledAt,
+                    'current_utc' => $now->toISOString(),
+                    'delay_seconds' => $delaySeconds
+                ]);
+                
+                // Dispatch immediately if scheduled time is in the past
+                dispatch(new \App\Jobs\SendScheduledEventInvitations($event->id));
+            }
         }
 
         // Clear session AFTER successful creation and verification
@@ -932,6 +969,7 @@ class EventCreationService
 
                     // Send via channel
                     $sent = false;
+                    $twilioResponse = null;
                     try {
                         if ($platform === 'email') {
                             // Simple mail send (replace with Mailable for rich template)
@@ -941,7 +979,8 @@ class EventCreationService
                             $sent = true;
                         } elseif ($platform === 'whatsapp') {
                             $twilio = app(\App\Services\TwilioService::class);
-                            $sent = $twilio->sendWhatsAppMessage($recipient, $completeMessage);
+                            $twilioResponse = $twilio->sendWhatsAppMessage($recipient, $completeMessage);
+                            $sent = $twilioResponse['success'] ?? false;
                         }
                     } catch (\Throwable $e) {
                         Log::error('Failed sending invitation', [
@@ -951,10 +990,32 @@ class EventCreationService
                         $sent = false;
                     }
 
-                    // Update status
-                    $invitation->update([
+                    // Update status and store Twilio details
+                    $updateData = [
                         'status' => $sent ? 'sent' : 'failed',
                         'sent_at' => $sent ? Carbon::now() : null,
+                    ];
+                    
+                    if ($platform === 'whatsapp' && $twilioResponse) {
+                        $updateData['external_id'] = $twilioResponse['message_sid'] ?? null;
+                        $updateData['delivery_details'] = [
+                            'twilio_response' => $twilioResponse,
+                            'twilio_status' => $twilioResponse['status'] ?? 'unknown',
+                            'sent_at' => now()->toISOString()
+                        ];
+                    }
+                    
+                    $invitation->update($updateData);
+                    
+                    // Debug logging after update
+                    Log::info('📅 [SCHEDULED_INVITATIONS] Invitation updated', [
+                        'event_id' => $event->id,
+                        'invitation_id' => $invitation->id,
+                        'guest_id' => $guest->id,
+                        'platform' => $platform,
+                        'update_data' => $updateData,
+                        'stored_external_id' => $invitation->fresh()->external_id,
+                        'stored_delivery_details' => $invitation->fresh()->delivery_details
                     ]);
                     
                     if ($sent) {
@@ -1353,6 +1414,7 @@ class EventCreationService
 
                     // Send via channel
                     $sent = false;
+                    $twilioResponse = null;
                     try {
                         if ($platform === 'email') {
                             // Simple mail send (replace with Mailable for rich template)
@@ -1362,7 +1424,20 @@ class EventCreationService
                             $sent = true;
                         } elseif ($platform === 'whatsapp') {
                             $twilio = app(\App\Services\TwilioService::class);
-                            $sent = $twilio->sendWhatsAppMessage($recipient, $completeMessage);
+                            $twilioResponse = $twilio->sendWhatsAppMessage($recipient, $completeMessage);
+                            $sent = $twilioResponse['success'] ?? false;
+                            
+                            // Debug logging for Twilio response
+                            Log::info('📅 [SCHEDULED_INVITATIONS] Twilio response captured', [
+                                'event_id' => $event->id,
+                                'invitation_id' => $invitation->id,
+                                'guest_id' => $guest->id,
+                                'platform' => $platform,
+                                'twilio_response' => $twilioResponse,
+                                'response_type' => gettype($twilioResponse),
+                                'has_message_sid' => isset($twilioResponse['message_sid']),
+                                'message_sid' => $twilioResponse['message_sid'] ?? 'NOT_SET'
+                            ]);
                         }
                     } catch (\Throwable $e) {
                         Log::error('📅 [SCHEDULED_INVITATIONS] Failed sending scheduled invitation', [
@@ -1373,11 +1448,46 @@ class EventCreationService
                         $sent = false;
                     }
 
-                    // Update status
-                    $invitation->update([
+                    // Update status and store Twilio details
+                    $updateData = [
                         'status' => $sent ? 'sent' : 'failed',
                         'sent_at' => $sent ? Carbon::now() : null,
-                    ]);
+                    ];
+                    
+                    // Store Twilio response details for WhatsApp
+                    if ($platform === 'whatsapp' && $twilioResponse) {
+                        $updateData['external_id'] = $twilioResponse['message_sid'] ?? null;
+                        $updateData['delivery_details'] = [
+                            'twilio_response' => $twilioResponse,
+                            'twilio_status' => $twilioResponse['status'] ?? 'unknown',
+                            'sent_at' => now()->toISOString()
+                        ];
+                        
+                        // Debug logging for update data
+                        Log::info('📅 [SCHEDULED_INVITATIONS] WhatsApp update data prepared', [
+                            'event_id' => $event->id,
+                            'invitation_id' => $invitation->id,
+                            'guest_id' => $guest->id,
+                            'platform' => $platform,
+                            'update_data' => $updateData,
+                            'external_id' => $updateData['external_id'],
+                            'delivery_details' => $updateData['delivery_details']
+                        ]);
+                    } else {
+                        // Debug logging for non-WhatsApp or missing response
+                        Log::info('📅 [SCHEDULED_INVITATIONS] Update data prepared (no WhatsApp SID)', [
+                            'event_id' => $event->id,
+                            'invitation_id' => $invitation->id,
+                            'guest_id' => $guest->id,
+                            'platform' => $platform,
+                            'is_whatsapp' => $platform === 'whatsapp',
+                            'has_twilio_response' => !empty($twilioResponse),
+                            'twilio_response' => $twilioResponse,
+                            'update_data' => $updateData
+                        ]);
+                    }
+                    
+                    $invitation->update($updateData);
                     
                     if ($sent) {
                         $totalInvitationsSent++;

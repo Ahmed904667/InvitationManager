@@ -2,10 +2,14 @@
 
 namespace App\Organizer\Services;
 
-use App\Shared\Models\GuestList;
 use App\Shared\Models\Guest;
+use App\Shared\Models\GuestList;
 use App\Shared\Models\GuestGroup;
+use App\Shared\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Carbon\Carbon;
 
 class OrganizerService
 {
@@ -449,6 +453,24 @@ class OrganizerService
         return $guestLists;
     }
 
+    public function updateGuestList(GuestList $guestList, array $data): void
+    {
+        $guestList->update($data);
+    }
+
+    public function deleteGuestList(GuestList $guestList): void
+    {
+        $guestList->delete();
+    }
+
+    public function updateGuest(Guest $guest, array $data): void
+    {
+        $guest->update($data);
+        
+        // Recalculate health after updating guest
+        $guest->guestList->calculateAndStoreHealth();
+    }
+
     /**
      * Get my guest lists with filters
      */
@@ -671,6 +693,74 @@ class OrganizerService
     }
 
     /**
+     * Create a new guest list
+     */
+    public function createGuestList(array $data): GuestList
+    {
+        $user = Auth::user();
+        
+        // Get organizer's preferred list settings
+        $organizerSettingsService = app(\App\Organizer\Services\OrganizerSettingsService::class);
+        $preferredSettings = $organizerSettingsService->getPreferredListSettings($user);
+        
+        $guestList = new GuestList();
+        $guestList->user_id = $user->id;
+        $guestList->name = $data['name'];
+        $guestList->description = $data['description'] ?? null;
+        $guestList->max_guests = $data['max_guests'] ?? $preferredSettings['max_guests_per_list'] ?? null;
+        
+        // Use organizer's preferred settings or provided settings, fallback to defaults
+        $guestList->settings = $data['settings'] ?? $this->getOrganizerPreferredSettings($preferredSettings);
+        $guestList->save();
+
+        return $guestList;
+    }
+
+    /**
+     * Get organizer's preferred settings for new guest lists
+     */
+    private function getOrganizerPreferredSettings(array $preferredSettings): array
+    {
+        return [
+            'fields' => [
+                'email' => $preferredSettings['enable_guest_fields']['email'] ?? true,
+                'phone' => $preferredSettings['enable_guest_fields']['phone'] ?? false,
+                'group' => $preferredSettings['enable_guest_fields']['group'] ?? false,
+                'language' => $preferredSettings['enable_guest_fields']['preferred_language'] ?? false,
+                'notes' => true, // Always enable notes by default
+            ],
+            'notifications' => [
+                'email_reminders' => false,
+                'sms_reminders' => false,
+            ],
+            'defaults' => [
+                'country_code' => $preferredSettings['defaults']['country_code'] ?? '+1',
+                'language' => $preferredSettings['defaults']['language'] ?? 'en',
+            ],
+            'auto_archive_events' => $preferredSettings['auto_archive_events'] ?? false,
+            'auto_archive_days' => $preferredSettings['auto_archive_days'] ?? 30,
+        ];
+    }
+
+    public function addGuest(GuestList $guestList, array $data): Guest
+    {
+        $guest = new Guest();
+        $guest->guest_list_id = $guestList->id;
+        $guest->name = $data['name'];
+        $guest->email = $data['email'] ?? null;
+        $guest->phone = $data['phone'] ?? null;
+        $guest->group_id = $data['group_id'] ?? null;
+        $guest->language = $data['language'] ?? null;
+        $guest->notes = $data['notes'] ?? null;
+        $guest->save();
+
+        // Recalculate health after adding guest
+        $guestList->calculateAndStoreHealth();
+
+        return $guest;
+    }
+
+    /**
      * Bulk delete guests
      */
     public function bulkDeleteGuests(GuestList $guestList, array $guestIds): array
@@ -707,7 +797,7 @@ class OrganizerService
     /**
      * Delete a guest
      */
-    private function deleteGuest(Guest $guest): void
+    public function deleteGuest(Guest $guest): void
     {
         $guest->delete();
     }

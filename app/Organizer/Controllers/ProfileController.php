@@ -4,8 +4,10 @@ namespace App\Organizer\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Shared\Models\OTP;
+use App\PasswordResetToken;
 use App\Services\TwilioService;
 use App\Mail\OTPMail;
+use App\Mail\PasswordResetMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -327,6 +329,90 @@ class ProfileController extends Controller
         $user->update([
             'password' => Hash::make($request->password)
         ]);
+
+        return redirect()->route('organizer.profile.show')->with('success', 'Password updated successfully!');
+    }
+
+    public function sendPasswordResetLink(Request $request)
+    {
+        $user = auth()->user();
+        
+        try {
+            // Generate reset token
+            $token = PasswordResetToken::generateToken($user->email);
+            
+            // Create reset URL
+            $resetUrl = route('organizer.profile.password.reset', ['token' => $token]);
+            
+            // Send email
+            Mail::to($user->email)->send(new PasswordResetMail(
+                $resetUrl,
+                $user->name,
+                now()->addHours(24)->format('F j, Y \a\t g:i A')
+            ));
+            
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Password reset link sent to your email successfully!'
+                ]);
+            }
+            
+            return back()->with('success', 'Password reset link sent to your email successfully!');
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to send password reset link. Please try again.'
+                ], 500);
+            }
+            
+            return back()->withErrors(['password' => 'Failed to send password reset link. Please try again.'])->withInput();
+        }
+    }
+
+    public function showPasswordResetForm($token)
+    {
+        // Check if user is authenticated
+        if (!auth()->check()) {
+            return redirect()->route('login');
+        }
+        
+        $user = auth()->user();
+        
+        // Validate token
+        if (!PasswordResetToken::validateToken($user->email, $token)) {
+            return redirect()->route('organizer.profile.edit')->withErrors(['password' => 'Invalid or expired password reset link.']);
+        }
+        
+        return view('organizer.profile.password-reset', compact('token'));
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $user = auth()->user();
+        
+        $validator = Validator::make($request->all(), [
+            'token' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        // Validate token
+        if (!PasswordResetToken::validateToken($user->email, $request->token)) {
+            return back()->withErrors(['password' => 'Invalid or expired password reset link.']);
+        }
+
+        // Update password
+        $user->update([
+            'password' => Hash::make($request->password)
+        ]);
+
+        // Delete the used token
+        PasswordResetToken::deleteToken($user->email);
 
         return redirect()->route('organizer.profile.show')->with('success', 'Password updated successfully!');
     }

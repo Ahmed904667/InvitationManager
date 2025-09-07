@@ -62,12 +62,15 @@ class Event extends Model
         'status',
         'dates_in_utc',
         'user_id',
+        'cancelled_at',
+        'cancellation_reason',
     ];
 
     protected $casts = [
         'start_date' => 'datetime',
         'end_date' => 'datetime',
         'scheduled_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'rsvp_enabled' => 'boolean',
         'qr_checkin_enabled' => 'boolean',
         'ai_generated' => 'boolean',
@@ -199,8 +202,10 @@ class Event extends Model
             return $now->isBetween($this->start_date, $this->end_date);
         }
         
-        // If no end date, event is ongoing on the start date
-        return $now->copy()->startOfDay()->equalTo($this->start_date->copy()->startOfDay());
+        // If no end date, event is ongoing only if current time is past the start time
+        // AND it's the same day (to avoid marking events as running days in advance)
+        return $now->copy()->startOfDay()->equalTo($this->start_date->copy()->startOfDay()) 
+               && $now->gte($this->start_date);
     }
 
     /**

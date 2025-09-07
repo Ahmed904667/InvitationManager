@@ -128,7 +128,7 @@ input[type="datetime-local"]:focus {
                             </div>
                             <p class="text-sm text-secondary">{{ $mergedData['name'] ?? 'Not set' }}</p>
                             <p class="text-xs text-secondary mt-1">
-                                {{ isset($mergedData['start_date']) ? \Carbon\Carbon::parse($mergedData['start_date'])->format('M j, Y g:i A') : 'Not set' }}
+                                {{ isset($mergedData['start_date']) ? \Carbon\Carbon::parse($mergedData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->format('M j, Y g:i A') : 'Not set' }}
                             </p>
                         </div>
                         
@@ -188,9 +188,9 @@ input[type="datetime-local"]:focus {
                                 <i class="fas fa-calendar-alt text-primary-500 text-xl mt-1"></i>
                                 <div>
                                     <strong class="text-primary block mb-1">Date & Time</strong>
-                                    <p class="text-secondary">{{ isset($mergedData['start_date']) ? \Carbon\Carbon::parse($mergedData['start_date'])->format('l, F j, Y \a\t g:i A') : '' }}</p>
+                                    <p class="text-secondary">{{ isset($mergedData['start_date']) ? \Carbon\Carbon::parse($mergedData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->format('l, F j, Y \a\t g:i A') : '' }}</p>
                                     @if(isset($mergedData['end_date']) && $mergedData['end_date'])
-                                        <p class="text-secondary text-sm italic">Ends: {{ \Carbon\Carbon::parse($mergedData['end_date'])->format('g:i A') }}</p>
+                                        <p class="text-secondary text-sm italic">Ends: {{ \Carbon\Carbon::parse($mergedData['end_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->format('g:i A') }}</p>
                                     @endif
                                 </div>
                             </div>
@@ -432,14 +432,14 @@ input[type="datetime-local"]:focus {
                                 class="form-input @error('scheduled_at') border-danger-500 @enderror"
                                 value="{{ old('scheduled_at', $data['scheduled_at'] ?? '') }}"
                                 @if(isset($allData['start_date']))
-                                    max="{{ \Carbon\Carbon::parse($allData['start_date'])->format('Y-m-d\TH:i') }}"
+                                    max="{{ \Carbon\Carbon::parse($allData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->subMinutes(1)->format('Y-m-d\TH:i') }}"
                                 @endif
                             >
                             @error('scheduled_at')
                                 <div class="form-error">{{ $message }}</div>
                             @enderror
                             @php 
-                                $eventStart = isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date']) : null;
+                                $eventStart = isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC') : null;
                                 $userTimezone = Auth::user()->timezone ?? 'UTC';
                                 $timezoneDisplay = $userTimezone === 'UTC' ? 'UTC' : $userTimezone;
                             @endphp
@@ -588,7 +588,7 @@ window.navigateToEventCreation = function(mode = 'create') {
 window.updateActionText = function() {
     const scheduledInputEl = document.getElementById('scheduled_at');
     const actionText = document.getElementById('action-text');
-    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->toIso8601String() : '' }}';
+    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->toIso8601String() : '' }}';
     const isUpdate = {{ request()->has('mode') && request()->get('mode') === 'update' ? 'true' : 'false' }};
     
     if (!scheduledInputEl || !actionText) return;
@@ -635,7 +635,7 @@ window.setSuggestedTime = function(hour, minute) {
     
     // Get current time and event start time
     const now = new Date();
-    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->toIso8601String() : '' }}';
+    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->toIso8601String() : '' }}';
     const eventStart = eventStartIso ? new Date(eventStartIso) : null;
     
     // Try today first
@@ -1004,35 +1004,45 @@ window.closeGuestMessagesModal = function() {
 function updateScheduledDateMin() {
     const scheduledInputEl = document.getElementById('scheduled_at');
     if (!scheduledInputEl) return;
-    
+
+    // Get user timezone from server
+    const userTimezone = '{{ Auth::user()->timezone ?? "UTC" }}';
+
     // Get current date and time in user's timezone
-    const now = new Date();
-    
+    let now;
+    if (userTimezone === 'UTC') {
+        now = new Date();
+    } else {
+        // Convert current UTC time to user's timezone
+        const utcNow = new Date();
+        now = new Date(utcNow.toLocaleString("en-US", {timeZone: userTimezone}));
+    }
+
     // Add 1 minute buffer to ensure we're always in the future
     const nextMinute = new Date(now);
-    nextMinute.setSeconds(0, 0);
     nextMinute.setMinutes(nextMinute.getMinutes() + 1);
-    
+    nextMinute.setSeconds(0, 0);
+
     const year = nextMinute.getFullYear();
     const month = String(nextMinute.getMonth() + 1).padStart(2, '0');
     const day = String(nextMinute.getDate()).padStart(2, '0');
     const hours = String(nextMinute.getHours()).padStart(2, '0');
     const minutes = String(nextMinute.getMinutes()).padStart(2, '0');
-    
+
     // Format as datetime-local input expects (YYYY-MM-DDTHH:MM)
     const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-    
+
     // Update the min attribute to block past dates in calendar
     scheduledInputEl.min = minDateTime;
     
     // Also set the max attribute if event start date is available
-    const startDateInput = document.querySelector('input[name="start_date"]');
-    if (startDateInput && startDateInput.value) {
-        const eventStartDate = new Date(startDateInput.value);
+    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->toIso8601String() : '' }}';
+    if (eventStartIso) {
+        const eventStartDate = new Date(eventStartIso);
         const eventStartMinusOne = new Date(eventStartDate);
         eventStartMinusOne.setSeconds(0, 0);
         eventStartMinusOne.setMinutes(eventStartMinusOne.getMinutes() - 1);
-        
+
         const maxYear = eventStartMinusOne.getFullYear();
         const maxMonth = String(eventStartMinusOne.getMonth() + 1).padStart(2, '0');
         const maxDay = String(eventStartMinusOne.getDate()).padStart(2, '0');
@@ -1056,14 +1066,27 @@ function updateScheduledDateMin() {
 function validateScheduledDate() {
     const scheduledInputEl = document.getElementById('scheduled_at');
     if (!scheduledInputEl || !scheduledInputEl.value) return true;
-    
+
     const selectedDate = new Date(scheduledInputEl.value);
-    const now = new Date();
-    
+    const userTimezone = '{{ Auth::user()->timezone ?? "UTC" }}';
+
+    // Get current time in user's timezone
+    const utcNow = new Date();
+    let now;
+    if (userTimezone === 'UTC') {
+        now = new Date(utcNow);
+    } else {
+        // Calculate user's timezone offset from UTC
+        const userTimeString = utcNow.toLocaleString("en-US", {timeZone: userTimezone});
+        const userTime = new Date(userTimeString);
+        const userOffset = userTime.getTime() - utcNow.getTime();
+        now = new Date(utcNow.getTime() + userOffset);
+    }
+
     // Add a small buffer (1 minute) to account for time differences
     const bufferTime = 60 * 1000; // 1 minute in milliseconds
     const minAllowedTime = new Date(now.getTime() + bufferTime);
-    
+
     // Check if date is in the past
     if (selectedDate <= minAllowedTime) {
         scheduledInputEl.value = '';
@@ -1071,11 +1094,11 @@ function validateScheduledDate() {
         showScheduledDateError('Please select a future date and time for sending invitations.');
         return false;
     }
-    
-    // Check if date is after event start date
-    const startDateInput = document.querySelector('input[name="start_date"]');
-    if (startDateInput && startDateInput.value) {
-        const eventStartDate = new Date(startDateInput.value);
+
+    // Check if date is after event start date (allow scheduling up to 1 minute before)
+    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->subMinutes(1)->toIso8601String() : '' }}';
+    if (eventStartIso) {
+        const eventStartDate = new Date(eventStartIso);
         if (selectedDate >= eventStartDate) {
             scheduledInputEl.value = '';
             immediateAutoSave();
@@ -1083,7 +1106,7 @@ function validateScheduledDate() {
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -1117,8 +1140,20 @@ function blockCalendarPastDates(input) {
     input.addEventListener('input', function() {
         if (this.value) {
             const selectedDate = new Date(this.value);
-            const now = new Date();
-            
+            const userTimezone = '{{ Auth::user()->timezone ?? "UTC" }}';
+
+            // Get current time in user's timezone
+            const utcNow = new Date();
+            let now;
+            if (userTimezone === 'UTC') {
+                now = new Date(utcNow);
+            } else {
+                const userTimeString = utcNow.toLocaleString("en-US", {timeZone: userTimezone});
+                const userTime = new Date(userTimeString);
+                const userOffset = userTime.getTime() - utcNow.getTime();
+                now = new Date(utcNow.getTime() + userOffset);
+            }
+
             // If selected date is in the past, clear it
             if (selectedDate <= now) {
                 this.value = '';
@@ -1126,13 +1161,25 @@ function blockCalendarPastDates(input) {
             }
         }
     });
-    
+
     // Add change event listener for calendar picker
     input.addEventListener('change', function() {
         if (this.value) {
             const selectedDate = new Date(this.value);
-            const now = new Date();
-            
+            const userTimezone = '{{ Auth::user()->timezone ?? "UTC" }}';
+
+            // Get current time in user's timezone
+            const utcNow = new Date();
+            let now;
+            if (userTimezone === 'UTC') {
+                now = new Date(utcNow);
+            } else {
+                const userTimeString = utcNow.toLocaleString("en-US", {timeZone: userTimezone});
+                const userTime = new Date(userTimeString);
+                const userOffset = userTime.getTime() - utcNow.getTime();
+                now = new Date(utcNow.getTime() + userOffset);
+            }
+
             // If selected date is in the past, clear it and show error
             if (selectedDate <= now) {
                 this.value = '';
@@ -1147,8 +1194,20 @@ function blockCalendarPastDates(input) {
 function updateSuggestedTimeButtons() {
     const buttons = document.querySelectorAll('.suggested-time-btn');
     const userTimezone = '{{ Auth::user()->timezone ?? "UTC" }}';
-    const now = new Date();
-    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->toIso8601String() : '' }}';
+    const utcNow = new Date();
+
+    // Get current time in user's timezone
+    let now;
+    if (userTimezone === 'UTC') {
+        now = new Date(utcNow);
+    } else {
+        const userTimeString = utcNow.toLocaleString("en-US", {timeZone: userTimezone});
+        const userTime = new Date(userTimeString);
+        const userOffset = userTime.getTime() - utcNow.getTime();
+        now = new Date(utcNow.getTime() + userOffset);
+    }
+
+    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->toIso8601String() : '' }}';
     const eventStart = eventStartIso ? new Date(eventStartIso) : null;
     
     buttons.forEach(button => {
@@ -1227,25 +1286,44 @@ function updateSuggestedTimeButtons() {
 // Auto-save functionality
 function autoSave() {
     if (isAutoSaving) return;
-    
+
     const formEl = document.getElementById('event-form-4');
     if (!formEl) return;
     const formData = new FormData(formEl);
-    const currentData = JSON.stringify(Object.fromEntries(formData));
-    
+    let formDataObj = Object.fromEntries(formData);
+
+    // Send the raw datetime-local input to the backend
+    // The backend will handle timezone conversion based on the user's configured timezone
+    if (formDataObj.scheduled_at && formDataObj.send_type === 'scheduled') {
+        const originalInput = formDataObj.scheduled_at;
+        const userTimezone = '{{ Auth::user()->timezone ?? "UTC" }}';
+
+        // Keep the original input format (YYYY-MM-DDTHH:MM)
+        // The backend will parse this as being in the user's timezone
+        console.log('🕐 [FRONTEND] Sending raw scheduled time to backend:', {
+            step: 'auto-save',
+            originalInput: originalInput,
+            userTimezone: userTimezone,
+            browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            utcNow: new Date().toISOString()
+        });
+    }
+
+    const currentData = JSON.stringify(formDataObj);
+
     // Only save if data has changed
     if (currentData === lastSavedData) return;
-    
+
     isAutoSaving = true;
     lastSavedData = currentData;
-    
+
     fetch('{{ route("organizer.events.create.auto-save") }}', {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(Object.fromEntries(formData))
+        body: JSON.stringify(formDataObj)
     })
     .then(response => response.json())
     .then(data => {
@@ -1275,7 +1353,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const scheduledSection = document.getElementById('scheduled-time-section');
     const actionText = document.getElementById('action-text');
     const scheduledInput = document.getElementById('scheduled_at');
-    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->toIso8601String() : '' }}';
+    const eventStartIso = '{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->setTimezone(Auth::user()->timezone ?? 'UTC')->toIso8601String() : '' }}';
     
     // Detect user's timezone and update display
     function detectAndDisplayTimezone() {
@@ -1379,20 +1457,22 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Convert selected datetime to user's timezone for comparison
             const selected = new Date(value);
-            const now = new Date();
-            
+            const utcNow = new Date();
+
             // Create comparison time in user's timezone
             let comparisonTime;
             if (userTimezone === 'UTC') {
-                comparisonTime = new Date(now);
+                comparisonTime = new Date(utcNow);
                 comparisonTime.setSeconds(0, 0);
                 comparisonTime.setMinutes(comparisonTime.getMinutes() + 1);
             } else {
-                // Convert current time to user's timezone
-                const userTime = new Date(now.toLocaleString("en-US", {timeZone: userTimezone}));
-                comparisonTime = new Date(userTime);
-                comparisonTime.setMinutes(comparisonTime.getMinutes() + 1);
+                // Calculate user's timezone offset from UTC
+                const userTimeString = utcNow.toLocaleString("en-US", {timeZone: userTimezone});
+                const userTime = new Date(userTimeString);
+                const userOffset = userTime.getTime() - utcNow.getTime();
+                comparisonTime = new Date(utcNow.getTime() + userOffset);
                 comparisonTime.setSeconds(0, 0);
+                comparisonTime.setMinutes(comparisonTime.getMinutes() + 1);
             }
             
             if (selected < comparisonTime) {
@@ -1403,17 +1483,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (eventStartIso) {
                 const eventStart = new Date(eventStartIso);
-                if (selected >= eventStart) {
-                    showScheduleErrorModal('Scheduled time must be strictly before the event start time.');
-                    scheduledInput.value = '';
-                    updateActionText();
-                    return;
-                }
                 const eventStartMinusOne = new Date(eventStart);
                 eventStartMinusOne.setSeconds(0, 0);
                 eventStartMinusOne.setMinutes(eventStartMinusOne.getMinutes() - 1);
+
+                // Allow scheduling up to 1 minute before event start
                 if (selected > eventStartMinusOne) {
-                    showScheduleErrorModal('Scheduled time must be at least one minute before the event start time.');
+                    showScheduleErrorModal('Scheduled time must be before the event start time.');
                     scheduledInput.value = '';
                     updateActionText();
                     return;
@@ -1502,7 +1578,26 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Submit form data via AJAX to processStep4
             const formData = new FormData(this);
-            const currentData = JSON.stringify(Object.fromEntries(formData));
+            let formDataObj = Object.fromEntries(formData);
+
+                    // Send the raw datetime-local input to the backend
+            // The backend will handle timezone conversion based on the user's configured timezone
+            if (formDataObj.scheduled_at && formDataObj.send_type === 'scheduled') {
+                const originalInput = formDataObj.scheduled_at;
+                const userTimezone = '{{ Auth::user()->timezone ?? "UTC" }}';
+
+                // Keep the original input format (YYYY-MM-DDTHH:MM)
+                // The backend will parse this as being in the user's timezone
+                console.log('🕐 [FRONTEND] Sending raw scheduled time to backend:', {
+                    step: 'form-submission',
+                    originalInput: originalInput,
+                    userTimezone: userTimezone,
+                    browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    utcNow: new Date().toISOString()
+                });
+            }
+
+            const currentData = JSON.stringify(formDataObj);
             
             fetch(this.closest('form').action, {
                 method: 'POST',

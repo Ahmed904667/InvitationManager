@@ -41,8 +41,40 @@ class GuestController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'email' => 'nullable|email|max:100',
-            'phone' => 'nullable|string|max:30',
+            'email' => [
+                'nullable',
+                'email',
+                'max:100',
+                function ($attribute, $value, $fail) use ($guestList) {
+                    if (!empty($value)) {
+                        // Check if email already exists for another guest in the same list
+                        $existingGuest = $guestList->guests()
+                            ->where('email', $value)
+                            ->first();
+                        
+                        if ($existingGuest) {
+                            $fail('A guest with this email address already exists in this guest list.');
+                        }
+                    }
+                }
+            ],
+            'phone' => [
+                'nullable',
+                'string',
+                'max:30',
+                function ($attribute, $value, $fail) use ($guestList) {
+                    if (!empty($value)) {
+                        // Check if phone number already exists for another guest in the same list
+                        $existingGuest = $guestList->guests()
+                            ->where('phone', $value)
+                            ->first();
+                        
+                        if ($existingGuest) {
+                            $fail('A guest with this phone number already exists in this guest list.');
+                        }
+                    }
+                }
+            ],
             'group_id' => 'nullable|exists:guest_groups,id',
             'language' => 'nullable|string|max:30',
             'notes' => 'nullable|string|max:1000'
@@ -68,12 +100,46 @@ class GuestController extends Controller
     {
         Gate::authorize('update-guest', $guestList);
 
-
-
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'email' => 'nullable|email|max:100',
-            'phone' => 'nullable|string|max:30',
+            'email' => [
+                'nullable',
+                'email',
+                'max:100',
+                function ($attribute, $value, $fail) use ($guest, $guestList) {
+                    if (!empty($value)) {
+                        // Check if email already exists for another guest in the same list
+                        $existingGuest = $guestList->guests()
+                            ->where('id', '!=', $guest->id)
+                            ->where('email', '!=', $guest->email)
+                            ->where('email', $value)
+                            ->first();
+                        
+                        if ($existingGuest) {
+                            $fail('A guest with this email address already exists in this guest list.');
+                        }
+                    }
+                }
+            ],
+            'phone' => [
+                'nullable',
+                'string',
+                'max:30',
+                function ($attribute, $value, $fail) use ($guest, $guestList) {
+                    if (!empty($value)) {
+                        // Check if phone number already exists for another guest in the same list
+                        $existingGuest = $guestList->guests()
+                            ->where('id', '!=', $guest->id)
+                            ->where('phone', '!=', $guest->phone)
+                            ->where('phone', $value)
+                            ->first();
+                        
+                        if ($existingGuest) {
+                            $fail('A guest with this phone number already exists in this guest list.');
+                        }
+                    }
+                }
+            ],
             'group_id' => 'nullable|exists:guest_groups,id',
             'language' => 'nullable|string|max:30',
             'notes' => 'nullable|string|max:1000'

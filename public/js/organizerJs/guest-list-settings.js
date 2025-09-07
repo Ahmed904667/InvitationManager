@@ -30,6 +30,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.renderGuestTable && window.guestListGuests) {
                     window.renderGuestTable(window.guestListSettings, window.guestListGuests);
                 }
+                
+                // Dispatch custom event to notify other components about settings update
+                window.dispatchEvent(new CustomEvent('settingsUpdated', {
+                    detail: { settings: data.settings }
+                }));
 
                 // Refresh validation errors since settings might affect required fields
                 if (typeof refreshValidationErrors === 'function') {
@@ -86,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     function renderAddGuestFields(settings) {
+       
         const container = document.getElementById('addGuestFields');
         if (!container) return;
         let html = '';
@@ -107,10 +113,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // Phone
         if (settings.fields.phone) {
+            // Use guest list's own country code setting, fallback to organizer defaults
+            const defaultCountryCode = settings.default_country_code || (settings.defaults && settings.defaults.country_code ? settings.defaults.country_code : '');
             html += `
                 <div>
                     <label class="form-label">Phone</label>
-                    <input type="text" name="phone" class="form-input" placeholder="Phone">
+                    <input type="text" name="phone" class="form-input" placeholder="${defaultCountryCode} Phone number" value="${defaultCountryCode}">
                 </div>
             `;
         }
@@ -127,7 +135,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // Preferred Language
         if (settings.fields.language) {
-            const defaultLang = settings.default_language ? settings.default_language : '';
+
+            // Use guest list's own language setting, fallback to organizer defaults
+            const defaultLang = settings.default_language || (settings.defaults && settings.defaults.language ? settings.defaults.language : '');
+            
             html += `
                 <div>
                     <label class="form-label">Preferred Language</label>

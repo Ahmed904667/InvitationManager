@@ -4,6 +4,10 @@
 
 @section('content')
 
+@php
+    $userTimezone = auth()->user()->timezone ?? 'UTC';
+@endphp
+
 <style>
 .tab-button {
     transition: all 0.2s ease-in-out;
@@ -126,10 +130,15 @@
                             <div>
                                 <span class="text-sm font-medium" style="color: var(--text-secondary);">Date & Time:</span>
                                 <p class="text-sm" style="color: var(--text-primary);">
-                                    {{ $event->start_date->format('l, F j, Y') }} at {{ $event->start_date->format('g:i A') }}
-                                    @if($event->end_date)
-                                        <br><span class="text-xs text-gray-500">Ends: {{ $event->end_date->format('g:i A') }}</span>
+                                    @php
+                                        $startDateInUserTz = $event->start_date->setTimezone($userTimezone);
+                                        $endDateInUserTz = $event->end_date ? $event->end_date->setTimezone($userTimezone) : null;
+                                    @endphp
+                                    {{ $startDateInUserTz->format('l, F j, Y') }} at {{ $startDateInUserTz->format('g:i A') }}
+                                    @if($endDateInUserTz)
+                                        <br><span class="text-xs text-gray-500">Ends: {{ $endDateInUserTz->format('g:i A') }}</span>
                                     @endif
+                                    <br>
                                 </p>
                             </div>
                             
@@ -172,6 +181,19 @@
                                 <span class="text-sm" style="color: var(--text-primary);">
                                     {{ $event->qr_checkin_enabled ? 'Enabled' : 'Disabled' }}
                                 </span>
+                            </div>
+                            
+                            <div>
+                                <span class="text-sm font-medium" style="color: var(--text-secondary);">Platforms:</span>
+                                <div class="text-sm mt-1" style="color: var(--text-primary);">
+                                    @if($event->invitation_platforms && count($event->invitation_platforms) > 0)
+                                        @foreach($event->invitation_platforms as $platform)
+                                            <span class="badge badge-success mr-1">{{ ucfirst($platform) }}</span>
+                                        @endforeach
+                                    @else
+                                        <span class="text-sm" style="color: var(--text-secondary);">No platforms configured</span>
+                                    @endif
+                                </div>
                             </div>
                             
                             @if($event->rsvp_deadline)
@@ -268,6 +290,9 @@
                 <button id="notifications-tab" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors" style="border-color: transparent; color: var(--text-secondary);">
                     Notifications
                 </button>
+                <button id="invitations-tab" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors" style="border-color: transparent; color: var(--text-secondary);">
+                    Invitations
+                </button>
             </nav>
         </div>
         
@@ -279,6 +304,41 @@
             $guestsByList = $activeEventGuests->groupBy(function($eventGuest) {
                 return $eventGuest->guest->guest_list_id ?? 'standalone';
             });
+            
+            // Helper functions for invitation status
+            function getInvitationStatusClass($status) {
+                switch ($status) {
+                    case 'delivered':
+                    case 'sent':
+                        return 'success';
+                    case 'read':
+                        return 'emerald';
+                    case 'failed':
+                    case 'undelivered':
+                    case 'canceled':
+                    case 'bounced':
+                        return 'danger';
+                    default:
+                        return 'warning';
+                }
+            }
+            
+            function getInvitationStatusText($status) {
+                switch ($status) {
+                    case 'delivered':
+                    case 'sent':
+                        return 'Delivered';
+                    case 'read':
+                        return 'Read';
+                    case 'failed':
+                    case 'undelivered':
+                    case 'canceled':
+                    case 'bounced':
+                        return 'Failed';
+                    default:
+                        return 'Queued';
+                }
+            }
         @endphp
         
         @forelse($guestsByList as $guestListId => $eventGuests)
@@ -352,7 +412,7 @@
                                 @endswitch
                                 @if($invitation && $invitation->rsvp_at)
                                 <div class="text-xs mt-1 rsvp-time" style="color: var(--text-secondary);">
-                                    {{ $invitation->rsvp_at->format('M j, g:i A') }}
+                                    {{ $invitation->rsvp_at->setTimezone($userTimezone)->format('M j, g:i A') }}
                                 </div>
                                 @else
                                 <div class="text-xs mt-1 rsvp-time" style="color: var(--text-secondary); display: none;"></div>
@@ -374,7 +434,7 @@
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm" style="color: var(--text-primary);">
                                 @if($eventGuest->checked_in && $eventGuest->checked_in_at)
-                                    {{ $eventGuest->checked_in_at->format('M j, g:i A') }}
+                                    {{ $eventGuest->checked_in_at->setTimezone($userTimezone)->format('M j, g:i A') }}
                                     @if($eventGuest->scannedByScanner)
                                     <div class="text-xs" style="color: var(--text-secondary);">
                                         by {{ $eventGuest->scanner_name }}
@@ -561,7 +621,7 @@
                                                     {{ $notification->guest->name ?? 'Unknown Guest' }}
                                                 </div>
                                                 <div class="text-xs" style="color: var(--text-secondary);">
-                                                    {{ ucfirst($notification->type) }} • {{ $notification->created_at->format('M j, Y g:i A') }}
+                                                    {{ ucfirst($notification->type) }} • {{ $notification->created_at->setTimezone($userTimezone)->format('M j, Y g:i A') }}
                                                 </div>
                                                 @if($notification->message)
                                                 <div class="text-xs mt-1" style="color: var(--text-secondary);">
@@ -601,6 +661,131 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Invitations Tab Content -->
+        <div id="invitations-content" class="tab-content hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-medium" style="color: var(--text-primary);">Event Invitations</h3>
+                    <div class="flex space-x-2">
+                        <button type="button" class="btn-secondary text-sm flex items-center" id="refresh-invitations-btn">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                @php
+                    $invitations = $event->invitations()
+                        ->with(['guest'])
+                        ->orderBy('created_at', 'desc')
+                        ->get()
+                        ->groupBy('channel');
+                    
+                    $invitationStats = [
+                        'queued' => $event->invitations()->whereIn('status', ['queued', 'sending', 'pending'])->count(),
+                        'delivered' => $event->invitations()->whereIn('status', ['delivered', 'sent'])->count(),
+                        'read' => $event->invitations()->where('status', 'read')->count(),
+                        'failed' => $event->invitations()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
+                    ];
+                @endphp
+                
+                <!-- Invitation Statistics -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <div class="text-center p-3 rounded-lg" style="background: var(--orange-100);">
+                        <div class="text-xl font-bold invitation-queued-count" style="color: var(--orange-600);">{{ $invitationStats['queued'] }}</div>
+                        <div class="text-xs" style="color: var(--text-secondary);">Queued</div>
+                    </div>
+                    <div class="text-center p-3 rounded-lg" style="background: var(--green-100);">
+                        <div class="text-xl font-bold invitation-delivered-count" style="color: var(--green-600);">{{ $invitationStats['delivered'] }}</div>
+                        <div class="text-xs" style="color: var(--text-secondary);">Delivered</div>
+                    </div>
+                    <div class="text-center p-3 rounded-lg" style="background: var(--emerald-100);">
+                        <div class="text-xl font-bold invitation-read-count" style="color: var(--emerald-600);">{{ $invitationStats['read'] }}</div>
+                        <div class="text-xs" style="color: var(--text-secondary);">Read</div>
+                    </div>
+                    <div class="text-center p-3 rounded-lg" style="background: var(--red-100);">
+                        <div class="text-xl font-bold invitation-failed-count" style="color: var(--red-600);">{{ $invitationStats['failed'] }}</div>
+                        <div class="text-xs" style="color: var(--text-secondary);">Failed</div>
+                    </div>
+                </div>
+                
+                <!-- Invitations by Channel -->
+                @if($invitations->isNotEmpty())
+                    @foreach($invitations as $channel => $channelInvitations)
+                    <div class="mb-6">
+                        <h4 class="text-md font-medium mb-3" style="color: var(--text-primary);">
+                            {{ ucfirst($channel) }} Invitations 
+                            <span class="text-sm font-normal" style="color: var(--text-secondary);">({{ $channelInvitations->count() }})</span>
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y" style="border-color: var(--border-primary);">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Guest Name & Platform</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Status</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Sent At</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y" style="border-color: var(--border-primary);">
+                                    @foreach($channelInvitations as $invitation)
+                                    <tr class="hover:bg-gray-50" data-invitation-id="{{ $invitation->id }}">
+                                        <td class="px-4 py-4 whitespace-nowrap">
+                                            <div>
+                                                <div class="text-sm font-medium" style="color: var(--text-primary);">
+                                                    {{ $invitation->guest->name ?? 'Unknown Guest' }}
+                                                </div>
+                                                <div class="text-xs" style="color: var(--text-secondary);">
+                                                    {{ ucfirst($invitation->channel) }}
+                                                    @if($invitation->channel === 'email')
+                                                        • {{ $invitation->guest->email ?? 'No email' }}
+                                                    @elseif($invitation->channel === 'whatsapp')
+                                                        • {{ $invitation->guest->phone ?? 'No phone' }}
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap">
+                                            <span class="badge badge-{{ getInvitationStatusClass($invitation->status) }} invitation-status">
+                                                {{ getInvitationStatusText($invitation->status) }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap text-sm invitation-sent-at" style="color: var(--text-primary);">
+                                            @if($invitation->sent_at)
+                                                {{ $invitation->sent_at->setTimezone($userTimezone)->format('M j, Y g:i A') }}
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap text-sm" style="color: var(--text-secondary);">
+                                            @if($invitation->token)
+                                                <div class="text-xs">
+                                                    <strong>Token:</strong> {{ Str::limit($invitation->token, 20) }}
+                                                </div>
+                                            @endif
+                                            @if($invitation->external_id)
+                                                <div class="text-xs mt-1">
+                                                    <strong>Twilio SID:</strong> {{ Str::limit($invitation->external_id, 20) }}
+                                                </div>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    @endforeach
+                @else
+                <div class="text-center py-8">
+                    <p class="text-sm" style="color: var(--text-secondary);">No invitations sent yet</p>
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -789,33 +974,47 @@ document.addEventListener('DOMContentLoaded', function() {
     // Tab functionality
     const guestsTab = document.getElementById('guests-tab');
     const notificationsTab = document.getElementById('notifications-tab');
+    const invitationsTab = document.getElementById('invitations-tab');
     const guestsContent = document.getElementById('guests-content');
     const notificationsContent = document.getElementById('notifications-content');
+    const invitationsContent = document.getElementById('invitations-content');
     
-    function switchTab(activeTab, activeContent, inactiveTab, inactiveContent) {
+    function switchTab(activeTab, activeContent, inactiveTabs, inactiveContents) {
         // Update tab buttons
         activeTab.classList.add('active');
         activeTab.style.borderColor = 'var(--primary-600)';
         activeTab.style.color = 'var(--primary-600)';
         
-        inactiveTab.classList.remove('active');
-        inactiveTab.style.borderColor = 'transparent';
-        inactiveTab.style.color = 'var(--text-secondary)';
+        // Update inactive tabs
+        inactiveTabs.forEach(tab => {
+            tab.classList.remove('active');
+            tab.style.borderColor = 'transparent';
+            tab.style.color = 'var(--text-secondary)';
+        });
         
         // Update content
         activeContent.classList.remove('hidden');
-        inactiveContent.classList.add('hidden');
+        inactiveContents.forEach(content => {
+            content.classList.add('hidden');
+        });
     }
     
     guestsTab.addEventListener('click', () => {
-        switchTab(guestsTab, guestsContent, notificationsTab, notificationsContent);
+        switchTab(guestsTab, guestsContent, [notificationsTab, invitationsTab], [notificationsContent, invitationsContent]);
     });
     
     notificationsTab.addEventListener('click', () => {
-        switchTab(notificationsTab, notificationsContent, guestsTab, guestsContent);
+        switchTab(notificationsTab, notificationsContent, [guestsTab, invitationsTab], [guestsContent, invitationsContent]);
         
         // Auto-refresh notification statuses when notifications tab is clicked
         refreshNotificationStatuses();
+    });
+    
+    invitationsTab.addEventListener('click', () => {
+        switchTab(invitationsTab, invitationsContent, [guestsTab, notificationsTab], [guestsContent, notificationsContent]);
+        
+        // Auto-refresh invitation statuses when invitations tab is clicked
+        refreshInvitationStatuses();
     });
 
     // Function to update RSVP statuses in the table and summary
@@ -956,6 +1155,18 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Refresh button not found!');
     }
     
+    // Add event listener to refresh invitations button
+    const refreshInvitationsBtn = document.getElementById('refresh-invitations-btn');
+    if (refreshInvitationsBtn) {
+        refreshInvitationsBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            refreshInvitationStatuses();
+        });
+    } else {
+        console.error('Refresh invitations button not found!');
+    }
+    
     // Function to refresh notification statuses
     function refreshNotificationStatuses() {
         const refreshUrl = '{{ route("organizer.events.notifications.refresh", $event) }}';
@@ -990,12 +1201,93 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Log the update details
                 console.log(`Updated ${data.updated_count} notifications, Skipped ${data.missing_external_id} with missing IDs`);
             } else {
-                showNotification(data.message || 'Failed to update notification statuses', 'error');
+                if (typeof showNotification === 'function') {
+                    showNotification(data.message || 'Failed to update notification statuses', 'error');
+                } else if (window.GuestManager?.showNotification) {
+                    window.GuestManager.showNotification(data.message || 'Failed to update notification statuses', 'error');
+                } else {
+                    alert(data.message || 'Failed to update notification statuses');
+                }
             }
         })
         .catch(error => {
             console.error('Notification status refresh failed:', error);
-            showNotification('Failed to refresh notification statuses', 'error');
+            if (typeof showNotification === 'function') {
+                showNotification('Failed to refresh notification statuses', 'error');
+            } else if (window.GuestManager?.showNotification) {
+                window.GuestManager.showNotification('Failed to refresh notification statuses', 'error');
+            } else {
+                alert('Failed to refresh notification statuses');
+            }
+        })
+        .finally(() => {
+            // Reset button state
+            if (submitBtn && originalText) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+    
+    // Function to refresh invitation statuses
+    function refreshInvitationStatuses() {
+        const submitBtn = document.getElementById('refresh-invitations-btn');
+        let originalText = '';
+        
+        // Show loading state
+        if (submitBtn) {
+            originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<svg class="w-4 h-4 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Refreshing...';
+            submitBtn.disabled = true;
+        }
+        
+        // Fetch updated invitation data without page reload
+        fetch(`/organizer/events/{{ $event->id }}/invitations/refresh`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Update invitation statistics
+                updateInvitationStats(data.stats);
+                // Update individual invitation statuses
+                updateIndividualInvitationStatuses(data.invitations);
+                // Show success message
+                if (typeof showNotification === 'function') {
+                    showNotification('Invitation statuses updated successfully', 'success');
+                } else if (window.GuestManager?.showNotification) {
+                    window.GuestManager.showNotification('Invitation statuses updated successfully', 'success');
+                } else {
+                    alert('Invitation statuses updated successfully');
+                }
+            } else {
+                if (typeof showNotification === 'function') {
+                    showNotification(data.message || 'Failed to update invitation statuses', 'error');
+                } else if (window.GuestManager?.showNotification) {
+                    window.GuestManager.showNotification(data.message || 'Failed to update invitation statuses', 'error');
+                } else {
+                    alert(data.message || 'Failed to update invitation statuses');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Invitation status refresh failed:', error);
+            if (typeof showNotification === 'function') {
+                showNotification('Failed to refresh invitation statuses', 'error');
+            } else if (window.GuestManager?.showNotification) {
+                window.GuestManager.showNotification('Failed to refresh invitation statuses', 'error');
+            } else {
+                alert('Failed to refresh invitation statuses');
+            }
         })
         .finally(() => {
             // Reset button state
@@ -1114,7 +1406,7 @@ document.addEventListener('DOMContentLoaded', function() {
         div.style.cssText = 'background: var(--bg-secondary); border-color: var(--border-primary);';
         
         const statusColor = getStatusColor(notification.status);
-        const statusText = getStatusText(notification.status);
+        const statusText = getInvitationStatusText(notification.status);
         
         div.innerHTML = `
             <div class="flex items-center space-x-3">
@@ -1159,7 +1451,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Function to get status text
-    function getStatusText(status) {
+    function getInvitationStatusText(status) {
         switch (status) {
             case 'read': return 'Read';
             case 'delivered':
@@ -1193,16 +1485,70 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Notification counts updated via stats refresh');
     }
     
-    // Function to show notifications (if not already defined)
-    function showNotification(message, type = 'info') {
-        // Check if showNotification function exists, otherwise use alert
-        if (typeof window.showNotification === 'function') {
-            window.showNotification(message, type);
-        } else {
-            alert(message);
-        }
+    // Function to update invitation statistics
+    function updateInvitationStats(stats) {
+        // Update invitation statistics display
+        const queuedCount = document.querySelector('.invitation-queued-count');
+        const deliveredCount = document.querySelector('.invitation-delivered-count');
+        const readCount = document.querySelector('.invitation-read-count');
+        const failedCount = document.querySelector('.invitation-failed-count');
+        
+        if (queuedCount) queuedCount.textContent = stats.queued;
+        if (deliveredCount) deliveredCount.textContent = stats.delivered;
+        if (readCount) readCount.textContent = stats.read;
+        if (failedCount) failedCount.textContent = stats.failed;
+        
+        console.log('Invitation stats updated successfully');
     }
+    
+    // Function to update individual invitation statuses
+    function updateIndividualInvitationStatuses(invitations) {
+        // Update invitation statuses in the UI
+        invitations.forEach(invitation => {
+            const row = document.querySelector(`tr[data-invitation-id="${invitation.id}"]`);
+            if (row) {
+                const statusCell = row.querySelector('.invitation-status');
+                if (statusCell) {
+                    statusCell.innerHTML = createInvitationStatusBadge(invitation.status);
+                }
+                
+                // Also update the sent_at time if available
+                const sentAtCell = row.querySelector('.invitation-sent-at');
+                if (sentAtCell && invitation.sent_at) {
+                    const sentDate = new Date(invitation.sent_at);
+                    sentAtCell.textContent = sentDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit'
+                    });
+                }
+            }
+        });
+        
+        console.log('Individual invitation statuses updated successfully');
+    }
+    
+    // Function to create invitation status badge
+    function createInvitationStatusBadge(status) {
+        const statusConfig = {
+            'delivered': { bg: 'badge-success', text: 'Delivered' },
+            'sent': { bg: 'badge-success', text: 'Delivered' },
+            'read': { bg: 'badge-emerald', text: 'Read' },
+            'failed': { bg: 'badge-danger', text: 'Failed' },
+            'undelivered': { bg: 'badge-danger', text: 'Failed' },
+            'canceled': { bg: 'badge-danger', text: 'Failed' },
+            'bounced': { bg: 'badge-danger', text: 'Failed' },
+            'default': { bg: 'badge-warning', text: 'Queued' }
+        };
+        
+        const config = statusConfig[status] || statusConfig.default;
+        return `<span class="badge ${config.bg}">${config.text}</span>`;
+    }
+    
 });
+
 
 // Notification Modal Functions
 function openSendNotificationModal() {
@@ -1215,27 +1561,7 @@ function closeSendNotificationModal() {
     hideModal('send-notification-modal');
 }
 
-function testRoute() {
-    console.log('Testing route...');
-    const testUrl = '{{ route("organizer.events.notifications.test", $event) }}';
-    console.log('Test URL:', testUrl);
-    
-    fetch(testUrl, {
-        method: 'GET',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Test route response:', data);
-        alert('Test route working! Event ID: ' + data.event_id);
-    })
-    .catch(error => {
-        console.error('Test route error:', error);
-        alert('Test route failed: ' + error.message);
-    });
-}
+
 
 
 
@@ -1304,34 +1630,33 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            console.log('Form submission started...');
             
             const formData = new FormData(this);
             const platforms = formData.getAll('platforms[]');
             const message = formData.get('message');
             const type = formData.get('type');
-            
-            console.log('Form data:', { platforms, message, type });
-            console.log('Form action:', this.action);
-            
-            // Debug: Log all form data
-            console.log('=== FORM DATA DEBUG ===');
-            for (let [key, value] of formData.entries()) {
-                console.log(`Form field ${key}:`, value);
-            }
-            console.log('=== END FORM DATA DEBUG ===');
-            
-            // Also log the raw form element
-            console.log('Form element:', this);
-            console.log('Form action attribute:', this.action);
+ 
+    
             
             if (platforms.length === 0) {
-                alert('Please select at least one notification platform.');
+                if (typeof showNotification === 'function') {
+                    showNotification('Please select at least one notification platform.', 'error');
+                } else if (window.GuestManager?.showNotification) {
+                    window.GuestManager.showNotification('Please select at least one notification platform.', 'error');
+                } else {
+                    alert('Please select at least one notification platform.');
+                }
                 return;
             }
             
             if (!message.trim()) {
-                alert('Please enter a message.');
+                if (typeof showNotification === 'function') {
+                    showNotification('Please enter a message.', 'error');
+                } else if (window.GuestManager?.showNotification) {
+                    window.GuestManager.showNotification('Please enter a message.', 'error');
+                } else {
+                    alert('Please enter a message.');
+                }
                 return;
             }
             
@@ -1346,13 +1671,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Sending...';
             submitBtn.disabled = true;
-            
-            console.log('Submitting to:', this.action);
+
             
             // Submit the form
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            console.log('CSRF Token:', csrfToken);
-            console.log('Form action URL:', this.action);
+
             
             // Log the actual request being made
             const requestData = {
@@ -1363,7 +1686,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: formData
             };
-            console.log('Request data:', requestData);
+
             
             fetch(this.action, {
                 method: 'POST',
@@ -1373,9 +1696,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .then(response => {
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-                console.log('Response URL:', response.url);
+
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
@@ -1384,12 +1705,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                console.log('Response data:', data);
+
                 if (data.success) {
                     closeSendNotificationModal();
                     // Show success message
                     if (typeof showNotification === 'function') {
                         showNotification('Notifications sent successfully!', 'success');
+                    } else if (window.GuestManager?.showNotification) {
+                        window.GuestManager.showNotification('Notifications sent successfully!', 'success');
                     } else {
                         alert('Notifications sent successfully!');
                     }
@@ -1411,8 +1734,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (typeof showNotification === 'function') {
                     showNotification(error.message || 'Failed to send notifications', 'error');
+                } else if (window.GuestManager?.showNotification) {
+                    window.GuestManager.showNotification(error.message || 'Failed to send notifications', 'error');
                 } else {
-                    alert('Error: ' + error.message || 'Failed to send notifications');
+                    alert(error.message || 'Failed to send notifications');
                 }
             })
             .finally(() => {

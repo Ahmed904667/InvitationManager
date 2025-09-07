@@ -245,6 +245,7 @@ window.deleteGuest = function(guestId) {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
                 }
@@ -860,7 +861,6 @@ window.updateGroup = function() {
         description: newDescription
     };
     
-    console.log('Updating group:', groupId, 'with data:', requestBody);
     
     fetch(url, {
         method: 'PUT',
@@ -937,7 +937,6 @@ window.deleteGroup = function(groupId, groupName) {
         const url = `/organizer/guest-lists/${window.guestListId}/groups/${groupId}`;
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         
-            console.log('Deleting group:', groupId);
     
     fetch(url, {
         method: 'DELETE',
