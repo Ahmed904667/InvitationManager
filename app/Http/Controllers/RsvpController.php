@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Shared\Models\Invitation;
 use App\Shared\Models\Event;
 use App\Shared\Models\Guest;
+use App\Organizer\Services\OrganizerNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -21,6 +22,17 @@ class RsvpController extends Controller
             $invitation = Invitation::where('token', $token)->firstOrFail();
             $event = Event::findOrFail($invitation->event_id);
             $guest = Guest::findOrFail($invitation->guest_id);
+
+            // Check if invitation is expired
+            if ($invitation->status === Invitation::STATUS_EXPIRED) {
+                return back()->with('error', 'This invitation has expired.');
+            }
+
+            // Check if event has ended and mark invitation as expired if so
+            if ($event->isCompleted() && $invitation->status !== Invitation::STATUS_EXPIRED) {
+                $invitation->update(['status' => Invitation::STATUS_EXPIRED]);
+                return back()->with('error', 'This invitation has expired because the event has ended.');
+            }
 
             // Validate the request
             $validated = $request->validate([
@@ -53,6 +65,9 @@ class RsvpController extends Controller
                 'has_note' => !empty($validated['rsvp_note']),
                 'response_time' => now()->toISOString(),
             ]);
+
+            // Send notification to organizer
+            $this->sendRsvpNotificationToOrganizer($event, $guest, $validated['rsvp_status'], $validated['rsvp_note'] ?? null);
 
             // Determine success message
             if ($previousStatus === null || $previousStatus === 'none') {
@@ -245,6 +260,61 @@ class RsvpController extends Controller
         });
 
         return $details;
+    }
+
+    /**
+     * Send RSVP notification to organizer
+     */
+    private function sendRsvpNotificationToOrganizer(Event $event, Guest $guest, string $rsvpStatus, ?string $rsvpNote = null): void
+    {
+        try {
+            $organizer = $event->user;
+            
+            if (!$organizer) {
+                Log::warning('Cannot send RSVP notification: event has no organizer', [
+                    'event_id' => $event->id,
+                    'guest_id' => $guest->id
+                ]);
+                return;
+            }
+
+            // Check if organizer has notifications enabled
+            $notificationSettings = $organizer->notification_settings ?? [];
+            if ($notificationSettings['mute_notifications'] ?? false) {
+                Log::info('RSVP notification skipped: organizer has notifications muted', [
+                    'organizer_id' => $organizer->id,
+                    'event_id' => $event->id,
+                    'guest_id' => $guest->id
+                ]);
+                return;
+            }
+
+            // Send notification
+            $notificationService = app(OrganizerNotificationService::class);
+            $success = $notificationService->sendRsvpNotification($organizer, $event, $guest, $rsvpStatus, $rsvpNote);
+
+            if ($success) {
+                Log::info('RSVP notification sent to organizer', [
+                    'organizer_id' => $organizer->id,
+                    'event_id' => $event->id,
+                    'guest_id' => $guest->id,
+                    'rsvp_status' => $rsvpStatus
+                ]);
+            } else {
+                Log::warning('Failed to send RSVP notification to organizer', [
+                    'organizer_id' => $organizer->id,
+                    'event_id' => $event->id,
+                    'guest_id' => $guest->id
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error sending RSVP notification to organizer', [
+                'event_id' => $event->id,
+                'guest_id' => $guest->id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
 

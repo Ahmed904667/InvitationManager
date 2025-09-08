@@ -13,3 +13,9 @@ Schedule::command('events:update-statuses')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Schedule the message processing to run every minute for real-time reminder and event processing
+Schedule::command('messages:process-scheduled')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();

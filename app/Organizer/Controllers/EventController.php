@@ -599,7 +599,10 @@ class EventController extends Controller
             }
         }
         
-        $guestLists = GuestList::where('user_id', Auth::id())->get();
+        // Only get guest lists with excellent health status
+        $guestLists = GuestList::where('user_id', Auth::id())
+            ->whereJsonContains('health->status', 'excellent')
+            ->get();
 
         // Debug guest lists loading
         Log::info('Loading step 2 with guest lists', [
@@ -3632,7 +3635,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             $personalized = $this->applyMessagePlaceholders($message, $guest, $event);
 
             // Create complete message with invite URL (same as EventCreationService)
-            $completeMessage = trim(($personalized ?? '') . "\n\n" . $inviteUrl . "\n\n" . "Thank you!");
+            $completeMessage = trim(($personalized ?? '') . "\n\n" . $inviteUrl);
 
             foreach ($platforms as $platform) {
                 Log::info('📧 [NEW_GUEST_INVITATION] Sending message to guest', [

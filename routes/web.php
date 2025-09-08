@@ -91,6 +91,12 @@ Route::get('/invite/{token}', function(string $token) {
         $event = \App\Shared\Models\Event::findOrFail($invitation->event_id);
         $guest = \App\Shared\Models\Guest::findOrFail($invitation->guest_id);
 
+        // Get existing reminders for this invitation (for preview mode)
+        $reminders = \App\Shared\Models\Reminder::where('invitation_id', $invitation->id)
+            ->where('status', 'pending')
+            ->orderBy('scheduled_for')
+            ->get();
+
         // Build map link if address exists
         $addressForMap = $event->venue_address ?: ($event->location ?: '');
         $mapLink = $addressForMap ? 'https://www.google.com/maps/search/?api=1&query=' . urlencode($addressForMap) : null;
@@ -99,7 +105,7 @@ Route::get('/invite/{token}', function(string $token) {
         // Add preview mode flag
         $isPreview = true;
 
-        return view('invitations.show', compact('event', 'guest', 'invitation', 'mapLink', 'inviteUrl', 'isPreview'));
+        return view('invitations.show', compact('event', 'guest', 'invitation', 'mapLink', 'inviteUrl', 'isPreview', 'reminders'));
     }
     
     // Regular invitation handling
@@ -113,6 +119,18 @@ Route::get('/invite/{token}', function(string $token) {
     $event = \App\Shared\Models\Event::findOrFail($invitation->event_id);
     $guest = \App\Shared\Models\Guest::findOrFail($invitation->guest_id);
 
+    // Check if event has ended and mark invitation as expired if so
+    if ($event->isCompleted() && $invitation->status !== \App\Shared\Models\Invitation::STATUS_EXPIRED) {
+        $invitation->update(['status' => \App\Shared\Models\Invitation::STATUS_EXPIRED]);
+        return view('invitations.expired', compact('invitation'));
+    }
+
+    // Get existing reminders for this invitation
+    $reminders = \App\Shared\Models\Reminder::where('invitation_id', $invitation->id)
+        ->where('status', 'pending')
+        ->orderBy('scheduled_for')
+        ->get();
+
     // Build map link if address exists
     $addressForMap = $event->venue_address ?: ($event->location ?: '');
     $mapLink = $addressForMap ? 'https://www.google.com/maps/search/?api=1&query=' . urlencode($addressForMap) : null;
@@ -121,7 +139,7 @@ Route::get('/invite/{token}', function(string $token) {
     // Regular mode (not preview)
     $isPreview = false;
 
-    return view('invitations.show', compact('event', 'guest', 'invitation', 'mapLink', 'inviteUrl', 'isPreview'));
+    return view('invitations.show', compact('event', 'guest', 'invitation', 'mapLink', 'inviteUrl', 'isPreview', 'reminders'));
 })->name('public.invite.show');
 
 Route::post('/invite/{token}/rsvp', [App\Http\Controllers\RsvpController::class, 'submit'])->name('public.invite.rsvp');
@@ -188,12 +206,18 @@ Route::post('/invite/{token}/reminder', function(string $token, Illuminate\Http\
         
         // Handle timezone conversion properly
         $userTimezone = $validated['timezone'];
-        $reminderTime = \Carbon\Carbon::parse($validated['reminder_time']);
         
-        // The frontend sends local time, so we need to interpret it in the user's timezone
-        // and then convert to UTC for storage
-        $localTime = $reminderTime->setTimezone($userTimezone);
-        $utcTime = $localTime->utc();
+        // If guest timezone is UTC, we need to determine the actual timezone from the request
+        // For now, we'll assume the frontend sends the time in the user's browser timezone
+        if ($userTimezone === 'UTC') {
+            // Try to get timezone from request headers or use a default
+            $userTimezone = $request->header('X-Timezone') ?? 'Asia/Kuala_Lumpur'; // Default to Malaysia timezone
+        }
+        
+        // The frontend sends the time in the guest's timezone
+        // Parse it as if it's in the guest's timezone, then convert to UTC
+        $localTime = \Carbon\Carbon::createFromFormat('Y-m-d\TH:i:s', $validated['reminder_time'], $userTimezone);
+        $utcTime = $localTime->copy()->utc();
         
         // Create reminder record in database
         $reminder = \App\Shared\Models\Reminder::create([
@@ -227,13 +251,14 @@ Route::post('/invite/{token}/reminder', function(string $token, Illuminate\Http\
             $reminder->update(['job_id' => $job]);
         }
         
-        // Format time in user's timezone for display
-        $formattedTime = $utcTime->setTimezone($userTimezone)->format('l, F j, Y \a\t g:i A');
+        // Format time in user's timezone for display (use $localTime which is already in guest's timezone)
+        $formattedLocalTime = $localTime->format('l, F j, Y \a\t g:i A');
+        $formattedUtcTime = $utcTime->format('l, F j, Y \a\t g:i A');
         $platformText = $validated['platform'] === 'email' ? 'email' : 'WhatsApp';
         
         return response()->json([
             'success' => true,
-            'message' => "Reminder scheduled for {$formattedTime} via {$platformText}!"
+            'message' => "Reminder scheduled for {$formattedLocalTime} via {$platformText}!"
         ]);
         
     } catch (\Exception $e) {
@@ -249,6 +274,61 @@ Route::post('/invite/{token}/reminder', function(string $token, Illuminate\Http\
         ], 500);
     }
 })->name('public.invite.reminder');
+
+// Delete reminder route
+Route::delete('/invite/{token}/reminder/{reminderId}', function($token, $reminderId) {
+    try {
+        // Find the invitation
+        $invitation = \App\Shared\Models\Invitation::where('token', $token)->firstOrFail();
+        
+        // Find the reminder
+        $reminder = \App\Shared\Models\Reminder::where('id', $reminderId)
+            ->where('invitation_id', $invitation->id)
+            ->firstOrFail();
+        
+        // Check if reminder can be deleted (only pending reminders)
+        if ($reminder->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending reminders can be deleted.'
+            ], 400);
+        }
+        
+        // Cancel the job if it exists
+        if ($reminder->job_id) {
+            try {
+                \Illuminate\Support\Facades\Queue::delete($reminder->job_id);
+            } catch (\Exception $e) {
+                // Job might already be processed or not found, continue with deletion
+                \Illuminate\Support\Facades\Log::warning('Could not cancel reminder job', [
+                    'job_id' => $reminder->job_id,
+                    'reminder_id' => $reminder->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        // Delete the reminder
+        $reminder->delete();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Reminder deleted successfully.'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Failed to delete reminder', [
+            'error' => $e->getMessage(),
+            'invitation_token' => $token,
+            'reminder_id' => $reminderId
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to delete reminder. Please try again.'
+        ], 500);
+    }
+})->name('public.invite.reminder.delete');
 
 // Temporary test route for health calculation
 Route::get('/test-health/{id}', function($id) {

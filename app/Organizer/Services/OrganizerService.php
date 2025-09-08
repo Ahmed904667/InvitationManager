@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Carbon\Carbon;
+use PragmaRX\Countries\Package\Countries;
 
 class OrganizerService
 {
@@ -547,6 +548,7 @@ class OrganizerService
         $stats = $this->getGuestListStats($guestList);
         $allGuests = $guestList->guests()->with('group')->orderBy('name')->get();
         $guestGroups = $guestList->guestGroups()->orderBy('name')->get();
+        $countryCodes = $this->getCountryCodes();
         
         $lastFiveGuests = $guestList->guests()->latest('id')->take(5)->get()->map(function($guest) {
             return [
@@ -560,7 +562,7 @@ class OrganizerService
             ];
         })->toArray();
 
-        return compact('guestList', 'guests', 'stats', 'lastFiveGuests', 'allGuests', 'guestGroups');
+        return compact('guestList', 'guests', 'stats', 'lastFiveGuests', 'allGuests', 'guestGroups', 'countryCodes');
     }
 
     /**
@@ -699,46 +701,42 @@ class OrganizerService
     {
         $user = Auth::user();
         
-        // Get organizer's preferred list settings
-        $organizerSettingsService = app(\App\Organizer\Services\OrganizerSettingsService::class);
-        $preferredSettings = $organizerSettingsService->getPreferredListSettings($user);
-        
         $guestList = new GuestList();
         $guestList->user_id = $user->id;
         $guestList->name = $data['name'];
         $guestList->description = $data['description'] ?? null;
-        $guestList->max_guests = $data['max_guests'] ?? $preferredSettings['max_guests_per_list'] ?? null;
+        $guestList->max_guests = $data['max_guests'] ?? 1000; // Default max guests
         
-        // Use organizer's preferred settings or provided settings, fallback to defaults
-        $guestList->settings = $data['settings'] ?? $this->getOrganizerPreferredSettings($preferredSettings);
+        // Use provided settings or fallback to defaults
+        $guestList->settings = $data['settings'] ?? $this->getDefaultGuestListSettings();
         $guestList->save();
 
         return $guestList;
     }
 
     /**
-     * Get organizer's preferred settings for new guest lists
+     * Get default settings for new guest lists
      */
-    private function getOrganizerPreferredSettings(array $preferredSettings): array
+    private function getDefaultGuestListSettings(): array
     {
         return [
             'fields' => [
-                'email' => $preferredSettings['enable_guest_fields']['email'] ?? true,
-                'phone' => $preferredSettings['enable_guest_fields']['phone'] ?? false,
-                'group' => $preferredSettings['enable_guest_fields']['group'] ?? false,
-                'language' => $preferredSettings['enable_guest_fields']['preferred_language'] ?? false,
-                'notes' => true, // Always enable notes by default
+                'email' => true,
+                'phone' => false,
+                'group' => false,
+                'language' => false,
+                'notes' => true,
             ],
             'notifications' => [
                 'email_reminders' => false,
                 'sms_reminders' => false,
             ],
             'defaults' => [
-                'country_code' => $preferredSettings['defaults']['country_code'] ?? '+1',
-                'language' => $preferredSettings['defaults']['language'] ?? 'en',
+                'country_code' => '+1',
+                'language' => 'en',
             ],
-            'auto_archive_events' => $preferredSettings['auto_archive_events'] ?? false,
-            'auto_archive_days' => $preferredSettings['auto_archive_days'] ?? 30,
+            'auto_archive_events' => false,
+            'auto_archive_days' => 30,
         ];
     }
 
@@ -800,5 +798,38 @@ class OrganizerService
     public function deleteGuest(Guest $guest): void
     {
         $guest->delete();
+    }
+
+    /**
+     * Get all country codes with country names
+     */
+    public function getCountryCodes(): array
+    {
+        $countries = new Countries();
+        
+        return $countries->all()
+            ->map(function ($country) {
+                $countryData = $country->toArray();
+                $callingCodes = $countryData['calling_codes'] ?? [];
+                $name = $countryData['name']['common'] ?? $countryData['name_en'] ?? 'Unknown';
+                
+                // Skip countries without calling codes
+                if (empty($callingCodes)) {
+                    return null;
+                }
+                
+                // Use the first calling code if multiple exist
+                $callingCode = $callingCodes[0];
+                
+                return [
+                    'code' => $callingCode,
+                    'name' => $name,
+                    'display' => $callingCode . ' (' . $name . ')'
+                ];
+            })
+            ->filter() // Remove null entries
+            ->sortBy('name') // Sort by country name
+            ->values()
+            ->toArray();
     }
 }

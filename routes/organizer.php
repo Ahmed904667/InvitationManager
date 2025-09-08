@@ -183,5 +183,4 @@ Route::get('/events/{event}/notifications/stats', [\App\Organizer\Controllers\Ev
     // -------------------- Settings --------------------
     Route::get('/settings', [OrganizerSettingsController::class, 'index'])->name('settings');
     Route::put('/settings/notifications', [OrganizerSettingsController::class, 'updateNotifications'])->name('settings.notifications');
-    Route::put('/settings/preferred-list', [OrganizerSettingsController::class, 'updatePreferredListSettings'])->name('settings.preferred-list');
 }); 

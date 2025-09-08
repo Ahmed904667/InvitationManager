@@ -353,10 +353,15 @@ html[data-theme="light"] {
         border-radius: 0.25rem;
         border-color: var(--border-primary);
         background-color: var(--bg-primary);
-        color: var(--primary-500);
+        color: var(--primary-600);
         transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 200ms;
+    }
+    
+    .form-checkbox:checked {
+        background-color: var(--primary-600);
+        border-color: var(--primary-600);
     }
     
     .form-checkbox:focus {

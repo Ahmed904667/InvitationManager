@@ -26,7 +26,7 @@ class User extends Authenticatable
         'is_active',
         'last_login_at',
         'scanner_settings',
-        'organizer_settings',
+        'notification_settings',
         'last_offline_sync',
         'timezone',
         'phone',
@@ -72,7 +72,7 @@ class User extends Authenticatable
         'last_login_at' => 'datetime',
         'last_offline_sync' => 'datetime',
         'scanner_settings' => 'array',
-        'organizer_settings' => 'array',
+        'notification_settings' => 'array',
         ];
     }
 

@@ -24,22 +24,46 @@
                     Invitation Expired
                 </h2>
                 
-                <p class="text-lg text-gray-600 mb-8">
-                    This invitation has been cancelled and is no longer valid.
-                </p>
+                @php
+                    $event = $invitation->event;
+                    $isEventEnded = $event && $event->isCompleted();
+                @endphp
                 
-                <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-red-500">
-                    <div class="text-center">
-                        <i class="fas fa-calendar-times text-red-400 text-2xl mb-3"></i>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                            Invitation Cancelled
-                        </h3>
-                        <p class="text-gray-600 text-sm">
-                            The event organizer has cancelled this invitation. 
-                            If you have any questions, please contact the event organizer directly.
-                        </p>
+                @if($isEventEnded)
+                    <p class="text-lg text-gray-600 mb-8">
+                        This invitation has expired because the event has ended.
+                    </p>
+                    
+                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-orange-500">
+                        <div class="text-center">
+                            <i class="fas fa-clock text-orange-400 text-2xl mb-3"></i>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                                Event Has Ended
+                            </h3>
+                            <p class="text-gray-600 text-sm">
+                                The event "{{ $event->name }}" has already concluded. 
+                                Thank you for your interest, and we hope to see you at future events!
+                            </p>
+                        </div>
                     </div>
-                </div>
+                @else
+                    <p class="text-lg text-gray-600 mb-8">
+                        This invitation has been cancelled and is no longer valid.
+                    </p>
+                    
+                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-red-500">
+                        <div class="text-center">
+                            <i class="fas fa-calendar-times text-red-400 text-2xl mb-3"></i>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                                Invitation Cancelled
+                            </h3>
+                            <p class="text-gray-600 text-sm">
+                                The event organizer has cancelled this invitation. 
+                                If you have any questions, please contact the event organizer directly.
+                            </p>
+                        </div>
+                    </div>
+                @endif
                 
                 <div class="mt-8">
                     <a href="{{ url('/') }}" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
@@ -52,6 +76,7 @@
     </div>
 </body>
 </html>
+
 
 
 

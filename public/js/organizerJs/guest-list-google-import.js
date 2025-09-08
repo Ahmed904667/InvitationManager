@@ -3,9 +3,19 @@
 // Google Contacts Import Modal Logic
 
 let allGoogleContacts = [];
+let selectedGoogleContacts = new Set(); // Track selected contacts by their unique identifier
+
+// Function to generate a unique identifier for a contact
+function getContactId(contact) {
+    // Use a combination of name, email, and phone to create a unique ID
+    return `${contact.name || ''}_${contact.email || ''}_${contact.phone || ''}`;
+}
 
 // Show Google Contacts modal
 window.showGoogleContactsModal = function() {
+    // Clear previous selections
+    selectedGoogleContacts.clear();
+    
     // Set dynamic search bar placeholder
     let fields = ['name'];
     if (window.guestListSettings?.fields?.email) fields.push('email');
@@ -167,7 +177,12 @@ window.renderGoogleContactsTable = function(contacts) {
     thead.innerHTML = headerHtml;
     // Render rows
     contacts.forEach((contact, idx) => {
-        let rowHtml = `<td class="px-4 py-2"><input type="checkbox" class="contact-checkbox form-checkbox" value="${idx}"></td>`;
+        // Store the contact data as JSON in a data attribute to avoid HTML escaping issues
+        const contactData = JSON.stringify(contact);
+        const contactId = getContactId(contact);
+        const isSelected = selectedGoogleContacts.has(contactId);
+        const checkedAttr = isSelected ? ' checked' : '';
+        let rowHtml = `<td class="px-4 py-2"><input type="checkbox" class="contact-checkbox form-checkbox" data-contact='${contactData.replace(/'/g, "&#39;")}' data-contact-id='${contactId}'${checkedAttr}></td>`;
         rowHtml += `<td class="px-4 py-2 text-primary">${contact.name}</td>`;
         if (showEmail) {
             rowHtml += `<td class="px-4 py-2 text-gray-500">${contact.email}</td>`;
@@ -179,15 +194,59 @@ window.renderGoogleContactsTable = function(contacts) {
         tr.innerHTML = rowHtml;
         tbody.appendChild(tr);
     });
+    // Add event listeners to track checkbox changes
+    document.querySelectorAll('.contact-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            const contactId = this.getAttribute('data-contact-id');
+            if (this.checked) {
+                selectedGoogleContacts.add(contactId);
+            } else {
+                selectedGoogleContacts.delete(contactId);
+            }
+            updateSelectAllState();
+        });
+    });
+    
     // Select all handler
     const selectAll = document.getElementById('selectAllContacts');
     selectAll.checked = false;
     selectAll.onclick = function() {
+        const isChecked = selectAll.checked;
         document.querySelectorAll('.contact-checkbox').forEach(cb => {
-            cb.checked = selectAll.checked;
+            cb.checked = isChecked;
+            const contactId = cb.getAttribute('data-contact-id');
+            if (isChecked) {
+                selectedGoogleContacts.add(contactId);
+            } else {
+                selectedGoogleContacts.delete(contactId);
+            }
         });
     };
+    
+    // Update select all checkbox state
+    updateSelectAllState();
 };
+
+// Function to update the select all checkbox state
+function updateSelectAllState() {
+    const selectAll = document.getElementById('selectAllContacts');
+    const visibleCheckboxes = document.querySelectorAll('.contact-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.contact-checkbox:checked');
+    
+    if (visibleCheckboxes.length === 0) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+    } else if (checkedCheckboxes.length === 0) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+    } else if (checkedCheckboxes.length === visibleCheckboxes.length) {
+        selectAll.checked = true;
+        selectAll.indeterminate = false;
+    } else {
+        selectAll.checked = false;
+        selectAll.indeterminate = true;
+    }
+}
 
 // Ensure DOM is ready before attaching form handler
 window.addEventListener('DOMContentLoaded', function() {
@@ -195,13 +254,25 @@ window.addEventListener('DOMContentLoaded', function() {
     if (googleContactsImportForm) {
         googleContactsImportForm.onsubmit = function(e) {
             e.preventDefault();
-            const selectedIds = Array.from(document.querySelectorAll('.contact-checkbox:checked')).map(cb => parseInt(cb.value));
-            if (selectedIds.length === 0) {
+            // Get ALL selected contacts from the selectedGoogleContacts set, not just visible ones
+            let selectedContacts = [];
+            console.log('selectedGoogleContacts set size:', selectedGoogleContacts.size);
+            console.log('selectedGoogleContacts IDs:', Array.from(selectedGoogleContacts));
+            
+            selectedGoogleContacts.forEach(contactId => {
+                // Find the contact in allGoogleContacts by matching the contact ID
+                const contact = allGoogleContacts.find(c => getContactId(c) === contactId);
+                if (contact) {
+                    selectedContacts.push(contact);
+                }
+            });
+            
+            console.log('All selected contacts (from set):', selectedContacts.map(c => c.name));
+            
+            if (selectedContacts.length === 0) {
                 window.GuestManager?.showNotification('Please select at least one contact.', 'error');
                 return;
             }
-            // Get selected contacts data
-            let selectedContacts = selectedIds.map(idx => allGoogleContacts[idx]);
             // Check if auto apply default language is checked
             const applyDefaultLang = document.getElementById('googleContactsApplyDefaultLanguage');
             if (applyDefaultLang && applyDefaultLang.checked && window.guestListSettings?.default_language) {

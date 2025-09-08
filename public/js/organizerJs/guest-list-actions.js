@@ -639,6 +639,8 @@ window.renderEditGuestFields = function(settings, guest) {
         loadGroups(function(groups) {
             const select = document.getElementById('editGuestGroupSelect');
             if (select && groups && groups.length > 0) {
+                // Clear existing options first to prevent duplicates
+                select.innerHTML = '<option value="">No group</option>';
                 groups.forEach(group => {
                     const option = document.createElement('option');
                     option.value = group.id;

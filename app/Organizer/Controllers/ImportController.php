@@ -105,8 +105,8 @@ class ImportController extends Controller
 
                 $guestData = [
                     'name' => $contact['name'],
-                    'email' => $contact['email'] ?? null,
-                    'phone' => $contact['phone'] ?? null,
+                    'email' => (!empty($contact['email']) && trim($contact['email']) !== '') ? trim($contact['email']) : null,
+                    'phone' => (!empty($contact['phone']) && trim($contact['phone']) !== '') ? trim($contact['phone']) : null,
                     'language' => $contact['language'] ?? null,
                     'guest_list_id' => $guestList->id,
                 ];
@@ -118,15 +118,34 @@ class ImportController extends Controller
                 
                 $guest = \App\Shared\Models\Guest::create($guestData);
                 $imported++;
+            } catch (\Illuminate\Database\QueryException $e) {
+                $failed++;
+                // Handle database constraint violations with user-friendly messages
+                if (str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
+                    if (str_contains($e->getMessage(), 'email')) {
+                        $errors[] = "A guest with this email already exists in your guest list";
+                    } elseif (str_contains($e->getMessage(), 'phone')) {
+                        $errors[] = "A guest with this phone number already exists in your guest list";
+                    } else {
+                        $errors[] = "This contact already exists in your guest list";
+                    }
+                } else {
+                    $errors[] = "Failed to import contact '{$contact['name']}' - please try again";
+                }
             } catch (\Exception $e) {
                 $failed++;
-                $errors[] = $e->getMessage();
+                $errors[] = "Failed to import contact '{$contact['name']}' - please try again";
             }
         }
 
-        $message = "Successfully imported {$imported} contacts.";
-        if ($failed > 0) {
-            $message .= " Failed to import {$failed} contacts due to duplicates or errors.";
+        if ($imported > 0 && $failed === 0) {
+            $message = "Successfully imported {$imported} contact" . ($imported === 1 ? '' : 's') . "!";
+        } elseif ($imported > 0 && $failed > 0) {
+            $message = "Imported {$imported} contact" . ($imported === 1 ? '' : 's') . ". {$failed} contact" . ($failed === 1 ? '' : 's') . " could not be imported due to duplicates or errors.";
+        } elseif ($failed > 0) {
+            $message = "No contacts were imported. {$failed} contact" . ($failed === 1 ? '' : 's') . " could not be imported due to duplicates or errors.";
+        } else {
+            $message = "No contacts were imported.";
         }
 
         return response()->json([

@@ -104,9 +104,12 @@ class SendEventReminder implements ShouldQueue
         $guestName = $reminder->guest_name;
         $eventName = $reminder->event_name;
         
-        // Format event date in guest's timezone
-        $guestTimezone = $reminder->guest_timezone ?? 'UTC';
-        $eventDate = $reminder->event_date->setTimezone($guestTimezone)->format('l, F j, Y \a\t g:i A');
+        // Get the event to access organizer's timezone
+        $event = Event::find($reminder->event_id);
+        $organizerTimezone = $event ? $event->user->timezone ?? 'UTC' : 'UTC';
+        
+        // Format event date in organizer's timezone
+        $eventDate = \Carbon\Carbon::parse($reminder->event_date)->setTimezone($organizerTimezone)->format('l, F j, Y \a\t g:i A');
         
         $subject = "Reminder: {$eventName} starts soon!";
         
@@ -130,9 +133,6 @@ class SendEventReminder implements ShouldQueue
         });
         
         // Create notification record for tracking
-        // Try to find the event by name (since reminder doesn't have event_id)
-        $event = Event::where('name', $eventName)->first();
-        
         if ($event) {
             Notification::create([
                 'event_id' => $event->id,
@@ -162,9 +162,12 @@ class SendEventReminder implements ShouldQueue
         $guestName = $reminder->guest_name;
         $eventName = $reminder->event_name;
         
-        // Format event date in guest's timezone
-        $guestTimezone = $reminder->guest_timezone ?? 'UTC';
-        $eventDate = $reminder->event_date->setTimezone($guestTimezone)->format('l, F j, Y \a\t g:i A');
+        // Get the event to access organizer's timezone
+        $event = Event::find($reminder->event_id);
+        $organizerTimezone = $event ? $event->user->timezone ?? 'UTC' : 'UTC';
+        
+        // Format event date in organizer's timezone
+        $eventDate = \Carbon\Carbon::parse($reminder->event_date)->setTimezone($organizerTimezone)->format('l, F j, Y \a\t g:i A');
         
         $message = "Hi {$guestName}! 👋\n\n";
         $message .= "⏰ *Event Reminder*\n\n";
@@ -185,9 +188,6 @@ class SendEventReminder implements ShouldQueue
         
         // Create notification record for tracking
         if ($result['success']) {
-            // Try to find the event by name (since reminder doesn't have event_id)
-            $event = Event::where('name', $eventName)->first();
-            
             if ($event) {
                 Notification::create([
                     'event_id' => $event->id,

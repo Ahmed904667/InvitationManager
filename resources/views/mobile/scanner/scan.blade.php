@@ -19,9 +19,19 @@
     <!-- Desktop Navigation -->
     <div class="desktop-nav hidden md:flex">
         <a href="{{ route('mobile.scanner.scan', $scanner->token) }}" class="active">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11a9 9 0 11-18 0 9 9 0 0118 0zm-9 8a3 3 0 00-3-3h6a3 3 0 00-3 3z"></path>
-            </svg>
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="2" width="8" height="8" />
+                                <path d="M6 6h.01" />
+                                <rect x="14" y="2" width="8" height="8" />
+                                <path d="M18 6h.01" />
+                                <rect x="2" y="14" width="8" height="8" />
+                                <path d="M6 18h.01" />
+                                <path d="M14 14h.01" />
+                                <path d="M18 18h.01" />
+                                <path d="M18 22h4v-4" />
+                                <path d="M14 18v4" />
+                                <path d="M22 14h-4" />
+                            </svg>
             <span>Scan QR Codes</span>
         </a>
         <a href="{{ route('mobile.scanner.guests', $scanner->token) }}">
@@ -722,7 +732,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeScanner() {
-    updateStatus('initializing', 'Initializing camera...');
+    updateStatus('initializing', 'Initializing scanner...');
     
     try {
         // Initialize QR scanner with better configuration
@@ -730,7 +740,7 @@ function initializeScanner() {
             fps: 10,
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
-            showTorchButtonIfSupported: true,
+            showTorchButtonIfSupported: false, // Disable built-in torch button
             showZoomSliderIfSupported: false,
             defaultZoomValueIfSupported: 2,
             rememberLastUsedCamera: true,
@@ -742,14 +752,8 @@ function initializeScanner() {
         
         updateStatus('ready', 'Ready to scan');
         
-        // Auto-start scanner on mobile devices
-        if (isMobileDevice()) {
-            setTimeout(() => {
-                if (!isScanning) {
-                    startScanner();
-                }
-            }, 1000);
-        }
+        // Don't auto-start scanner - let user manually start it
+        // This prevents camera permission issues on page load
     } catch (error) {
         updateStatus('error', 'Scanner initialization failed');
         showAlert('Failed to initialize scanner. Please refresh the page.', 'error');
@@ -760,10 +764,38 @@ function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-function toggleScanner() {
+async function checkCameraPermission() {
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return false;
+        }
+        
+        // Check if we can query permissions
+        if (navigator.permissions) {
+            const permission = await navigator.permissions.query({ name: 'camera' });
+            return permission.state === 'granted';
+        }
+        
+        // Fallback: try to get a media stream
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(track => track.stop());
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+async function toggleScanner() {
     if (isScanning) {
         stopScanner();
     } else {
+        // Check camera permission before starting
+        const hasPermission = await checkCameraPermission();
+        if (!hasPermission) {
+            updateStatus('error', 'Camera permission required');
+            showCameraPermissionModal();
+            return;
+        }
         startScanner();
     }
 }
@@ -772,59 +804,33 @@ async function startScanner() {
     try {
         updateStatus('starting', 'Starting camera...');
         
-        // Check for camera permissions first
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            try {
-                // Request camera permission
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                // Stop the test stream
-                stream.getTracks().forEach(track => track.stop());
-                
-                // Now start the QR scanner
-                await qrScanner.render(onScanSuccess, onScanError);
-                isScanning = true;
-                updateStatus('scanning', 'Scanning for QR codes...');
-                document.getElementById('toggleButton').innerHTML = '<span id="toggleText">Stop</span>';
-                
-                // Update overlay instructions
-                const instructions = document.getElementById('scanner-instructions');
-                instructions.innerHTML = `
-                    <div class="w-20 h-20 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm md:w-24 md:h-24">
-                        <svg class="w-10 h-10 md:w-12 md:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="2" y="2" width="8" height="8" />
-                            <path d="M6 6h.01" />
-                            <rect x="14" y="2" width="8" height="8" />
-                            <path d="M18 6h.01" />
-                            <rect x="2" y="14" width="8" height="8" />
-                            <path d="M6 18h.01" />
-                            <path d="M14 14h.01" />
-                            <path d="M18 18h.01" />
-                            <path d="M18 22h4v-4" />
-                            <path d="M14 18v4" />
-                            <path d="M22 14h-4" />
-                        </svg>
-                    </div>
-                    <p class="text-sm md:text-base">Position QR code in the frame</p>
-                `;
-                
-
-            } catch (permissionError) {
-                updateStatus('error', 'Camera permission denied');
-                showCameraPermissionModal();
-            }
-        } else {
+        // Check for camera support
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             throw new Error('Camera not supported on this device');
         }
+        
+        // Start the QR scanner directly - it will handle camera permissions
+        await qrScanner.render(onScanSuccess, onScanError);
+        isScanning = true;
+        updateStatus('scanning', 'Scanning for QR codes...');
+        document.getElementById('toggleButton').innerHTML = '<span id="toggleText">Stop</span>';
+        
+        // Hide overlay when camera is active
+        document.getElementById('scanner-overlay').style.display = 'none';
     } catch (error) {
         updateStatus('error', 'Camera error');
+        isScanning = false;
         
         let errorMessage = 'Error accessing camera. ';
         if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
             errorMessage += 'Please allow camera access and try again.';
+            showCameraPermissionModal();
         } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
             errorMessage += 'No camera found on this device.';
         } else if (error.name === 'NotSupportedError') {
             errorMessage += 'Camera not supported on this browser.';
+        } else if (error.name === 'NotReadableError') {
+            errorMessage += 'Camera is being used by another application.';
         } else {
             errorMessage += 'Please check your browser settings.';
         }
@@ -840,27 +846,27 @@ function stopScanner() {
         updateStatus('ready', 'Ready to scan');
         document.getElementById('toggleButton').innerHTML = '<span id="toggleText">Start</span>';
         
-                        // Reset overlay and instructions
-                document.getElementById('scanner-overlay').style.display = 'flex';
-                const instructions = document.getElementById('scanner-instructions');
-                instructions.innerHTML = `
-                    <div class="w-20 h-20 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm md:w-24 md:h-24">
-                        <svg class="w-10 h-10 md:w-12 md:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="2" y="2" width="8" height="8" />
-                            <path d="M6 6h.01" />
-                            <rect x="14" y="2" width="8" height="8" />
-                            <path d="M18 6h.01" />
-                            <rect x="2" y="14" width="8" height="8" />
-                            <path d="M6 18h.01" />
-                            <path d="M14 14h.01" />
-                            <path d="M18 18h.01" />
-                            <path d="M18 22h4v-4" />
-                            <path d="M14 18v4" />
-                            <path d="M22 14h-4" />
-                        </svg>
-                    </div>
-                    <p class="text-sm md:text-base">Tap "Start" to begin scanning</p>
-                `;
+        // Show overlay when camera is stopped
+        document.getElementById('scanner-overlay').style.display = 'flex';
+        const instructions = document.getElementById('scanner-instructions');
+        instructions.innerHTML = `
+            <div class="w-20 h-20 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm md:w-24 md:h-24">
+                <svg class="w-10 h-10 md:w-12 md:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="8" height="8" />
+                    <path d="M6 6h.01" />
+                    <rect x="14" y="2" width="8" height="8" />
+                    <path d="M18 6h.01" />
+                    <rect x="2" y="14" width="8" height="8" />
+                    <path d="M6 18h.01" />
+                    <path d="M14 14h.01" />
+                    <path d="M18 18h.01" />
+                    <path d="M18 22h4v-4" />
+                    <path d="M14 18v4" />
+                    <path d="M22 14h-4" />
+                </svg>
+            </div>
+            <p class="text-sm md:text-base">Tap "Start" to begin scanning</p>
+        `;
     } catch (error) {
         // Silently handle stop scanner errors
     }
@@ -1062,12 +1068,18 @@ function closeCameraPermissionModal() {
     document.getElementById('cameraPermissionModal').classList.add('hidden');
 }
 
-function retryCamera() {
+async function retryCamera() {
     closeCameraPermissionModal();
     // Wait a moment then try to start the scanner again
-    setTimeout(() => {
+    setTimeout(async () => {
         if (!isScanning) {
-            startScanner();
+            const hasPermission = await checkCameraPermission();
+            if (hasPermission) {
+                startScanner();
+            } else {
+                updateStatus('error', 'Camera permission still required');
+                showCameraPermissionModal();
+            }
         }
     }, 500);
 }

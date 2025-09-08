@@ -33,6 +33,8 @@ class Notification extends Model
     const TYPE_GUEST_REMOVAL = 'guest_removal';
     const TYPE_EVENT_UPDATE = 'event_update';
     const TYPE_EVENT_REMINDER = 'event_reminder';
+    const TYPE_EVENT_START_REMINDER = 'event_start_reminder';
+    const TYPE_RSVP_RESPONSE = 'rsvp_response';
     const TYPE_CUSTOM = 'custom';
 
     // Channel constants

@@ -253,6 +253,14 @@ document.addEventListener('DOMContentLoaded', function() {
     loadGuestLists();
     loadStats();
     setupEventListeners();
+    
+    // Check if we should auto-show the create modal
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('create_modal') === 'true') {
+        setTimeout(() => {
+            showCreateModal();
+        }, 500); // Small delay to ensure page is fully loaded
+    }
 });
 
 function setupEventListeners() {

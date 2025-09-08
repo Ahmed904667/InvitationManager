@@ -79,7 +79,7 @@ class GoogleService
         // Get guest list settings
         $settings = $guestList->settings['fields'] ?? [];
         $required = [
-            ['name', 'guest name', 'full name']
+            ['name', 'guest name', 'full name', 'first name', 'last name', 'contact name', 'attendee name', 'participant name']
         ];
         if (!empty($settings['email'])) $required[] = ['email', 'email address'];
         if (!empty($settings['phone'])) $required[] = ['phone', 'phone number', 'mobile'];
@@ -170,19 +170,34 @@ class GoogleService
             return ['valid' => false, 'missing' => ['No headers found']];
         }
 
-        $headers = array_map('strtolower', $sheetData[0]);
+        // Clean and normalize headers - trim whitespace and convert to lowercase
+        $headers = array_map(function($header) {
+            return strtolower(trim($header));
+        }, $sheetData[0]);
+        
+        // Log headers for debugging
+        Log::info('Google Sheets validation - Original headers: ' . json_encode($sheetData[0]));
+        Log::info('Google Sheets validation - Normalized headers: ' . json_encode($headers));
+        Log::info('Google Sheets validation - Required columns: ' . json_encode($required));
+        
         $missing = [];
 
         foreach ($required as $requiredGroup) {
             $found = false;
+            $foundColumn = null;
             foreach ($requiredGroup as $possibleName) {
-                if (in_array(strtolower($possibleName), $headers)) {
+                $normalizedPossibleName = strtolower(trim($possibleName));
+                if (in_array($normalizedPossibleName, $headers)) {
                     $found = true;
+                    $foundColumn = $normalizedPossibleName;
                     break;
                 }
             }
             if (!$found) {
                 $missing[] = $requiredGroup[0]; // Use first name as representative
+                Log::info('Google Sheets validation - Missing column: ' . $requiredGroup[0] . ' (searched for: ' . implode(', ', $requiredGroup) . ')');
+            } else {
+                Log::info('Google Sheets validation - Found column: ' . $foundColumn . ' for required: ' . $requiredGroup[0]);
             }
         }
 

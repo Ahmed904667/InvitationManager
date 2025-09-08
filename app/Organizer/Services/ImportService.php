@@ -24,17 +24,40 @@ class ImportService
      */
     public function importFromFile(GuestList $guestList, $file): array
     {
-        $ext = strtolower($file->getClientOriginalExtension());
-        
-        if (in_array($ext, ['csv', 'txt'])) {
-            $contacts = $this->parseCsvFile($file, $guestList);
-        } elseif (in_array($ext, ['xls', 'xlsx'])) {
-            $contacts = $this->parseExcelFile($file, $guestList);
-        } else {
-            return ['success' => false, 'message' => 'Unsupported file type.'];
-        }
+        try {
+            Log::info('Starting file import', [
+                'guest_list_id' => $guestList->id,
+                'file_name' => $file->getClientOriginalName(),
+                'file_size' => $file->getSize()
+            ]);
+            
+            $ext = strtolower($file->getClientOriginalExtension());
+            
+            if (in_array($ext, ['csv', 'txt'])) {
+                $contacts = $this->parseCsvFile($file, $guestList);
+            } elseif (in_array($ext, ['xls', 'xlsx'])) {
+                $contacts = $this->parseExcelFile($file, $guestList);
+            } else {
+                return ['success' => false, 'message' => 'Unsupported file type.'];
+            }
 
-        return $this->processContacts($contacts, $guestList);
+            Log::info('File parsed successfully', ['contacts_count' => count($contacts)]);
+            return $this->processContacts($contacts, $guestList);
+        } catch (\Exception $e) {
+            Log::error('File import error: ' . $e->getMessage(), [
+                'guest_list_id' => $guestList->id,
+                'file_name' => $file->getClientOriginalName(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [
+                'success' => false,
+                'message' => 'Import failed: ' . $e->getMessage(),
+                'imported' => 0,
+                'failed' => 0,
+                'errors' => [$e->getMessage()],
+                'duplicates' => []
+            ];
+        }
     }
 
     /**
@@ -42,19 +65,33 @@ class ImportService
      */
     public function importFromGoogleSheet($sheetData, GuestList $guestList, array $options = []): array
     {
-        $contacts = [];
-        $headers = array_map('strtolower', $sheetData[0] ?? []);
-        
-        // Find column indices
-        $nameIndex = $this->findColumnIndex($headers, ['name', 'guest name', 'full name', 'first name', 'last name']);
-        $emailIndex = $this->findColumnIndex($headers, ['email', 'email address', 'e-mail']);
-        $phoneIndex = $this->findColumnIndex($headers, ['phone', 'phone number', 'mobile', 'cell', 'telephone']);
-        $groupIndex = $this->findColumnIndex($headers, ['group', 'group name', 'category']);
-        $languageIndex = $this->findColumnIndex($headers, ['language', 'preferred language', 'lang']);
+        try {
+            Log::info('Starting Google Sheets import', ['guest_list_id' => $guestList->id, 'options' => $options]);
+            
+            $contacts = [];
+            $headers = array_map('strtolower', $sheetData[0] ?? []);
+            
+            Log::info('Google Sheets headers found', ['headers' => $headers]);
+            
+            // Find column indices
+            $nameIndex = $this->findColumnIndex($headers, ['name', 'guest name', 'full name', 'first name', 'last name']);
+            $emailIndex = $this->findColumnIndex($headers, ['email', 'email address', 'e-mail']);
+            $phoneIndex = $this->findColumnIndex($headers, ['phone', 'phone number', 'mobile', 'cell', 'telephone']);
+            $groupIndex = $this->findColumnIndex($headers, ['group', 'group name', 'category']);
+            $languageIndex = $this->findColumnIndex($headers, ['language', 'preferred language', 'lang']);
 
-        if ($nameIndex === -1) {
-            return ['success' => false, 'message' => 'Name column not found in sheet.'];
-        }
+            Log::info('Google Sheets column indices', [
+                'nameIndex' => $nameIndex,
+                'emailIndex' => $emailIndex,
+                'phoneIndex' => $phoneIndex,
+                'groupIndex' => $groupIndex,
+                'languageIndex' => $languageIndex
+            ]);
+
+            if ($nameIndex === -1) {
+                Log::error('Name column not found in Google Sheet', ['headers' => $headers]);
+                return ['success' => false, 'message' => 'Name column not found in sheet.'];
+            }
 
         $groupMapping = [];
         
@@ -75,7 +112,21 @@ class ImportService
             }
         }
 
-        return $this->processContacts($contacts, $guestList, $options);
+            return $this->processContacts($contacts, $guestList, $options);
+        } catch (\Exception $e) {
+            Log::error('Google Sheets import error: ' . $e->getMessage(), [
+                'guest_list_id' => $guestList->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [
+                'success' => false,
+                'message' => 'Import failed: ' . $e->getMessage(),
+                'imported' => 0,
+                'failed' => 0,
+                'errors' => [$e->getMessage()],
+                'duplicates' => []
+            ];
+        }
     }
 
     /**
@@ -138,11 +189,17 @@ class ImportService
                     $guestData['language'] = $guestList->settings['default_language'];
                 }
                 
-                $this->organizerService->addGuestWithoutValidation($guestList, $guestData);
+                $this->organizerService->addGuest($guestList, $guestData);
                 $imported++;
             } catch (\Exception $e) {
                 $failed++;
-                $errors[] = $e->getMessage();
+                $errorMessage = $e->getMessage();
+                $errors[] = "Failed to import guest '{$contact['name']}': {$errorMessage}";
+                Log::error('Error importing individual guest', [
+                    'guest_name' => $contact['name'],
+                    'error' => $errorMessage,
+                    'guest_data' => $guestData
+                ]);
             }
         }
 
@@ -274,16 +331,22 @@ class ImportService
             $groupName = trim($row[$groupIndex]);
             
             if (!isset($groupMapping[$groupName])) {
-                $group = $guestList->guestGroups()->where('name', $groupName)->first();
-                
-                if (!$group) {
-                    $group = $guestList->guestGroups()->create([
-                        'name' => $groupName,
-                        'description' => 'Imported from file'
-                    ]);
+                try {
+                    $group = $guestList->guestGroups()->where('name', $groupName)->first();
+                    
+                    if (!$group) {
+                        $group = $guestList->guestGroups()->create([
+                            'name' => $groupName,
+                            'description' => 'Imported from file'
+                        ]);
+                    }
+                    
+                    $groupMapping[$groupName] = $group->id;
+                } catch (\Exception $e) {
+                    Log::error('Error creating group during import: ' . $e->getMessage());
+                    // Skip group assignment if there's an error
+                    return;
                 }
-                
-                $groupMapping[$groupName] = $group->id;
             }
             
             $contact['group_id'] = $groupMapping[$groupName];

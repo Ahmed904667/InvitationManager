@@ -136,9 +136,16 @@
                                     @endphp
                                     {{ $startDateInUserTz->format('l, F j, Y') }} at {{ $startDateInUserTz->format('g:i A') }}
                                     @if($endDateInUserTz)
-                                        <br><span class="text-xs text-gray-500">Ends: {{ $endDateInUserTz->format('g:i A') }}</span>
+                                        <br><span class="text-xs text-gray-500">Ends: 
+                                            @if($startDateInUserTz->format('Y-m-d') !== $endDateInUserTz->format('Y-m-d'))
+                                                {{ $endDateInUserTz->format('M j, Y g:i A') }}
+                                            @else
+                                                {{ $endDateInUserTz->format('g:i A') }}
+                                            @endif
+                                        </span>
                                     @endif
                                     <br>
+                                    <span class="text-xs text-gray-500">Created: {{ $event->created_at->setTimezone($userTimezone)->format('M j, Y g:i A') }}</span>
                                 </p>
                             </div>
                             
@@ -167,6 +174,9 @@
                             <div>
                                 <span class="text-sm font-medium" style="color: var(--text-secondary);">Status:</span>
                                 <span class="badge badge-{{ $event->status }}">{{ ucfirst($event->status) }}</span>
+                                @if($event->status === 'scheduled' && $event->scheduled_at)
+                                    <br><span class="text-xs text-gray-500">Scheduled for: {{ $event->scheduled_at->setTimezone($userTimezone)->format('M j, Y g:i A') }}</span>
+                                @endif
                             </div>
                             
                             <div>
@@ -816,19 +826,23 @@
                             <label class="form-label">Notification Platform</label>
                             <div class="space-y-3">
                                 @if($event->invitation_platforms && in_array('whatsapp', $event->invitation_platforms))
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="platforms[]" value="whatsapp" class="checkbox-input">
-                                    <span class="checkbox-text">WhatsApp</span>
-                                    <span class="badge badge-success">Available</span>
-                                </label>
+                                <div class="checkbox-group">
+                                    <input type="checkbox" name="platforms[]" value="whatsapp" id="platform_whatsapp" class="form-checkbox">
+                                    <label for="platform_whatsapp" class="ml-2">
+                                        <span>WhatsApp</span>
+                                        <span class="badge badge-success">Available</span>
+                                    </label>
+                                </div>
                                 @endif
                                 
                                 @if($event->invitation_platforms && in_array('email', $event->invitation_platforms))
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="platforms[]" value="email" class="checkbox-input">
-                                    <span class="checkbox-text">Email</span>
-                                    <span class="badge badge-success">Available</span>
-                                </label>
+                                <div class="checkbox-group">
+                                    <input type="checkbox" name="platforms[]" value="email" id="platform_email" class="form-checkbox">
+                                    <label for="platform_email" class="flex items-center justify-between w-full cursor-pointer">
+                                        <span>Email</span>
+                                        <span class="badge badge-success">Available</span>
+                                    </label>
+                                </div>
                                 @endif
                                 
                                 @if(!$event->invitation_platforms || (empty(array_intersect(['whatsapp', 'email'], $event->invitation_platforms))))
@@ -1263,11 +1277,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateIndividualInvitationStatuses(data.invitations);
                 // Show success message
                 if (typeof showNotification === 'function') {
-                    showNotification('Invitation statuses updated successfully', 'success');
+                    
                 } else if (window.GuestManager?.showNotification) {
-                    window.GuestManager.showNotification('Invitation statuses updated successfully', 'success');
+                
                 } else {
-                    alert('Invitation statuses updated successfully');
+                    
                 }
             } else {
                 if (typeof showNotification === 'function') {

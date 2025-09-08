@@ -118,30 +118,6 @@
             </div>
             @endif
         </div>
-        
-        <!-- Debug info - remove this after fixing -->
-        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin-top: 10px; font-size: 10px;">
-            <strong>Debug Info:</strong><br>
-            Settings: {{ json_encode($guestList->settings) }}<br>
-            Fields: {{ json_encode($guestList->settings['fields'] ?? 'No fields') }}<br>
-            Email enabled: {{ $guestList->settings['fields']['email'] ?? false ? 'Yes' : 'No' }}<br>
-            Phone enabled: {{ $guestList->settings['fields']['phone'] ?? false ? 'Yes' : 'No' }}<br>
-            Group enabled: {{ $guestList->settings['fields']['group'] ?? false ? 'Yes' : 'No' }}<br>
-            Language enabled: {{ $guestList->settings['fields']['language'] ?? false ? 'Yes' : 'No' }}<br>
-            Notes enabled: {{ $guestList->settings['fields']['notes'] ?? false ? 'Yes' : 'No' }}
-        </div>
-        
-        <!-- Debug info - remove this after fixing -->
-        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin-top: 10px; font-size: 10px;">
-            <strong>Debug Info:</strong><br>
-            Settings: {{ json_encode($guestList->settings) }}<br>
-            Fields: {{ json_encode($guestList->settings['fields'] ?? 'No fields') }}<br>
-            Email enabled: {{ $guestList->settings['fields']['email'] ?? false ? 'Yes' : 'No' }}<br>
-            Phone enabled: {{ $guestList->settings['fields']['phone'] ?? false ? 'Yes' : 'No' }}<br>
-            Group enabled: {{ $guestList->settings['fields']['group'] ?? false ? 'Yes' : 'No' }}<br>
-            Language enabled: {{ $guestList->settings['fields']['language'] ?? false ? 'Yes' : 'No' }}<br>
-            Notes enabled: {{ $guestList->settings['fields']['notes'] ?? false ? 'Yes' : 'No' }}
-        </div>
     </div>
 
     <table>

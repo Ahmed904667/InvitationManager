@@ -72,7 +72,7 @@
             <div class="card-body space-y-8">
                 {{-- Event Preview --}}
                 @if(!empty($step1Data))
-                <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-6 mb-8">
+                <div class="bg-tertiary-50 border-2 border-dashed border-gray-300 rounded-xl p-6 mb-8">
                     <h4 class="text-lg font-semibold text-primary mb-4 flex items-center">
                         <i class="fas fa-eye text-primary-500 mr-2"></i> Event Preview
                     </h4>
@@ -110,7 +110,7 @@
                     </h3>
                     
                     <div class="space-y-4">
-                        <div class="flex justify-between items-center p-6 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
+                        <div class="flex justify-between items-center p-6 bg-tertiary-50 rounded-xl border-2 border-primary hover:border-gray-300 transition-all duration-300">
                             <div class="flex-1">
                                 <h4 class="text-lg font-semibold text-primary mb-2">QR Code Check-In</h4>
                                 <p class="text-secondary">Generate unique QR codes for each guest to streamline check-in at your event venue</p>
@@ -127,7 +127,7 @@
                             </label>
                         </div>
 
-                        <div class="flex justify-between items-center p-6 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
+                        <div class="flex justify-between items-center p-6 bg-tertiary-50 rounded-xl border-2 border-primary hover:border-gray-300 transition-all duration-300">
                             <div class="flex-1">
                                 <h4 class="text-lg font-semibold text-primary mb-2">RSVP Required</h4>
                                 <p class="text-secondary">Guests will receive a response form to confirm their attendance</p>
@@ -227,12 +227,31 @@
                     <h3 class="text-xl font-semibold text-primary mb-4 flex items-center">
                         <i class="fas fa-users text-primary-500 mr-2"></i> Guest Lists
                     </h3>
-                    <p class="text-secondary mb-6">Select which guest lists to invite to this event</p>
+                    <p class="text-secondary mb-6">Select which guest lists to invite to this event. Only lists with excellent health status are shown.</p>
                     
                     @if($guestLists->count() > 0)
-
-                        
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {{-- Create New List Card --}}
+                            <div class="relative">
+                                <button 
+                                    type="button"
+                                    onclick="openCreateListModal()"
+                                    class="w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 group"
+                                    style="border-color: var(--border-primary); background: var(--bg-primary);"
+                                    onmouseover="this.style.borderColor='var(--primary-500)'; this.style.background='var(--primary-50)'"
+                                    onmouseout="this.style.borderColor='var(--border-primary)'; this.style.background='var(--bg-primary)'"
+                                >
+                                    <div class="text-center">
+                                        <div class="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-200 transition-colors">
+                                            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                            </svg>
+                                        </div>
+                                        <h4 class="text-lg font-semibold text-primary mb-2">Create New List</h4>
+                                        <p class="text-secondary text-sm">Create a new guest list for this event</p>
+                                    </div>
+                                </button>
+                            </div>
                             @foreach($guestLists as $guestList)
                                 <div class="relative">
                                     <input 
@@ -243,7 +262,7 @@
                                         class="sr-only guest-list-input"
                                         {{ (in_array($guestList->id, old('guest_list_ids', $mergedData['guest_list_ids'] ?? $data['guest_list_ids'] ?? $allStepsData['guest_list_ids'] ?? []))) ? 'checked' : '' }}
                                     >
-                                    <label for="guest_list_{{ $guestList->id }}" class="guest-list-label block p-6 border-2 border-gray-200 rounded-xl bg-white cursor-pointer transition-all duration-300 hover:border-gray-300 {{ (in_array($guestList->id, old('guest_list_ids', $mergedData['guest_list_ids'] ?? $data['guest_list_ids'] ?? $allStepsData['guest_list_ids'] ?? []))) ? 'border-primary-500 bg-primary-50' : '' }}">
+                                    <label for="guest_list_{{ $guestList->id }}" class="guest-list-label block p-6 border-2 rounded-xl cursor-pointer transition-all duration-300 {{ (in_array($guestList->id, old('guest_list_ids', $mergedData['guest_list_ids'] ?? $data['guest_list_ids'] ?? $allStepsData['guest_list_ids'] ?? []))) ? 'border-primary-500 bg-primary-50' : '' }}" style="{{ !in_array($guestList->id, old('guest_list_ids', $mergedData['guest_list_ids'] ?? $data['guest_list_ids'] ?? $allStepsData['guest_list_ids'] ?? [])) ? 'border-color: var(--border-primary); background: var(--bg-primary);' : '' }}">
                                         <div class="flex justify-between items-start mb-3">
                                             <h4 class="text-lg font-semibold text-primary">{{ $guestList->name }}</h4>
                                             <span class="bg-primary-500 text-white px-3 py-1 rounded-full text-xs font-semibold">{{ $guestList->guests->count() }} guests</span>
@@ -268,11 +287,11 @@
                     @else
                         <div class="text-center py-12">
                             <i class="fas fa-users-slash text-6xl text-gray-300 mb-4"></i>
-                            <h4 class="text-xl font-semibold text-primary mb-2">No Guest Lists Found</h4>
-                            <p class="text-secondary mb-6">You need to create guest lists before creating an event.</p>
-                            <a href="{{ route('organizer.guest-lists.create') }}" class="btn-primary">
+                            <h4 class="text-xl font-semibold text-primary mb-2">No Valid Guest Lists Found</h4>
+                            <p class="text-secondary mb-6">You need guest lists with excellent health status to create an event. Create a new list or fix existing ones.</p>
+                            <button onclick="openCreateListModal()" class="btn-primary">
                                 <i class="fas fa-plus mr-2"></i> Create Guest List
-                            </a>
+                            </button>
                         </div>
                     @endif
 
@@ -292,7 +311,7 @@
     display: inline-block;
     width: 44px;
     height: 24px;
-    background-color: #e5e7eb;
+    background-color: var(--border-primary);
     border-radius: 12px;
     transition: background-color 0.3s ease;
     cursor: pointer;
@@ -312,7 +331,7 @@
 }
 
 .toggle-input:checked + .toggle-slider {
-    background-color: var(--primary-500, #3b82f6);
+    background-color: var(--primary-500);
 }
 
 .toggle-input:checked + .toggle-slider::after {
@@ -321,28 +340,39 @@
 
 /* Platform Selection Styles */
 .platform-input:checked + .platform-label {
-    border-color: var(--primary-500, #3b82f6) !important;
-    background-color: var(--primary-50, #eff6ff) !important;
+    border-color: var(--primary-500) !important;
+    background-color: var(--primary-50) !important;
 }
 
 .platform-input:not(:checked) + .platform-label {
-    border-color: #e5e7eb !important;
-    background-color: white !important;
+    border-color: var(--border-primary) !important;
+    background-color: var(--bg-primary) !important;
 }
 
 /* Guest List Selection Styles */
 .guest-list-input:checked + .guest-list-label {
-    border-color: var(--primary-500, #3b82f6) !important;
-    background-color: var(--primary-50, #eff6ff) !important;
+    border-color: var(--primary-500) !important;
+    background-color: var(--primary-50) !important;
 }
 
 .guest-list-input:not(:checked) + .guest-list-label {
-    border-color: #e5e7eb !important;
-    background-color: white !important;
+    border-color: var(--border-primary) !important;
+    background-color: var(--bg-primary) !important;
 }
 </style>
 
 <script>
+// Function to open create list modal in new window
+function openCreateListModal() {
+    const guestListsUrl = '{{ route("organizer.guest-lists.index") }}?create_modal=true';
+    const newWindow = window.open(guestListsUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    
+    // Focus the new window
+    if (newWindow) {
+        newWindow.focus();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const platformInputs = document.querySelectorAll('input[name="invitation_platforms[]"]');
     const guestListInputs = document.querySelectorAll('input[name="guest_list_ids[]"]');
@@ -362,11 +392,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         function updatePlatformStyle() {
             if (input.checked) {
-                label.classList.remove('border-gray-200', 'bg-white');
-                label.classList.add('border-primary-500', 'bg-primary-50');
+                label.style.borderColor = 'var(--primary-500)';
+                label.style.backgroundColor = 'var(--primary-50)';
             } else {
-                label.classList.remove('border-primary-500', 'bg-primary-50');
-                label.classList.add('border-gray-200', 'bg-white');
+                label.style.borderColor = 'var(--border-primary)';
+                label.style.backgroundColor = 'var(--bg-primary)';
             }
         }
         
@@ -383,11 +413,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         function updateLabelStyle() {
             if (input.checked) {
-                label.classList.remove('border-gray-200', 'bg-white');
-                label.classList.add('border-primary-500', 'bg-primary-50');
+                label.style.borderColor = 'var(--primary-500)';
+                label.style.backgroundColor = 'var(--primary-50)';
             } else {
-                label.classList.remove('border-primary-500', 'bg-primary-50');
-                label.classList.add('border-gray-200', 'bg-white');
+                label.style.borderColor = 'var(--border-primary)';
+                label.style.backgroundColor = 'var(--bg-primary)';
             }
         }
         

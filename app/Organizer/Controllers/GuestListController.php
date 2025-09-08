@@ -21,6 +21,7 @@ use App\Organizer\Services\OrganizerService;
 use App\Organizer\Services\GuestListValidationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use PragmaRX\Countries\Package\Countries;
 
 class GuestListController extends Controller
 {
@@ -140,6 +141,19 @@ class GuestListController extends Controller
 
         return redirect()->route('organizer.guest-lists.edit', $guestList)
             ->with('success', 'Guest list updated successfully!');
+    }
+
+    public function editCountries(GuestList $guestList)
+    {
+        $countries = Countries::all()
+            ->map(fn($country) => $country->callingCodes ?? [])
+            ->flatten()
+            ->filter()   // removes null/empty
+            ->unique()
+            ->sort()
+            ->values();
+
+        return view('organizer.guest-lists.edit', compact('guestList', 'countries'));
     }
 
     /**

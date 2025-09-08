@@ -14,7 +14,19 @@
     <!-- Desktop Navigation -->
     <div class="desktop-nav hidden md:flex">
         <a href="{{ route('mobile.scanner.scan', $scanner->token) }}">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="2" width="8" height="8" />
+                                <path d="M6 6h.01" />
+                                <rect x="14" y="2" width="8" height="8" />
+                                <path d="M18 6h.01" />
+                                <rect x="2" y="14" width="8" height="8" />
+                                <path d="M6 18h.01" />
+                                <path d="M14 14h.01" />
+                                <path d="M18 18h.01" />
+                                <path d="M18 22h4v-4" />
+                                <path d="M14 18v4" />
+                                <path d="M22 14h-4" />
+                            </svg>
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11a9 9 0 11-18 0 9 9 0 0118 0zm-9 8a3 3 0 00-3-3h6a3 3 0 00-3 3z"></path>
             </svg>
             <span>Scan QR Codes</span>
@@ -642,11 +654,11 @@ function updateGuestInList(guestId, checkedIn) {
     if (!guestItem) return;
     
     if (checkedIn) {
-        // Add check mark
+        // Add check mark to name
         const nameElement = guestItem.querySelector('h4');
         if (!nameElement.querySelector('svg')) {
             const checkIcon = document.createElement('svg');
-            checkIcon.className = 'w-4 h-4 ml-2 text-green-600 flex-shrink-0';
+            checkIcon.className = 'w-5 h-5 ml-2 text-green-600';
             checkIcon.setAttribute('fill', 'none');
             checkIcon.setAttribute('stroke', 'currentColor');
             checkIcon.setAttribute('viewBox', '0 0 24 24');
@@ -654,21 +666,52 @@ function updateGuestInList(guestId, checkedIn) {
             nameElement.appendChild(checkIcon);
         }
         
-        // Update button area
-        const buttonArea = guestItem.querySelector('.ml-3');
-        buttonArea.innerHTML = `
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Checked In
-            </span>
-        `;
+        // Update button area - replace the check-in button with checked-in status
+        const buttonArea = guestItem.querySelector('.ml-4');
+        if (buttonArea) {
+            buttonArea.innerHTML = `
+                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Checked In
+                </span>
+            `;
+        }
         
         // Add check-in time info
-        const contactsArea = nameElement.parentElement.querySelector('.space-y-1');
-        const timeInfo = document.createElement('div');
-        timeInfo.className = 'text-xs text-green-600 mt-1';
-        timeInfo.textContent = '✓ Checked in just now';
-        contactsArea.appendChild(timeInfo);
+        const contactsArea = guestItem.querySelector('.space-y-2');
+        if (contactsArea) {
+            const timeInfo = document.createElement('div');
+            timeInfo.className = 'text-sm text-green-600 flex items-center mt-2';
+            timeInfo.innerHTML = `
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Checked in just now
+            `;
+            contactsArea.appendChild(timeInfo);
+        }
+        
+        // Update the stats counters
+        updateStatsCounters();
     }
+}
+
+function updateStatsCounters() {
+    // Update the stats counters in the stats bar
+    const totalGuests = document.querySelectorAll('[data-guest-id]').length;
+    const checkedInGuests = document.querySelectorAll('[data-guest-id] .bg-green-100').length; // Count checked-in badges
+    const pendingGuests = totalGuests - checkedInGuests;
+    
+    // Update the counters in the stats bar
+    const totalElement = document.querySelector('.text-2xl.font-bold.text-blue-600');
+    const checkedInElement = document.querySelector('.text-2xl.font-bold.text-green-600');
+    const pendingElement = document.querySelector('.text-2xl.font-bold.text-orange-600');
+    
+    if (totalElement) totalElement.textContent = totalGuests;
+    if (checkedInElement) checkedInElement.textContent = checkedInGuests;
+    if (pendingElement) pendingElement.textContent = pendingGuests;
 }
 
 function showProcessingModal(message) {

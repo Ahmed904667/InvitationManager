@@ -19,7 +19,19 @@
     <!-- Desktop Navigation -->
     <div class="desktop-nav hidden md:flex">
         <a href="{{ route('mobile.scanner.scan', $scanner->token) }}">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="2" width="8" height="8" />
+                                <path d="M6 6h.01" />
+                                <rect x="14" y="2" width="8" height="8" />
+                                <path d="M18 6h.01" />
+                                <rect x="2" y="14" width="8" height="8" />
+                                <path d="M6 18h.01" />
+                                <path d="M14 14h.01" />
+                                <path d="M18 18h.01" />
+                                <path d="M18 22h4v-4" />
+                                <path d="M14 18v4" />
+                                <path d="M22 14h-4" />
+                            </svg>
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11a9 9 0 11-18 0 9 9 0 0118 0zm-9 8a3 3 0 00-3-3h6a3 3 0 00-3 3z"></path>
             </svg>
             <span>Scan QR Codes</span>
@@ -57,7 +69,7 @@
                 </div>
                 <div class="p-4 bg-gradient-to-br from-info-50 to-info-100 rounded-xl border border-info-200">
                     <div class="text-sm font-medium text-info-700">Last Used</div>
-                    <div class="text-sm text-info-600">{{ $stats['last_used'] ?: 'Never' }}</div>
+                    <div class="text-sm text-info-600" id="lastUsedDisplay">{{ $stats['last_used'] ?: 'Never' }}</div>
                 </div>
             </div>
         </div>
@@ -86,7 +98,9 @@
                         </div>
                         <div>
                             <h4 class="font-semibold text-gray-900">{{ $checkIn->name }}</h4>
-                            <p class="text-sm text-gray-600" data-timestamp="{{ $checkIn->checked_in_at->toISOString() }}">{{ $checkIn->checked_in_at->format('M j, g:i A') }}</p>
+                            <p class="text-sm text-gray-600" data-timestamp="{{ $checkIn->checked_in_at->toISOString() }}" data-format="local">
+                                {{ $checkIn->checked_in_at->format('M j, g:i A') }}
+                            </p>
                         </div>
                     </div>
                     <div class="text-sm text-primary-600 font-medium" data-timestamp="{{ $checkIn->checked_in_at->toISOString() }}" data-relative="true">
@@ -644,8 +658,20 @@ function convertTimestampsToLocal() {
                     }
                     
                     element.textContent = relativeTime;
+                } else if (element.hasAttribute('data-format') && element.getAttribute('data-format') === 'local') {
+                    // Format as local time with proper timezone
+                    const localTime = date.toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true,
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    });
+                    
+                    element.textContent = localTime;
                 } else {
-                    // Format as local time
+                    // Default local time formatting
                     const localTime = date.toLocaleString('en-US', {
                         month: 'short',
                         day: 'numeric',
@@ -660,6 +686,7 @@ function convertTimestampsToLocal() {
                 // Remove the data attributes to avoid double conversion
                 element.removeAttribute('data-timestamp');
                 element.removeAttribute('data-relative');
+                element.removeAttribute('data-format');
             } catch (error) {
                 console.error('Error converting timestamp:', error);
             }
@@ -684,6 +711,8 @@ function saveTimezone(timezone) {
             console.log('Timezone updated to:', timezone);
             // Reload analytics to reflect timezone changes
             loadAnalytics();
+            // Re-convert all timestamps with new timezone
+            convertTimestampsToLocal();
         } else {
             console.error('Error saving timezone:', data.error);
         }
@@ -739,21 +768,49 @@ function loadMoreCheckIns() {
             
             data.checkins.forEach(checkIn => {
                 const checkInElement = document.createElement('div');
-                checkInElement.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                checkInElement.className = 'flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-[1.02]';
+                
+                // Convert timestamp to local time
+                const checkInDate = new Date(checkIn.checked_in_at);
+                const localTime = checkInDate.toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                
+                // Calculate relative time
+                const now = new Date();
+                const diffInSeconds = Math.floor((now - checkInDate) / 1000);
+                let relativeTime;
+                if (diffInSeconds < 60) {
+                    relativeTime = 'Just now';
+                } else if (diffInSeconds < 3600) {
+                    const minutes = Math.floor(diffInSeconds / 60);
+                    relativeTime = `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+                } else if (diffInSeconds < 86400) {
+                    const hours = Math.floor(diffInSeconds / 3600);
+                    relativeTime = `${hours} hour${hours > 1 ? 's' : ''} ago`;
+                } else {
+                    const days = Math.floor(diffInSeconds / 86400);
+                    relativeTime = `${days} day${days > 1 ? 's' : ''} ago`;
+                }
+                
                 checkInElement.innerHTML = `
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-success-100 to-success-200 rounded-full flex items-center justify-center">
+                            <svg class="w-5 h-5 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
                         <div>
-                            <h4 class="font-medium text-gray-900">${checkIn.name}</h4>
-                            <p class="text-sm text-gray-600">${checkIn.checked_in_at}</p>
+                            <h4 class="font-semibold text-gray-900">${checkIn.name}</h4>
+                            <p class="text-sm text-gray-600">${localTime}</p>
                         </div>
                     </div>
-                    <div class="text-sm text-gray-500">
-                        ${checkIn.time_ago}
+                    <div class="text-sm text-primary-600 font-medium">
+                        ${relativeTime}
                     </div>
                 `;
                 container.appendChild(checkInElement);
@@ -929,6 +986,26 @@ function updateAnalyticsDisplay(analytics) {
     document.getElementById('totalCheckins').textContent = analytics.total_checkins;
     document.getElementById('todayCheckins').textContent = analytics.today_checkins;
     document.getElementById('peakHour').textContent = analytics.peak_hour;
+    
+    // Update last used time with proper timezone conversion
+    if (analytics.last_used) {
+        try {
+            const lastUsedDate = new Date(analytics.last_used);
+            const localTime = lastUsedDate.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+            document.getElementById('lastUsedDisplay').textContent = localTime;
+        } catch (error) {
+            console.error('Error converting last used time:', error);
+            document.getElementById('lastUsedDisplay').textContent = analytics.last_used;
+        }
+    } else {
+        document.getElementById('lastUsedDisplay').textContent = 'Never';
+    }
     
     // Update performance chart
     if (performanceChart) {

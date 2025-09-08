@@ -4,7 +4,6 @@ namespace App\Organizer\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Organizer\Services\OrganizerNotificationService;
-use App\Organizer\Services\OrganizerSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Auth;
@@ -12,14 +11,11 @@ use Illuminate\Support\Facades\Auth;
 class OrganizerSettingsController extends Controller
 {
     protected $notificationService;
-    protected $settingsService;
 
     public function __construct(
-        OrganizerNotificationService $notificationService,
-        OrganizerSettingsService $settingsService
+        OrganizerNotificationService $notificationService
     ) {
         $this->notificationService = $notificationService;
-        $this->settingsService = $settingsService;
     }
 
     /**
@@ -31,9 +27,8 @@ class OrganizerSettingsController extends Controller
 
         $user = Auth::user();
         $notificationSettings = $this->notificationService->getNotificationSettings($user);
-        $preferredListSettings = $this->settingsService->getPreferredListSettings($user);
 
-        return view('organizer.settings.index', compact('notificationSettings', 'preferredListSettings'));
+        return view('organizer.settings.index', compact('notificationSettings'));
     }
 
     /**
@@ -64,31 +59,4 @@ class OrganizerSettingsController extends Controller
         return back()->withErrors(['general' => 'Failed to update notification settings.']);
     }
 
-    /**
-     * Update preferred list settings
-     */
-    public function updatePreferredListSettings(Request $request)
-    {
-        Gate::authorize('organizer-access');
-
-        $validated = $request->validate([
-            'enable_guest_fields' => 'array',
-            'enable_guest_fields.*' => 'boolean',
-            'defaults' => 'array',
-            'defaults.country_code' => 'string|max:10',
-            'defaults.language' => 'string|max:5',
-            'auto_archive_events' => 'boolean',
-            'auto_archive_days' => 'integer|min:1|max:365',
-            'max_guests_per_list' => 'integer|min:1|max:10000'
-        ]);
-
-        $user = Auth::user();
-        $success = $this->settingsService->updatePreferredListSettings($user, $validated);
-
-        if ($success) {
-            return back()->with('success', 'Preferred list settings updated successfully!');
-        }
-
-        return back()->withErrors(['general' => 'Failed to update preferred list settings.']);
-    }
 }

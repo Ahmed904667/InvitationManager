@@ -118,7 +118,7 @@ class ScannerController extends Controller
         $event = $scanner->event;
         $search = $request->get('search', '');
         
-        // Get all guests for this event (both via guest lists and direct event associations)
+        // Get all guests for this event with their check-in status from event_guest table
         $guestsQuery = Guest::where(function($query) use ($event) {
             // Guests via guest lists
             $query->whereHas('guestList', function($guestListQuery) use ($event) {
@@ -142,6 +142,24 @@ class ScannerController extends Controller
         }
         
         $guests = $guestsQuery->with(['guestGroup', 'guestList'])->orderBy('name')->get();
+        
+        // Add check-in status from event_guest table to each guest
+        $guests->each(function($guest) use ($event) {
+            $eventGuest = \App\EventGuest::where('event_id', $event->id)
+                ->where('guest_id', $guest->id)
+                ->where('status', \App\EventGuest::STATUS_ACTIVE)
+                ->first();
+            
+            if ($eventGuest) {
+                $guest->checked_in = $eventGuest->checked_in;
+                $guest->checked_in_at = $eventGuest->checked_in_at;
+                $guest->scanner_name = $eventGuest->scanner_name;
+            } else {
+                $guest->checked_in = false;
+                $guest->checked_in_at = null;
+                $guest->scanner_name = null;
+            }
+        });
         
         // Group guests by guest group if enabled
         $groupedGuests = [];
@@ -338,7 +356,7 @@ class ScannerController extends Controller
                 ->where('checked_in', true)
                 ->count(),
             'scanner_name' => $scanner->name,
-            'last_used' => $scanner->last_used_at?->diffForHumans(),
+            'last_used' => $scanner->last_used_at ? $scanner->toScannerTimezone($scanner->last_used_at)->toISOString() : null,
             'event_name' => $scanner->event->name
         ];
         
@@ -614,10 +632,12 @@ class ScannerController extends Controller
             ->orderBy('checked_in_at', 'desc')
             ->limit(5)
             ->get()
-            ->map(function($eventGuest) {
+            ->map(function($eventGuest) use ($scanner) {
+                // Convert UTC time to scanner's timezone for display
+                $scannerTime = $scanner->toScannerTimezone($eventGuest->checked_in_at);
                 return [
                     'guest_name' => $eventGuest->guest->name,
-                    'time' => $eventGuest->checked_in_at->diffForHumans()
+                    'time' => $scannerTime->diffForHumans()
                 ];
             });
         
@@ -713,11 +733,13 @@ class ScannerController extends Controller
             ->offset($offset)
             ->limit(10)
             ->get()
-            ->map(function($eventGuest) {
+            ->map(function($eventGuest) use ($scanner) {
+                // Convert UTC time to scanner's timezone for display
+                $scannerTime = $scanner->toScannerTimezone($eventGuest->checked_in_at);
                 return [
                     'name' => $eventGuest->guest->name,
-                    'checked_in_at' => $eventGuest->checked_in_at->format('M j, g:i A'),
-                    'time_ago' => $eventGuest->checked_in_at->diffForHumans()
+                    'checked_in_at' => $scannerTime->toISOString(),
+                    'time_ago' => $scannerTime->diffForHumans()
                 ];
             });
         
@@ -746,12 +768,14 @@ class ScannerController extends Controller
         $csv = "Guest Name,Email,Phone,Check-in Time,Scanner\n";
         
         foreach ($checkIns as $eventGuest) {
+            // Convert UTC time to scanner's timezone for export
+            $scannerTime = $scanner->toScannerTimezone($eventGuest->checked_in_at);
             $csv .= sprintf(
                 "%s,%s,%s,%s,%s\n",
                 $eventGuest->guest->name,
                 $eventGuest->guest->email ?? '',
                 $eventGuest->guest->phone ?? '',
-                $eventGuest->checked_in_at->format('Y-m-d H:i:s'),
+                $scannerTime->format('Y-m-d H:i:s'),
                 $eventGuest->scanner_name
             );
         }
@@ -880,10 +904,13 @@ class ScannerController extends Controller
             ->count();
         
         // Get check-ins from last 12 hours based on scanner's timezone
-        $twelveHoursAgo = $scanner->getCurrentTime()->subHours(12);
+        $scannerCurrentTime = $scanner->getCurrentTime();
+        $twelveHoursAgo = $scannerCurrentTime->copy()->subHours(12);
+        // Convert scanner timezone times to UTC for database comparison
+        $twelveHoursAgoUTC = $twelveHoursAgo->utc();
         $recentCheckins = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
             ->where('checked_in', true)
-            ->where('checked_in_at', '>=', $twelveHoursAgo)
+            ->where('checked_in_at', '>=', $twelveHoursAgoUTC)
             ->count();
         
         // Find peak hour
@@ -900,14 +927,18 @@ class ScannerController extends Controller
             $startTime = $twelveHoursAgo->copy()->addHours($i);
             $endTime = $startTime->copy()->addHour();
             
+            // Convert scanner timezone times to UTC for database comparison
+            $startTimeUTC = $startTime->utc();
+            $endTimeUTC = $endTime->utc();
+            
             $checkIns = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
                 ->where('checked_in', true)
-                ->whereBetween('checked_in_at', [$startTime, $endTime])
+                ->whereBetween('checked_in_at', [$startTimeUTC, $endTimeUTC])
                 ->count();
             
             $hourlyData[] = $checkIns;
             
-            // Format hour label
+            // Format hour label using scanner timezone
             $hour = $startTime->hour;
             if ($hour == 0) {
                 $hourlyLabels[] = '12 AM';
@@ -929,9 +960,13 @@ class ScannerController extends Controller
         for ($day = 6; $day >= 0; $day--) {
             $date = $today->copy()->subDays($day);
             
+            // Convert scanner timezone date to UTC for database comparison
+            $dateStartUTC = $date->utc();
+            $dateEndUTC = $date->copy()->addDay()->utc();
+            
             $checkIns = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
                 ->where('checked_in', true)
-                ->whereDate('checked_in_at', $date)
+                ->whereBetween('checked_in_at', [$dateStartUTC, $dateEndUTC])
                 ->count();
             
             $dailyData[] = $checkIns;
@@ -966,9 +1001,13 @@ class ScannerController extends Controller
             $startTime = $twelveHoursAgo->copy()->addHours($i);
             $endTime = $startTime->copy()->addHour();
             
+            // Convert scanner timezone times to UTC for database comparison
+            $startTimeUTC = $startTime->utc();
+            $endTimeUTC = $endTime->utc();
+            
             $count = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
                 ->where('checked_in', true)
-                ->whereBetween('checked_in_at', [$startTime, $endTime])
+                ->whereBetween('checked_in_at', [$startTimeUTC, $endTimeUTC])
                 ->count();
             
             $hourlyCounts[$startTime->hour] = $count;
