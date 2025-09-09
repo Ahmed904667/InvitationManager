@@ -21,7 +21,7 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
                 <div class="p-2 rounded-lg" style="background: var(--primary-100);">
@@ -31,7 +31,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium" style="color: var(--text-secondary);">Total Events</p>
-                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="totalEvents">{{ $activeEvents->count() + $completedEvents->count() }}</p>
+                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="totalEvents">{{ $activeEvents->count() + $cancelledEvents->count() + $completedEvents->count() }}</p>
                 </div>
             </div>
         </div>
@@ -63,6 +63,19 @@
         </div>
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
+                <div class="p-2 rounded-lg" style="background: var(--red-100);">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--red-600);">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Cancelled Events</p>
+                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="cancelledEvents">{{ $cancelledEvents->count() }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
+            <div class="flex items-center">
                 <div class="p-2 rounded-lg" style="background: var(--purple-100);">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--purple-600);">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -70,7 +83,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium" style="color: var(--text-secondary);">Active Guests</p>
-                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="totalGuests">{{ $activeEvents->sum('active_guests_count') + $completedEvents->sum('active_guests_count') }}</p>
+                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="totalGuests">{{ $activeEvents->sum('active_guests_count') + $cancelledEvents->sum('active_guests_count') + $completedEvents->sum('active_guests_count') }}</p>
                 </div>
             </div>
         </div>
@@ -169,6 +182,23 @@
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach ($otherActiveEvents as $event)
+                    @include('organizer.events.partials.event-card', ['event' => $event, 'isDraft' => false])
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    <!-- Cancelled Events Section -->
+    @if($cancelledEvents->count() > 0)
+        <div class="mb-8" id="cancelled-events-section">
+            <h2 class="text-xl font-semibold text-primary mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Cancelled Events ({{ $cancelledEvents->count() }})
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach ($cancelledEvents as $event)
                     @include('organizer.events.partials.event-card', ['event' => $event, 'isDraft' => false])
                 @endforeach
             </div>
@@ -452,6 +482,7 @@ function updateSectionVisibility() {
     const sections = [
         { id: 'draft-events-section', type: 'draft' },
         { id: 'active-events-section', type: 'active' },
+        { id: 'cancelled-events-section', type: 'cancelled' },
         { id: 'completed-events-section', type: 'completed' }
     ];
     
@@ -470,18 +501,21 @@ function updateSectionVisibility() {
 
 function updateEventCounts() {
     const totalEvents = filteredEvents.length;
-    const activeEvents = filteredEvents.filter(e => e.status !== 'draft' && e.status !== 'completed').length;
+    const activeEvents = filteredEvents.filter(e => e.status !== 'draft' && e.status !== 'completed' && e.status !== 'cancelled').length;
     const completedEvents = filteredEvents.filter(e => e.status === 'completed').length;
+    const cancelledEvents = filteredEvents.filter(e => e.status === 'cancelled').length;
     const draftEvents = filteredEvents.filter(e => e.status === 'draft').length;
     
     // Update the stats cards
     const totalElement = document.getElementById('totalEvents');
     const activeElement = document.getElementById('activeEvents');
     const completedElement = document.getElementById('completedEvents');
+    const cancelledElement = document.getElementById('cancelledEvents');
     
     if (totalElement) totalElement.textContent = totalEvents;
     if (activeElement) activeElement.textContent = activeEvents;
     if (completedElement) completedElement.textContent = completedEvents;
+    if (cancelledElement) cancelledElement.textContent = cancelledEvents;
     
     // Update filter results text
     updateFilterResultsText();

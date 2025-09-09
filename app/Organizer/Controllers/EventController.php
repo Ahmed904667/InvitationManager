@@ -37,8 +37,13 @@ class EventController extends Controller
         $this->updateEventStatuses();
         
         $activeEvents = Event::where('user_id', Auth::id())
-            ->where('status', '!=', 'completed')
+            ->whereNotIn('status', ['completed', 'cancelled'])
             ->orderBy('start_date', 'asc') // Order by start date for active events
+            ->get();
+            
+        $cancelledEvents = Event::where('user_id', Auth::id())
+            ->where('status', 'cancelled')
+            ->orderBy('start_date', 'desc') // Order by start date descending for cancelled events
             ->get();
             
         $completedEvents = Event::where('user_id', Auth::id())
@@ -51,6 +56,26 @@ class EventController extends Controller
         
         // Load active guests for each active event to calculate accurate statistics
         foreach ($activeEvents as $event) {
+            $activeEventGuests = $eventGuestService->getActiveGuestsForEvent($event);
+            $event->active_guests_count = $activeEventGuests->count();
+            $event->active_guests = $activeEventGuests;
+            
+            // Calculate active guest lists count (only lists with active guests)
+            $activeGuestLists = collect();
+            foreach ($event->guestLists as $guestList) {
+                $guestsInEvent = $activeEventGuests->filter(function($eventGuest) use ($guestList) {
+                    return $eventGuest->guest->guest_list_id === $guestList->id;
+                });
+                
+                if ($guestsInEvent->count() > 0) {
+                    $activeGuestLists->push($guestList);
+                }
+            }
+            $event->active_guest_lists_count = $activeGuestLists->count();
+        }
+        
+        // Load active guests for each cancelled event to calculate accurate statistics
+        foreach ($cancelledEvents as $event) {
             $activeEventGuests = $eventGuestService->getActiveGuestsForEvent($event);
             $event->active_guests_count = $activeEventGuests->count();
             $event->active_guests = $activeEventGuests;
@@ -93,11 +118,12 @@ class EventController extends Controller
         Log::info('Events index loaded', [
             'user_id' => Auth::id(),
             'total_active_events' => $activeEvents->count(),
+            'total_cancelled_events' => $cancelledEvents->count(),
             'total_completed_events' => $completedEvents->count(),
             'active_event_statuses' => $activeEvents->pluck('status')->toArray()
         ]);
         
-        return view('organizer.events.index', compact('activeEvents', 'completedEvents'));
+        return view('organizer.events.index', compact('activeEvents', 'cancelledEvents', 'completedEvents'));
     }
 
     /**
@@ -2698,17 +2724,17 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('delete', $event);
         
-        // Check if event can be deleted (only completed, cancelled, or scheduled events)
-        if (!in_array($event->status, ['completed', 'cancelled', 'scheduled'])) {
+        // Check if event can be deleted (only completed, cancelled, scheduled, or draft events)
+        if (!in_array($event->status, ['completed', 'cancelled', 'scheduled', 'draft'])) {
             if (request()->wantsJson() || request()->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Only completed, cancelled, or scheduled events can be deleted.'
+                    'message' => 'Only completed, cancelled, scheduled, or draft events can be deleted.'
                 ], 400);
             }
             
             return redirect()->route('organizer.events.index')
-                ->with('error', 'Only completed, cancelled, or scheduled events can be deleted.');
+                ->with('error', 'Only completed, cancelled, scheduled, or draft events can be deleted.');
         }
         
         try {
