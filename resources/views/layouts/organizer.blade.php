@@ -5,14 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'Organizer Dashboard') - {{ config('app.name', 'Guest Manager') }}</title>
+    <title>@yield('title', 'Organizer Dashboard') - {{ config('app.name', 'Invaro') }}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/Logo.jpg') }}">
+
+    <!-- Theme initialization script - prevents flickering -->
+    <script>
+        (function() {
+            // Get theme from localStorage or default to light
+            const theme = localStorage.getItem('theme') || 'light';
+            
+            // Apply theme immediately to prevent flickering
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // Apply Tailwind dark mode class
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     <!-- Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/theme.js'])
+    
+    <!-- Mobile Menu Styles -->
+    <style>
+        #mobile-menu {
+            transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+        }
+        
+        #mobile-menu.hidden {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        
+        #mobile-menu:not(.hidden) {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
 </head>
 <body class="font-sans antialiased bg-primary">
     <div class="min-h-screen bg-primary">
@@ -30,16 +70,16 @@
 
                         <!-- Navigation Links -->
                         <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                            <a href="{{ route('organizer.dashboard') }}" class="border-primary-500 text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            <a href="{{ route('organizer.dashboard') }}" class="{{ request()->routeIs('organizer.dashboard') ? 'border-primary-500 text-primary' : 'border-transparent text-secondary hover:border-primary hover:text-primary' }} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
                                 Dashboard
                             </a>
-                            <a href="{{ route('organizer.guest-lists.index') }}" class="border-transparent text-secondary hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                            <a href="{{ route('organizer.guest-lists.index') }}" class="{{ request()->routeIs('organizer.guest-lists.*') ? 'border-primary-500 text-primary' : 'border-transparent text-secondary hover:border-primary hover:text-primary' }} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
                                 Guest Lists
                             </a>
-                            <a href="{{ route('organizer.events.index') }}" class="border-transparent text-secondary hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                            <a href="{{ route('organizer.events.index') }}" class="{{ request()->routeIs('organizer.events.*') ? 'border-primary-500 text-primary' : 'border-transparent text-secondary hover:border-primary hover:text-primary' }} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
                                 Events
                             </a>
-                            <a href="{{ route('organizer.reports') }}" class="border-transparent text-secondary hover:border-primary hover:text-primary inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
+                            <a href="{{ route('organizer.reports') }}" class="{{ request()->routeIs('organizer.reports') ? 'border-primary-500 text-primary' : 'border-transparent text-secondary hover:border-primary hover:text-primary' }} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200">
                                 Reports
                             </a>
                         </div>
@@ -71,7 +111,7 @@
 
                     <!-- Mobile menu button -->
                     <div class="-mr-2 flex items-center sm:hidden">
-                        <button type="button" class="bg-primary inline-flex items-center justify-center p-2 rounded-md text-secondary hover:text-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 transition-colors duration-200" aria-controls="mobile-menu" aria-expanded="false">
+                        <button type="button" id="mobile-menu-button" class="bg-primary inline-flex items-center justify-center p-2 rounded-md text-secondary hover:text-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 transition-colors duration-200" aria-controls="mobile-menu" aria-expanded="false">
                             <span class="sr-only">Open main menu</span>
                             <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -82,38 +122,102 @@
             </div>
 
             <!-- Mobile menu -->
-            <div class="sm:hidden" id="mobile-menu">
+            <div class="sm:hidden hidden" id="mobile-menu">
+                <!-- Navigation Links -->
                 <div class="pt-2 pb-3 space-y-1">
-                    <a href="{{ route('organizer.dashboard') }}" class="bg-primary-50 border-primary-500 text-primary-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+                    <a href="{{ route('organizer.dashboard') }}" class="{{ request()->routeIs('organizer.dashboard') ? 'bg-primary-50 border-primary-500 text-primary-700' : 'border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary' }} block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
                         Dashboard
                     </a>
-                    <a href="{{ route('organizer.guest-lists.index') }}" class="border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
+                    <a href="{{ route('organizer.guest-lists.index') }}" class="{{ request()->routeIs('organizer.guest-lists.*') ? 'bg-primary-50 border-primary-500 text-primary-700' : 'border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary' }} block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
                         Guest Lists
                     </a>
-                    <a href="{{ route('organizer.events.index') }}" class="border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
+                    <a href="{{ route('organizer.events.index') }}" class="{{ request()->routeIs('organizer.events.*') ? 'bg-primary-50 border-primary-500 text-primary-700' : 'border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary' }} block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
                         Events
                     </a>
-                    <a href="{{ route('organizer.reports') }}" class="border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
+                    <a href="{{ route('organizer.reports') }}" class="{{ request()->routeIs('organizer.reports') ? 'bg-primary-50 border-primary-500 text-primary-700' : 'border-transparent text-secondary hover:bg-secondary hover:border-primary hover:text-primary' }} block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200">
                         Reports
                     </a>
                 </div>
+                
+                <!-- User Profile Section -->
                 <div class="pt-4 pb-3 border-t border-primary">
-                    <div class="flex items-center px-4">
+                    <div class="flex items-center px-4 mb-4">
                         <div class="flex-shrink-0">
-                            <div class="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center">
-                                <span class="text-white font-medium">{{ substr(Auth::user()->name, 0, 1) }}</span>
+                            <div class="h-12 w-12 rounded-full bg-primary-500 flex items-center justify-center overflow-hidden">
+                                @if(Auth::user()->profile_photo_url ?? false)
+                                    <img src="{{ Auth::user()->profile_photo_url }}" alt="{{ Auth::user()->name }}" class="h-full w-full object-cover">
+                                @else
+                                    <span class="text-white font-bold text-lg">{{ substr(Auth::user()->name, 0, 1) }}</span>
+                                @endif
                             </div>
                         </div>
-                        <div class="ml-3">
-                            <div class="text-base font-medium text-primary">{{ Auth::user()->name }}</div>
-                            <div class="text-sm font-medium text-secondary">{{ Auth::user()->email }}</div>
+                        <div class="ml-3 flex-1 min-w-0">
+                            <div class="text-base font-medium text-primary truncate">{{ Auth::user()->name }}</div>
+                            <div class="text-sm font-medium text-secondary truncate">{{ Auth::user()->email }}</div>
                         </div>
                     </div>
-                    <div class="mt-3 space-y-1">
-                        <form method="POST" action="{{ route('logout') }}">
+                    
+                    <!-- Theme Toggle -->
+                    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-primary">Theme</span>
+                            <button class="theme-toggle relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 dark:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2" type="button" aria-label="Toggle theme">
+                                <span class="theme-toggle-thumb inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out translate-x-1"></span>
+                                <svg class="sun-icon absolute left-1 h-3 w-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+                                </svg>
+                                <svg class="moon-icon absolute right-1 h-3 w-3 text-blue-400 hidden" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- User Menu Items -->
+                    <div class="space-y-1">
+                        <a href="{{ route('organizer.settings') }}" class="group flex items-center px-4 py-3 text-sm text-primary hover:bg-secondary transition-colors duration-200">
+                            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 mr-3">
+                                <svg class="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <span class="font-medium">Settings</span>
+                        </a>
+                        
+                        <a href="{{ route('organizer.profile.show') }}" class="group flex items-center px-4 py-3 text-sm text-primary hover:bg-secondary transition-colors duration-200">
+                            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 mr-3">
+                                <svg class="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                            <span class="font-medium">Profile</span>
+                        </a>
+                        
+                        <a href="{{ route('help.support') }}" class="group flex items-center px-4 py-3 text-sm text-primary hover:bg-secondary transition-colors duration-200">
+                            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 mr-3">
+                                <svg class="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <span class="font-medium">Help & Support</span>
+                        </a>
+                    </div>
+                    
+                    <!-- Divider -->
+                    <div class="border-t border-gray-200 dark:border-gray-700 my-3"></div>
+                    
+                    <!-- Logout -->
+                    <div class="px-2">
+                        <form method="POST" action="{{ route('logout') }}" class="block">
                             @csrf
-                            <button type="submit" class="block w-full text-left px-4 py-2 text-base font-medium text-secondary hover:text-primary hover:bg-secondary transition-colors duration-200">
-                                Logout
+                            <button type="submit" class="group w-full flex items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200">
+                                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 group-hover:bg-red-200 transition-colors duration-200 mr-3">
+                                    <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                    </svg>
+                                </div>
+                                <span class="font-medium">Sign Out</span>
                             </button>
                         </form>
                     </div>
@@ -189,7 +293,7 @@
                 </svg>
             </a>
             
-            <a href="#" class="group flex items-center px-4 py-3 text-sm text-primary hover:bg-primary transition-all duration-200">
+            <a href="{{ route('help.support') }}" class="group flex items-center px-4 py-3 text-sm text-primary hover:bg-primary transition-all duration-200">
                 <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 mr-3">
                     <svg class="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -260,10 +364,12 @@
             }
         }, 3000);
 
-        // Profile dropdown functionality
+        // Profile dropdown functionality and mobile menu
         document.addEventListener('DOMContentLoaded', function() {
             const dropdownButton = document.getElementById('user-menu-button');
             const dropdownMenu = document.getElementById('dropdown-menu');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
             
             if (dropdownButton && dropdownMenu) {
                 // Toggle dropdown on button click
@@ -322,6 +428,73 @@
                         dropdownMenu.classList.add('hidden');
                     }, 200);
                 });
+            }
+            
+            // Mobile menu toggle functionality
+            if (mobileMenuButton && mobileMenu) {
+                // Toggle mobile menu
+                mobileMenuButton.addEventListener('click', function() {
+                    const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+                    
+                    if (isExpanded) {
+                        closeMobileMenu();
+                    } else {
+                        openMobileMenu();
+                    }
+                });
+                
+                // Close mobile menu when clicking on menu items
+                const mobileMenuLinks = mobileMenu.querySelectorAll('a, button');
+                mobileMenuLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        // Small delay to allow navigation to start
+                        setTimeout(() => {
+                            closeMobileMenu();
+                        }, 100);
+                    });
+                });
+                
+                // Close mobile menu when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!mobileMenuButton.contains(e.target) && !mobileMenu.contains(e.target)) {
+                        closeMobileMenu();
+                    }
+                });
+                
+                // Close mobile menu on escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        closeMobileMenu();
+                    }
+                });
+                
+                // Close mobile menu on window resize
+                window.addEventListener('resize', function() {
+                    if (window.innerWidth >= 640) { // sm breakpoint
+                        closeMobileMenu();
+                    }
+                });
+                
+                function openMobileMenu() {
+                    mobileMenu.style.display = 'block';
+                    mobileMenuButton.setAttribute('aria-expanded', 'true');
+                    // Add smooth animation
+                    mobileMenu.style.opacity = '0';
+                    mobileMenu.style.transform = 'translateY(-10px)';
+                    setTimeout(() => {
+                        mobileMenu.style.opacity = '1';
+                        mobileMenu.style.transform = 'translateY(0)';
+                    }, 10);
+                }
+                
+                function closeMobileMenu() {
+                    mobileMenu.style.opacity = '0';
+                    mobileMenu.style.transform = 'translateY(-10px)';
+                    setTimeout(() => {
+                        mobileMenu.style.display = 'none';
+                        mobileMenuButton.setAttribute('aria-expanded', 'false');
+                    }, 200);
+                }
             }
         });
     </script>

@@ -5,14 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'Scanner Dashboard') - {{ config('app.name', 'Guest Manager') }}</title>
+    <title>@yield('title', 'Scanner Dashboard') - {{ config('app.name', 'Invaro') }}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/Logo.jpg') }}">
+
+    <!-- Theme initialization script - prevents flickering -->
+    <script>
+        (function() {
+            // Get theme from localStorage or default to light
+            const theme = localStorage.getItem('theme') || 'light';
+            
+            // Apply theme immediately to prevent flickering
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // Apply Tailwind dark mode class
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     <!-- Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/theme.js'])
 </head>
 <body class="font-sans antialiased bg-primary">
     <div class="min-h-screen bg-primary">
@@ -29,7 +52,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z"></path>
                                     </svg>
                                 </div>
-                                <span>Guest Manager</span>
+                                <span>Invaro</span>
                             </a>
                         </div>
 

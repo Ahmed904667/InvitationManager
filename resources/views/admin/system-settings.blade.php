@@ -68,7 +68,7 @@
                                 
                                 <div>
                                     <label class="form-label">Application Name</label>
-                                    <input type="text" name="app_name" value="{{ $settings['app_name'] ?? 'Guest Manager' }}" class="form-input">
+                                    <input type="text" name="app_name" value="{{ $settings['app_name'] ?? 'Invaro' }}" class="form-input">
                                     <p class="form-error">The name of your application as it appears to users.</p>
                                 </div>
 

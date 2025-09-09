@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Guest Manager') }} — Invitation</title>
+    <title>{{ config('app.name', 'Invaro') }} — Invitation</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/Logo.jpg') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     

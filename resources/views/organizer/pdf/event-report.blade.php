@@ -416,7 +416,7 @@
 
     <!-- Footer -->
     <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 10px;">
-        <p>This report was generated automatically by the Guest Manager System</p>
+        <p>This report was generated automatically by the Invaro System</p>
         <p>For questions or support, please contact your system administrator</p>
     </div>
 </body>

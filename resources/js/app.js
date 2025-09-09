@@ -1,7 +1,7 @@
 import './bootstrap';
 import './theme';
 
-// Guest Manager Application JavaScript
+// Invaro Application JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize theme manager
     if (window.themeManager) {

@@ -18,17 +18,19 @@ class TrialRequestMail extends Mailable
     public $contact;
     public $invitationMessage;
     public $subject;
+    public $inviteUrl;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($name, $eventType, $contact, $invitationMessage = null, $subject = null)
+    public function __construct($name, $eventType, $contact, $invitationMessage = null, $subject = null, $inviteUrl = null)
     {
         $this->name = $name;
         $this->eventType = $eventType;
         $this->contact = $contact;
         $this->invitationMessage = $invitationMessage;
         $this->subject = $subject;
+        $this->inviteUrl = $inviteUrl;
     }
 
     /**
@@ -37,7 +39,7 @@ class TrialRequestMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: $this->subject ?? "Welcome to Guest Manager - Your {$this->eventType} Event Trial",
+            subject: $this->subject ?? "Welcome to Invaro - Your {$this->eventType} Event Trial",
         );
     }
 
@@ -54,6 +56,7 @@ class TrialRequestMail extends Mailable
                 'contact' => $this->contact,
                 'invitationMessage' => $this->invitationMessage,
                 'subject' => $this->subject,
+                'inviteUrl' => $this->inviteUrl,
             ],
         );
     }

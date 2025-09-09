@@ -1,16 +1,39 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guest Manager - Professional Event Management</title>
+    <title>Invaro - Professional Event Management</title>
     <meta name="description" content="Streamline your events with our comprehensive guest management platform. Perfect for organizers, scanners, and administrators.">
     
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/Logo.jpg') }}">
+    
+    <!-- Theme initialization script - prevents flickering -->
+    <script>
+        (function() {
+            // Get theme from localStorage or default to light
+            const theme = localStorage.getItem('theme') || 'light';
+            
+            // Apply theme immediately to prevent flickering
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // Apply Tailwind dark mode class
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+    
     <!-- Styles -->
-    @vite(['resources/css/app.css', 'resources/css/landing.css'])
+    @vite(['resources/css/app.css', 'resources/css/landing.css', 'resources/js/theme.js'])
 </head>
 <body class="bg-primary text-primary">
     <!-- Navigation -->
@@ -19,8 +42,8 @@
             <div class="flex justify-between items-center h-16">
                 <!-- Logo -->
                 <div class="flex items-center">
-                    <a href="/" class="text-2xl font-bold gradient-text">
-                        Guest Manager
+                    <a href="/" class="text-4xl font-bold gradient-text">
+                        Invaro
                     </a>
                 </div>
 
@@ -191,6 +214,96 @@
             <div class="blob blob-2"></div>
             <div class="blob blob-3"></div>
         
+    </div>
+
+    <!-- Platform Statistics Section -->
+    <div class="stats-section bg-secondary py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12 fade-in">
+                <h2 class="text-3xl md:text-4xl font-bold text-primary mb-4">
+                    Trusted by Event Organizers Worldwide
+                </h2>
+                <p class="text-xl text-secondary max-w-2xl mx-auto">
+                    Join thousands of successful events powered by our platform
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <!-- Total Events -->
+                <div class="stat-card text-center scale-in delay-100">
+                    <div class="stat-icon bg-blue-600">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="stat-number text-3xl font-bold text-primary mb-2" data-stat="total_events">
+                        {{ $stats['total_events'] ?? '0' }}
+                    </div>
+                    <div class="stat-label text-secondary">Events Created</div>
+                </div>
+
+                <!-- Total Invitations -->
+                <div class="stat-card text-center scale-in delay-200">
+                    <div class="stat-icon bg-green-600">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="stat-number text-3xl font-bold text-primary mb-2" data-stat="total_invitations_sent">
+                        {{ $stats['total_invitations_sent'] ?? '0' }}
+                    </div>
+                    <div class="stat-label text-secondary">Invitations Sent</div>
+                </div>
+
+                <!-- Total Guests -->
+                <div class="stat-card text-center scale-in delay-300">
+                    <div class="stat-icon bg-purple-600">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="stat-number text-3xl font-bold text-primary mb-2" data-stat="total_guests">
+                        {{ $stats['total_guests'] ?? '0' }}
+                    </div>
+                    <div class="stat-label text-secondary">Guests Managed</div>
+                </div>
+
+                <!-- Total Users -->
+                <div class="stat-card text-center scale-in delay-400">
+                    <div class="stat-icon bg-yellow-600">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="stat-number text-3xl font-bold text-primary mb-2" data-stat="total_users">
+                        {{ $stats['total_users'] ?? '0' }}
+                    </div>
+                    <div class="stat-label text-secondary">Active Users</div>
+                </div>
+            </div>
+
+            <!-- Additional Stats Row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+                <div class="text-center scale-in delay-500">
+                    <div class="text-2xl font-bold text-primary mb-2" data-stat="events_this_month">
+                        {{ $stats['events_this_month'] ?? '0' }}
+                    </div>
+                    <div class="text-secondary">Events This Month</div>
+                </div>
+                <div class="text-center scale-in delay-600">
+                    <div class="text-2xl font-bold text-primary mb-2" data-stat="invitations_this_month">
+                        {{ $stats['invitations_this_month'] ?? '0' }}
+                    </div>
+                    <div class="text-secondary">Invitations This Month</div>
+                </div>
+                <div class="text-center scale-in delay-700">
+                    <div class="text-2xl font-bold text-primary mb-2" data-stat="total_trials">
+                        {{ $stats['total_trials'] ?? '0' }}
+                    </div>
+                    <div class="text-secondary">Trial Requests</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Features Section -->
@@ -384,7 +497,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
                         </div>
-                        <span class="ml-2 text-xl font-bold">Guest Manager</span>
+                        <span class="ml-2 text-xl font-bold">Invaro</span>
                     </div>
                     <p class="text-gray-400 mb-4">
                         Professional guest management solution for events of all sizes. 
@@ -414,7 +527,7 @@
             </div>
             
             <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-                <p>&copy; {{ date('Y') }} Guest Manager. All rights reserved.</p>
+                <p>&copy; {{ date('Y') }} Invaro. All rights reserved.</p>
             </div>
         </div>
     </footer>

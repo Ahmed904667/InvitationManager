@@ -168,7 +168,7 @@
     </table>
 
     <div class="footer">
-        <p>Guest Manager - {{ config('app.name') }}</p>
+        <p>Invaro - {{ config('app.name') }}</p>
         <p>This report was generated automatically. For questions, please contact the event organizer.</p>
     </div>
 </body>

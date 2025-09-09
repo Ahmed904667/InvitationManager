@@ -3,27 +3,43 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TrialController;
+use App\Http\Controllers\LandingController;
+use App\Http\Controllers\AccountDeletionController;
+use App\Http\Controllers\HelpController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route as RouteFacade;
 
 // Landing page for non-authenticated users
-Route::get('/', function () {
-    if (auth()->check()) {
-        $user = auth()->user();
-        
-        return match($user->role) {
-            'admin' => redirect()->route('admin.dashboard'),
-            'organizer' => redirect()->route('organizer.dashboard'),
-            'scanner' => redirect()->route('scanner.dashboard'),
-            default => redirect()->route('organizer.dashboard')
-        };
-    }
-    
-    return view('landing');
-})->name('home');
+Route::get('/', [LandingController::class, 'index'])->name('home');
+
+// Legal pages
+Route::get('/terms', function () {
+    return view('legal.terms');
+})->name('terms');
+
+Route::get('/privacy', function () {
+    return view('legal.privacy');
+})->name('privacy');
+
+// Platform statistics routes
+Route::get('/api/stats', [LandingController::class, 'getStats'])->name('api.stats');
+Route::get('/api/stats/detailed', [LandingController::class, 'getDetailedStats'])->name('api.stats.detailed');
+Route::get('/api/stats/period', [LandingController::class, 'getStatsForPeriod'])->name('api.stats.period');
 
 // Trial form submission
 Route::post('/trial', [TrialController::class, 'store'])->name('trial.store');
+
+// Trial invitation page
+Route::get('/trial/invite/{token}', [TrialController::class, 'showInvite'])->name('trial.invite');
+
+// Trial reminder scheduling route
+Route::post('/trial/invite/{token}/reminder', [TrialController::class, 'scheduleReminder'])->name('trial.invite.reminder');
+
+// Delete trial reminder route
+Route::delete('/trial/invite/{token}/reminder/{reminderId}', [TrialController::class, 'deleteReminder'])->name('trial.invite.reminder.delete');
+
+// Trial RSVP submission route
+Route::post('/trial/invite/{token}/rsvp', [TrialController::class, 'submitRsvp'])->name('trial.invite.rsvp');
 
 // Authentication Routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -32,6 +48,17 @@ Route::post('/google-login', [AuthController::class, 'googleLogin'])->name('goog
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// OTP Registration Routes
+Route::post('/register/send-otp', [AuthController::class, 'sendRegistrationOTP'])->name('register.send-otp');
+Route::get('/register/verify-otp', [AuthController::class, 'showVerifyOTP'])->name('register.verify-otp');
+Route::post('/register/verify-otp', [AuthController::class, 'verifyRegistrationOTP'])->name('register.verify-otp');
+
+// Password Reset Routes
+Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+Route::post('/forgot-password', [AuthController::class, 'sendPasswordResetLink'])->name('password.email');
+Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 
 // Google OAuth Routes
 Route::get('/google/redirect', [AuthController::class, 'googleRedirect'])->name('google.redirect');
@@ -54,8 +81,17 @@ Route::middleware('auth')->group(function () {
             default => redirect()->route('organizer.dashboard')
         };
     })->name('dashboard');
+
+    // Account deletion routes
+    Route::get('/account/delete', [AccountDeletionController::class, 'showRequestForm'])->name('account.delete.request');
+    Route::post('/account/delete', [AccountDeletionController::class, 'requestDeletion'])->name('account.delete.submit');
+    
+    // Help & Support
+    Route::get('/help', [HelpController::class, 'support'])->name('help.support');
 });
 
+// Account deletion confirmation (no auth required)
+Route::get('/account/delete/confirm/{token}', [AccountDeletionController::class, 'confirmDeletion'])->name('account.delete.confirm');
 
 
 // Test theme route
@@ -119,12 +155,6 @@ Route::get('/invite/{token}', function(string $token) {
     $event = \App\Shared\Models\Event::findOrFail($invitation->event_id);
     $guest = \App\Shared\Models\Guest::findOrFail($invitation->guest_id);
 
-    // Check if event has ended and mark invitation as expired if so
-    if ($event->isCompleted() && $invitation->status !== \App\Shared\Models\Invitation::STATUS_EXPIRED) {
-        $invitation->update(['status' => \App\Shared\Models\Invitation::STATUS_EXPIRED]);
-        return view('invitations.expired', compact('invitation'));
-    }
-
     // Get existing reminders for this invitation
     $reminders = \App\Shared\Models\Reminder::where('invitation_id', $invitation->id)
         ->where('status', 'pending')
@@ -155,7 +185,7 @@ Route::get('/invite/{token}/event.ics', function(string $token) {
     $location = $event->venue_address ?: ($event->location ?: '');
     $uid = $token . '@' . parse_url(config('app.url'), PHP_URL_HOST);
 
-    $ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Guest Manager//EN\n".
+    $ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Invaro//EN\n".
            "BEGIN:VEVENT\n".
            "UID:".$uid."\n".
            "DTSTAMP:".$start->format('Ymd\THis\Z')."\n".

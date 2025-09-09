@@ -118,7 +118,7 @@ class SendEventReminder implements ShouldQueue
         $message .= "📅 Event: {$eventName}\n";
         $message .= "🕐 Date & Time: {$eventDate}\n\n";
         $message .= "Don't forget to mark your calendar and set aside time to attend!\n\n";
-        $message .= "Best regards,\nGuest Manager";
+        $message .= "Best regards,\nInvaro";
         
         // Update reminder with message content
         $reminder->update([
@@ -175,7 +175,7 @@ class SendEventReminder implements ShouldQueue
         $message .= "📅 *{$eventName}*\n";
         $message .= "🕐 *{$eventDate}*\n\n";
         $message .= "Don't forget to mark your calendar and set aside time to attend!\n\n";
-        $message .= "Best regards,\nGuest Manager";
+        $message .= "Best regards,\nInvaro";
         
         // Update reminder with message content
         $reminder->update([

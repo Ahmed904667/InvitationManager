@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize parallax effects
     initializeParallax();
+    
+    // Initialize statistics animations
+    initializeStatsAnimations();
 });
 
 // Animation System
@@ -164,6 +167,97 @@ function initializeParallax() {
             const speed = 0.5 + (index * 0.1);
             element.style.transform = `translateY(${scrolled * speed}px)`;
         });
+    });
+}
+
+// Statistics Animation System
+function initializeStatsAnimations() {
+    const statsObserverOptions = {
+        threshold: 0.5,
+        rootMargin: '0px 0px -100px 0px'
+    };
+
+    const statsObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateStatistics();
+                statsObserver.unobserve(entry.target); // Only animate once
+            }
+        });
+    }, statsObserverOptions);
+
+    // Observe the stats section
+    const statsSection = document.querySelector('.stats-section');
+    if (statsSection) {
+        statsObserver.observe(statsSection);
+    }
+}
+
+function animateStatistics() {
+    const statNumbers = document.querySelectorAll('.stat-number[data-stat]');
+    
+    statNumbers.forEach((element, index) => {
+        const finalValue = element.textContent;
+        const numericValue = parseFloat(finalValue.replace(/[^\d.]/g, ''));
+        const suffix = finalValue.replace(/[\d.]/g, '');
+        
+        if (!isNaN(numericValue)) {
+            animateNumber(element, 0, numericValue, suffix, 1500, index * 100);
+        }
+    });
+}
+
+function animateNumber(element, start, end, suffix, duration, delay) {
+    setTimeout(() => {
+        const startTime = performance.now();
+        const isDecimal = end % 1 !== 0;
+        
+        function updateNumber(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Easing function for smooth animation
+            const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+            const current = start + (end - start) * easeOutQuart;
+            
+            if (isDecimal) {
+                element.textContent = current.toFixed(1) + suffix;
+            } else {
+                element.textContent = Math.floor(current) + suffix;
+            }
+            
+            if (progress < 1) {
+                requestAnimationFrame(updateNumber);
+            } else {
+                element.textContent = end + suffix;
+                element.classList.add('animate');
+            }
+        }
+        
+        requestAnimationFrame(updateNumber);
+    }, delay);
+}
+
+// Refresh statistics periodically (optional)
+function refreshStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStatsDisplay(data.data);
+            }
+        })
+        .catch(error => {
+            console.log('Failed to refresh stats:', error);
+        });
+}
+
+function updateStatsDisplay(stats) {
+    Object.keys(stats).forEach(key => {
+        const element = document.querySelector(`[data-stat="${key}"]`);
+        if (element) {
+            element.textContent = stats[key];
+        }
     });
 }
 

@@ -296,6 +296,16 @@ Please save the date and join us for an evening of celebration, great company, a
                 </div>
             </div>
 
+            @if($inviteUrl)
+            <div class="cta-section">
+                <h3>🔗 View Your Invitation</h3>
+                <p>Click the link below to see your personalized invitation with all the details:</p>
+                <div style="margin: 20px 0;">
+                    <a href="{{ $inviteUrl }}" style="display: inline-block; background-color: #ffffff; color: #4f46e5; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; border: 2px solid #ffffff;">View Invitation</a>
+                </div>
+            </div>
+            @endif
+
             <div class="cta-section">
                 <h3>💌 RSVP</h3>
                 <p>Please confirm your attendance by replying to this email or contacting us directly. We look forward to hearing from you!</p>

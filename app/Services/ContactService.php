@@ -117,7 +117,7 @@ class ContactService
         // Use different URLs based on environment
         $appUrl = $this->getAppUrl();
         
-        return "Hi {$name}! 👋\n\nThank you for your interest in Guest Manager for your {$eventType} event!\n\nWe're excited to help you create an amazing experience for your guests.\n\n🌐 *Visit our platform:*\n{$appUrl}\n\n*If the link above doesn't work, copy and paste it into your browser*\n\nBest regards,\nGuest Manager Team";
+        return "Hi {$name}! 👋\n\nThank you for your interest in Invaro for your {$eventType} event!\n\nWe're excited to help you create an amazing experience for your guests.\n\n🌐 *Visit our platform:*\n{$appUrl}\n\n*If the link above doesn't work, copy and paste it into your browser*\n\nBest regards,\nInvaro Team";
     }
 
     /**

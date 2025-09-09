@@ -1,10 +1,48 @@
-@extends('layouts.app')
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ config('app.name', 'Invaro') }}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/Logo.jpg') }}">
+    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="font-sans antialiased">
+<div class="min-h-screen flex w-full">
+    <!-- Left side - Image -->
+    <div class="hidden lg:flex lg:w-1/2 relative">
+        <img src="{{ asset('images/pexels-karolina-grabowska-4219890.jpg') }}" 
+             alt="Beautiful red envelope with carnations" 
+             class="w-full h-full object-cover">
+        <div class="absolute inset-0 bg-black bg-opacity-30"></div>
+        <div class="absolute bottom-8 left-8 text-white">
+            <h3 class="text-2xl font-bold mb-2">Welcome Back</h3>
+            <p class="text-lg opacity-90">Sign in to continue your journey with us</p>
+        </div>
+    </div>
 
-@section('content')
-<div class="min-h-screen flex items-center justify-center bg-primary">
-    <div class="max-w-md w-full space-y-8">
+
+    <!-- Right side - Login Form -->
+    <div class="w-full lg:w-1/2 flex flex-col justify-center bg-white dark:bg-gray-900 min-h-screen lg:min-h-0">
+        <!-- Back Button -->
+        <div class="absolute top-4 left-4 lg:top-6 lg:left-6 z-10">
+            <a href="{{ route('home') }}" class="inline-flex items-center text-gray-600 hover:text-gray-900 dark:hover:text-white lg:text-white lg:hover:text-gray-200 transition-colors duration-200">
+                <svg class="w-4 h-4 lg:w-5 lg:h-5 mr-1 lg:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="text-sm lg:text-base">Back to Home</span>
+            </a>
+        </div>
+
         <!-- Theme Toggle -->
-        <div class="flex justify-end">
+        <div class="absolute top-4 right-4 lg:top-6 lg:right-6 z-10">
             <button class="theme-toggle" type="button" aria-label="Toggle theme">
                 <span class="theme-toggle-thumb"></span>
                 <svg class="sun-icon absolute left-1 h-3 w-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
@@ -16,96 +54,215 @@
             </button>
         </div>
         
-        <div>
-            <h2 class="mt-6 text-center text-3xl font-extrabold text-primary">
-                Sign in to your account
-            </h2>
-        </div>
-        
-        @if ($errors->any())
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                <ul class="list-disc list-inside">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+        <div class="max-w-md mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-0">
+            <div class="text-center mb-6 lg:mb-8">
+                <h2 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    Welcome Back
+                </h2>
+                <p class="text-sm lg:text-base text-gray-600 dark:text-gray-400">
+                    Sign in to your account to continue
+                </p>
             </div>
-        @endif
+            
+            <!-- Success Message -->
+            @if (session('status'))
+                <div class="mb-6 px-3 py-2 lg:px-4 lg:py-3 bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 text-xs lg:text-sm rounded-md">
+                    {{ session('status') }}
+                </div>
+            @endif
 
-        <form class="mt-8 space-y-6" action="{{ route('login') }}" method="POST">
-            @csrf
-            <div class="space-y-4">
+            <!-- Error Messages -->
+            @if ($errors->any())
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 py-2 lg:px-4 lg:py-3 rounded-lg mb-4 lg:mb-6">
+                    <ul class="list-disc list-inside space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li class="text-xs lg:text-sm">{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form class="space-y-4 lg:space-y-6" action="{{ route('login') }}" method="POST">
+                @csrf
+                <div class="space-y-3 lg:space-y-4">
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 lg:mb-2">
+                            Email address
+                        </label>
+                        <input id="email" name="email" type="email" required 
+                               class="w-full px-3 py-2 lg:px-4 lg:py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-800 dark:text-white transition-colors duration-200 text-sm lg:text-base" 
+                               placeholder="Enter your email" value="{{ old('email') }}">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 lg:mb-2">
+                            Password
+                        </label>
+                        <input id="password" name="password" type="password" required 
+                               class="w-full px-3 py-2 lg:px-4 lg:py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-800 dark:text-white transition-colors duration-200 text-sm lg:text-base" 
+                               placeholder="Enter your password">
+                    </div>
+                </div>
+
+                <!-- Remember Me -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                    <div class="flex items-center">
+                        <input id="remember" name="remember" type="checkbox" 
+                               class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded">
+                        <label for="remember" class="ml-2 block text-xs lg:text-sm text-gray-700 dark:text-gray-300">
+                            Remember me
+                        </label>
+                    </div>
+                    <div class="text-xs lg:text-sm">
+                        <a href="{{ route('password.request') }}" class="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors duration-200">
+                            Forgot password?
+                        </a>
+                    </div>
+                </div>
+
                 <div>
-                    <label for="email" class="form-label">Email address</label>
-                    <input id="email" name="email" type="email" required 
-                           class="form-input" 
-                           placeholder="Email address" value="{{ old('email') }}">
+                    <button type="submit" 
+                            class="w-full flex justify-center py-2 lg:py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200">
+                        Sign in
+                    </button>
                 </div>
-                <div>
-                    <label for="password" class="form-label">Password</label>
-                    <input id="password" name="password" type="password" required 
-                           class="form-input" 
-                           placeholder="Password">
-                </div>
-            </div>
 
-            <div>
-                <button type="submit" 
-                        class="btn-primary w-full">
-                    Sign in
-                </button>
-            </div>
+                <div class="text-center">
+                    <p class="text-xs lg:text-sm text-gray-600 dark:text-gray-400">
+                        Don't have an account? 
+                        <a href="{{ route('register') }}" class="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors duration-200">
+                            Sign up here
+                        </a>
+                    </p>
+                </div>
+            </form>
 
-            <div class="flex items-center justify-center">
-                <div class="text-sm">
-                    <a href="{{ route('register') }}" class="font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200">
-                        Don't have an account? Register
-                    </a>
+            <div class="mt-6 lg:mt-8">
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300 dark:border-gray-600" />
+                    </div>
+                    <div class="relative flex justify-center text-xs lg:text-sm">
+                        <span class="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">Or continue with</span>
+                    </div>
                 </div>
-            </div>
-        </form>
 
-        <div class="mt-6">
-            <div class="relative">
-                <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-primary" />
+                <div class="mt-4 lg:mt-6">
+                    <div id="g_id_onload"
+                         data-client_id="{{ config('services.google.client_id') }}"
+                         data-callback="handleCredentialResponse"
+                         data-auto_prompt="false"
+                         data-cancel_on_tap_outside="false"
+                         data-context="signin"
+                         data-ux_mode="popup"
+                         data-itp_support="true">
+                    </div>
+                    <div class="g_id_signin" 
+                         data-type="standard" 
+                         data-shape="rectangular" 
+                         data-theme="outline" 
+                         data-text="signin_with" 
+                         data-size="large" 
+                         data-logo_alignment="left"
+                         data-width="300">
+                    </div>
                 </div>
-                <div class="relative flex justify-center text-sm">
-                    <span class="px-2 bg-primary text-secondary">Or continue with</span>
-                </div>
-            </div>
-
-            <div class="mt-6">
-                <div id="g_id_onload"
-                     data-client_id="470217380882-5km773db0mnhsiu6nh9766qdaq9pdgn6.apps.googleusercontent.com"
-                     data-callback="handleCredentialResponse">
-                </div>
-                <div class="g_id_signin" data-type="standard"></div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
+let isGoogleSignInInProgress = false;
+
 function handleCredentialResponse(response) {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '{{ route("google.login") }}';
+    // Prevent multiple simultaneous requests
+    if (isGoogleSignInInProgress) {
+        console.log('Google sign-in already in progress, ignoring duplicate request');
+        return;
+    }
     
-    const csrfToken = document.createElement('input');
-    csrfToken.type = 'hidden';
-    csrfToken.name = '_token';
-    csrfToken.value = '{{ csrf_token() }}';
+    isGoogleSignInInProgress = true;
     
-    const credential = document.createElement('input');
-    credential.type = 'hidden';
-    credential.name = 'credential';
-    credential.value = response.credential;
+    // Show loading state
+    const googleButton = document.querySelector('.g_id_signin');
+    if (googleButton) {
+        googleButton.style.opacity = '0.5';
+        googleButton.style.pointerEvents = 'none';
+    }
     
-    form.appendChild(csrfToken);
-    form.appendChild(credential);
-    document.body.appendChild(form);
-    form.submit();
+    // Use fetch for more reliable POST request
+    fetch('{{ route("google.login") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            credential: response.credential
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            // If successful, redirect to the intended page
+            return response.json().then(data => {
+                if (data.success && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    window.location.href = '/organizer';
+                }
+            });
+        } else {
+            // Handle error response
+            return response.json().then(data => {
+                throw new Error(data.message || 'Google sign-in failed');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Google sign-in error:', error);
+        // Show error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 py-2 lg:px-4 lg:py-3 rounded-lg mb-4 lg:mb-6';
+        errorDiv.innerHTML = '<p class="text-xs lg:text-sm">Google sign-in failed. Please try again.</p>';
+        
+        // Insert error message before the form
+        const form = document.querySelector('form');
+        form.parentNode.insertBefore(errorDiv, form);
+        
+        // Remove error message after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
+            }
+        }, 5000);
+    })
+    .finally(() => {
+        // Reset the flag and restore button state
+        isGoogleSignInInProgress = false;
+        if (googleButton) {
+            googleButton.style.opacity = '1';
+            googleButton.style.pointerEvents = 'auto';
+        }
+    });
 }
+
+// Initialize Google Identity Services with proper configuration
+window.onload = function() {
+    if (typeof google !== 'undefined' && google.accounts) {
+        google.accounts.id.initialize({
+            client_id: '{{ config("services.google.client_id") }}',
+            callback: handleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: false,
+            context: 'signin',
+            ux_mode: 'popup',
+            itp_support: true
+        });
+    }
+};
 </script>
-@endsection 
+</body>
+</html> 

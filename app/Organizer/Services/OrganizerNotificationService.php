@@ -287,7 +287,7 @@ class OrganizerNotificationService
                 return "👥 Guest List Update: {$data['guest_list_name']}";
             
             default:
-                return "🔔 Guest Manager Notification";
+                return "🔔 Invaro Notification";
         }
     }
 
@@ -314,7 +314,7 @@ class OrganizerNotificationService
                 $message .= "• RSVP Yes: {$data['rsvp_yes']}\n";
                 $message .= "• RSVP Maybe: {$data['rsvp_maybe']}\n\n";
                 $message .= "Everything is ready to go! Have a great event!\n\n";
-                $message .= "Best regards,\nGuest Manager";
+                $message .= "Best regards,\nInvaro";
                 
                 return $message;
             
@@ -339,7 +339,7 @@ class OrganizerNotificationService
                 $message .= "• Yes: {$data['total_rsvp_yes']}\n";
                 $message .= "• Maybe: {$data['total_rsvp_maybe']}\n";
                 $message .= "• No: {$data['total_rsvp_no']}\n\n";
-                $message .= "Best regards,\nGuest Manager";
+                $message .= "Best regards,\nInvaro";
                 
                 return $message;
             
@@ -354,12 +354,12 @@ class OrganizerNotificationService
                 $message .= "📅 Date: {$eventDate}\n";
                 $message .= "🕐 Check-in Time: {$checkInTime}\n\n";
                 $message .= "Your event is in full swing!\n\n";
-                $message .= "Best regards,\nGuest Manager";
+                $message .= "Best regards,\nInvaro";
                 
                 return $message;
             
             default:
-                return "You have a new notification from Guest Manager.";
+                return "You have a new notification from Invaro.";
         }
     }
 
@@ -425,7 +425,7 @@ class OrganizerNotificationService
                 return $message;
             
             default:
-                return "🔔 You have a new notification from Guest Manager.";
+                return "🔔 You have a new notification from Invaro.";
         }
     }
 

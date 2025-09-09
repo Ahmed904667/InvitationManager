@@ -198,7 +198,7 @@ EVENT TYPE: {$eventType}
    - **RSVP details:** Include realistic contact information
 6. **Use emojis if appropriate** to enhance tone and clarity, but only when culturally acceptable.
 7. **Use one language** - no translations.
-8. **Sender name** is always "Inviter".
+8. **Do not include sender name prefixes** like "Inviter:" or "From:" in the message.
 9. **Format as complete email** with subject line and body.
 10. **Include all essential invitation elements**:
     - Compelling subject line
@@ -251,7 +251,7 @@ EVENT TYPE: {$eventType}
    - **RSVP details:** Include realistic contact information
 6. **Use emojis if appropriate** to enhance tone and clarity, but only when culturally acceptable.
 7. **Use one language** - no translations.
-8. **Sender name** is always "Inviter".
+8. **Do not include sender name prefixes** like "Inviter:" or "From:" in the message.
 9. **Format as a WhatsApp message**: no subject line, use line breaks, keep it concise and friendly, and use sender/receiver roles if it makes sense.
 10. **Include all essential invitation elements**:
     - Warm greeting
@@ -279,6 +279,11 @@ EOT;
 
         if (str_starts_with($response, 'SUCCESS:')) {
             $content = trim(substr($response, 8));
+            
+            // Remove any "Inviter:" prefixes that might be added by AI
+            $content = preg_replace('/^Inviter:\s*/i', '', $content);
+            $content = preg_replace('/^From:\s*/i', '', $content);
+            
             // Check if response contains subject line
             if (preg_match('/SUBJECT:\s*(.+?)(?:\n|$)/i', $content, $subjectMatch)) {
                 $subject = trim($subjectMatch[1]);

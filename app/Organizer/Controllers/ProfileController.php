@@ -8,6 +8,7 @@ use App\PasswordResetToken;
 use App\Services\TwilioService;
 use App\Mail\OTPMail;
 use App\Mail\PasswordResetMail;
+use App\Rules\StrongPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -313,7 +314,7 @@ class ProfileController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'confirmed', new StrongPassword],
         ]);
 
         if ($validator->fails()) {
@@ -394,7 +395,7 @@ class ProfileController extends Controller
         
         $validator = Validator::make($request->all(), [
             'token' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'confirmed', new StrongPassword],
         ]);
 
         if ($validator->fails()) {

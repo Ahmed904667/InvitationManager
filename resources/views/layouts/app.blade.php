@@ -5,14 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Guest Manager') }}</title>
+    <title>{{ config('app.name', 'Invaro') }}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="shortcut icon" type="image/jpeg" href="{{ asset('images/Logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/Logo.jpg') }}">
+
+    <!-- Theme initialization script - prevents flickering -->
+    <script>
+        (function() {
+            // Get theme from localStorage or default to light
+            const theme = localStorage.getItem('theme') || 'light';
+            
+            // Apply theme immediately to prevent flickering
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // Apply Tailwind dark mode class
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     <!-- Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/theme.js'])
     
     <!-- Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -27,7 +50,7 @@
                         <div class="flex">
                             <div class="flex-shrink-0 flex items-center">
                                 <a href="{{ route('dashboard') }}" class="text-xl font-bold text-primary">
-                                    Guest Manager
+                                    Invaro
                                 </a>
                             </div>
                             <div class="hidden sm:ml-6 sm:flex sm:space-x-8">

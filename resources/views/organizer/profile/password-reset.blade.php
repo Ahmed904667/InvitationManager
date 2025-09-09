@@ -67,9 +67,38 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="mt-1 text-sm text-secondary">
-                        Password must be at least 8 characters long
-                    </p>
+                    <!-- Password Strength Indicator -->
+                    <div id="password-strength" class="mt-2 hidden">
+                        <div class="flex space-x-1 mb-2">
+                            <div class="h-1 flex-1 bg-gray-200 dark:bg-gray-700 rounded" id="strength-bar-1"></div>
+                            <div class="h-1 flex-1 bg-gray-200 dark:bg-gray-700 rounded" id="strength-bar-2"></div>
+                            <div class="h-1 flex-1 bg-gray-200 dark:bg-gray-700 rounded" id="strength-bar-3"></div>
+                            <div class="h-1 flex-1 bg-gray-200 dark:bg-gray-700 rounded" id="strength-bar-4"></div>
+                        </div>
+                        <div id="strength-text" class="text-xs text-gray-600 dark:text-gray-400"></div>
+                        <div id="strength-requirements" class="mt-2 text-xs space-y-1">
+                            <div class="flex items-center" id="req-length">
+                                <span class="w-4 h-4 mr-2 text-gray-400">✗</span>
+                                <span class="text-gray-600 dark:text-gray-400">At least 8 characters</span>
+                            </div>
+                            <div class="flex items-center" id="req-lowercase">
+                                <span class="w-4 h-4 mr-2 text-gray-400">✗</span>
+                                <span class="text-gray-600 dark:text-gray-400">One lowercase letter</span>
+                            </div>
+                            <div class="flex items-center" id="req-uppercase">
+                                <span class="w-4 h-4 mr-2 text-gray-400">✗</span>
+                                <span class="text-gray-600 dark:text-gray-400">One uppercase letter</span>
+                            </div>
+                            <div class="flex items-center" id="req-number">
+                                <span class="w-4 h-4 mr-2 text-gray-400">✗</span>
+                                <span class="text-gray-600 dark:text-gray-400">One number</span>
+                            </div>
+                            <div class="flex items-center" id="req-special">
+                                <span class="w-4 h-4 mr-2 text-gray-400">✗</span>
+                                <span class="text-gray-600 dark:text-gray-400">One special character</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Confirm Password -->
@@ -162,5 +191,102 @@ function togglePassword(inputId) {
         `;
     }
 }
+
+// Password strength checking
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('password');
+    const passwordStrength = document.getElementById('password-strength');
+    const strengthBars = [
+        document.getElementById('strength-bar-1'),
+        document.getElementById('strength-bar-2'),
+        document.getElementById('strength-bar-3'),
+        document.getElementById('strength-bar-4')
+    ];
+    const strengthText = document.getElementById('strength-text');
+
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        
+        if (password.length > 0) {
+            passwordStrength.classList.remove('hidden');
+            checkPasswordStrength(password);
+        } else {
+            passwordStrength.classList.add('hidden');
+        }
+    });
+
+    function checkPasswordStrength(password) {
+        const requirements = {
+            length: password.length >= 8,
+            lowercase: /[a-z]/.test(password),
+            uppercase: /[A-Z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[^A-Za-z0-9]/.test(password)
+        };
+
+        // Update requirement indicators
+        updateRequirement('req-length', requirements.length);
+        updateRequirement('req-lowercase', requirements.lowercase);
+        updateRequirement('req-uppercase', requirements.uppercase);
+        updateRequirement('req-number', requirements.number);
+        updateRequirement('req-special', requirements.special);
+
+        // Calculate strength score
+        const score = Object.values(requirements).filter(Boolean).length;
+        updateStrengthBars(score);
+        updateStrengthText(score);
+    }
+
+    function updateRequirement(elementId, met) {
+        const element = document.getElementById(elementId);
+        const icon = element.querySelector('span');
+        const text = element.querySelector('span:last-child');
+        
+        if (met) {
+            icon.textContent = '✓';
+            icon.className = 'w-4 h-4 mr-2 text-green-500';
+            text.className = 'text-green-600 dark:text-green-400';
+        } else {
+            icon.textContent = '✗';
+            icon.className = 'w-4 h-4 mr-2 text-gray-400';
+            text.className = 'text-gray-600 dark:text-gray-400';
+        }
+    }
+
+    function updateStrengthBars(score) {
+        const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'];
+        
+        strengthBars.forEach((bar, index) => {
+            bar.className = 'h-1 flex-1 rounded transition-colors duration-300';
+            
+            if (index < score) {
+                bar.classList.add(colors[Math.min(score - 1, 3)]);
+            } else {
+                bar.classList.add('bg-gray-200', 'dark:bg-gray-700');
+            }
+        });
+    }
+
+    function updateStrengthText(score) {
+        const texts = [
+            'Very Weak',
+            'Weak', 
+            'Fair',
+            'Good',
+            'Strong'
+        ];
+        
+        const colors = [
+            'text-red-600 dark:text-red-400',
+            'text-orange-600 dark:text-orange-400',
+            'text-yellow-600 dark:text-yellow-400',
+            'text-blue-600 dark:text-blue-400',
+            'text-green-600 dark:text-green-400'
+        ];
+        
+        strengthText.textContent = texts[score];
+        strengthText.className = `text-xs font-medium ${colors[score]}`;
+    }
+});
 </script>
 @endsection

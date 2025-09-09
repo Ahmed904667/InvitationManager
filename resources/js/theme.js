@@ -1,4 +1,4 @@
-// Theme management for Guest Manager
+// Theme management for Invaro
 class ThemeManager {
     constructor() {
         this.theme = localStorage.getItem('theme') || 'light';
@@ -6,8 +6,15 @@ class ThemeManager {
     }
 
     init() {
-        // Set initial theme
-        this.setTheme(this.theme);
+        // Check if theme is already set (to prevent flickering)
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        if (currentTheme && currentTheme === this.theme) {
+            // Theme is already set, just update toggles without showing notification
+            this.updateToggles();
+        } else {
+            // Set initial theme (only if not already set) without notification
+            this.setTheme(this.theme, false);
+        }
         
         // Add event listeners to theme toggles
         this.addEventListeners();
@@ -19,7 +26,7 @@ class ThemeManager {
         this.addTooltips();
     }
 
-    setTheme(theme) {
+    setTheme(theme, showNotification = true) {
         this.theme = theme;
         
         // Update data-theme attribute
@@ -41,8 +48,10 @@ class ThemeManager {
         // Dispatch custom event
         document.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme } }));
         
-        // Show notification
-        this.showThemeNotification(theme);
+        // Show notification only if requested
+        if (showNotification) {
+            this.showThemeNotification(theme);
+        }
     }
 
     toggleTheme() {
