@@ -5313,23 +5313,51 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             if ($activeGuests->count() > 0) {
                 $twilioService = app(\App\Services\TwilioService::class);
                 
+                // Get event notification preferences - only WhatsApp and email are supported
+                $invitationPlatforms = $event->invitation_platforms ?? ['email']; // Default to email if not set
+                
                 foreach ($activeGuests as $guest) {
                     try {
-                        // Send SMS apology if guest has phone
-                        if ($guest->phone) {
-                            $twilioService->sendSms(
+                        $notificationsSent = [];
+                        
+                        // Send WhatsApp message if enabled and guest has phone
+                        if (in_array('whatsapp', $invitationPlatforms) && $guest->phone) {
+                            $result = $twilioService->sendWhatsAppMessage(
                                 $guest->phone,
                                 $request->apology_message
                             );
+                            if ($result['success']) {
+                                $notificationsSent[] = 'WhatsApp';
+                            }
                         }
                         
-                        // Send email apology if guest has email
-                        if ($guest->email) {
+                        // Send email if enabled and guest has email
+                        if (in_array('email', $invitationPlatforms) && $guest->email) {
                             \Mail::to($guest->email)->send(new \App\Mail\EventCancellationMail(
                                 $event,
                                 $request->apology_message
                             ));
+                            $notificationsSent[] = 'Email';
                         }
+                        
+                        // Log the notification attempt
+                        if (!empty($notificationsSent)) {
+                            \Log::info("Event cancellation notification sent to guest {$guest->id}", [
+                                'guest_id' => $guest->id,
+                                'event_id' => $event->id,
+                                'notifications_sent' => $notificationsSent,
+                                'invitation_platforms' => $invitationPlatforms
+                            ]);
+                        } else {
+                            \Log::warning("No cancellation notification sent to guest {$guest->id} - no valid contact method or platform configured", [
+                                'guest_id' => $guest->id,
+                                'event_id' => $event->id,
+                                'guest_phone' => $guest->phone,
+                                'guest_email' => $guest->email,
+                                'invitation_platforms' => $invitationPlatforms
+                            ]);
+                        }
+                        
                     } catch (\Exception $e) {
                         \Log::warning("Failed to send cancellation message to guest {$guest->id}: " . $e->getMessage());
                         // Continue with other guests even if one fails
@@ -5337,8 +5365,9 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 }
             }
             
-            // Delete all invitations for this event
-            $event->invitations()->delete();
+            // Mark all invitations as canceled instead of deleting them
+            // This allows guests to still access their invitation links and see the cancellation message
+            $event->invitations()->update(['status' => 'canceled']);
             
             // Remove all scheduled messages for this event
             // Cancel any pending jobs in the queue for this event

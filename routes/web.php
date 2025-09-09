@@ -145,14 +145,28 @@ Route::get('/invite/{token}', function(string $token) {
     }
     
     // Regular invitation handling
-    $invitation = \App\Shared\Models\Invitation::where('token', $token)->firstOrFail();
+    $invitation = \App\Shared\Models\Invitation::where('token', $token)->first();
+    
+    if (!$invitation) {
+        abort(404, 'Invitation not found');
+    }
+    
+    $event = \App\Shared\Models\Event::find($invitation->event_id);
+    
+    if (!$event) {
+        abort(404, 'Event not found');
+    }
     
     // Check if invitation is expired
     if ($invitation->status === \App\Shared\Models\Invitation::STATUS_EXPIRED) {
         return view('invitations.expired', compact('invitation'));
     }
     
-    $event = \App\Shared\Models\Event::findOrFail($invitation->event_id);
+    // Check if invitation is canceled or event is canceled
+    if ($invitation->status === 'canceled' || $event->cancelled_at) {
+        return view('invitations.canceled', compact('event', 'invitation'));
+    }
+    
     $guest = \App\Shared\Models\Guest::findOrFail($invitation->guest_id);
 
     // Get existing reminders for this invitation
