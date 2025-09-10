@@ -17,39 +17,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property string|null $location
  * @property string|null $venue_name
  * @property string|null $venue_address
- * @property string|null $parking_info
  * @property string $invitation_title
- * @property string|null $invitation_subtitle
- * @property string|null $invitation_message
- * @property string|null $rsvp_message
- * @property string|null $rsvp_deadline
- * @property string|null $rsvp_contact
  * @property bool $rsvp_enabled
  * @property bool $qr_checkin_enabled
- * @property string|null $qr_code_url
- * @property string|null $qr_description
- * @property string $hero_color1
- * @property string $hero_color2
- * @property string $accent_color
- * @property string $font_family
  * @property array<array-key, mixed>|null $guest_list_ids
- * @property string|null $message_template
- * @property array<array-key, mixed>|null $custom_messages
- * @property array<array-key, mixed>|null $attachments
  * @property string $send_type
  * @property \Illuminate\Support\Carbon|null $scheduled_at
  * @property string $status
  * @property int $user_id
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property string|null $additional_information
  * @property array<array-key, mixed>|null $invitation_platforms
  * @property string $message_mode
  * @property string|null $general_message
  * @property array<array-key, mixed>|null $group_messages
  * @property array<array-key, mixed>|null $per_guest_messages
- * @property bool $ai_generated
- * @property bool $dates_in_utc
  * @property \Illuminate\Support\Carbon|null $cancelled_at
  * @property string|null $cancellation_reason
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Guest> $activeGuests
@@ -99,21 +81,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereInvitationMessage($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereInvitationPlatforms($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereInvitationSubtitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereInvitationTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereLocation($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereMessageMode($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereMessageTemplate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereName($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereParkingInfo($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event wherePerGuestMessages($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereQrCheckinEnabled($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereQrCodeUrl($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereQrDescription($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereRsvpContact($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereRsvpDeadline($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereRsvpEnabled($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereRsvpMessage($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereScheduledAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereSendType($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereStartDate($value)
@@ -147,36 +122,18 @@ class Event extends Model
         'location',
         'venue_name',
         'venue_address',
-        'parking_info',
-        'additional_information',
         'invitation_title',
-        'invitation_subtitle',
-        'invitation_message',
-        'rsvp_message',
-        'rsvp_deadline',
-        'rsvp_contact',
         'rsvp_enabled',
         'qr_checkin_enabled',
-        'qr_code_url',
-        'qr_description',
         'invitation_platforms',
         'message_mode',
         'general_message',
         'group_messages',
         'per_guest_messages',
-        'ai_generated',
-        'hero_color1',
-        'hero_color2',
-        'accent_color',
-        'font_family',
         'guest_list_ids',
-        'message_template',
-        'custom_messages',
-        'attachments',
         'send_type',
         'scheduled_at',
         'status',
-        'dates_in_utc',
         'user_id',
         'cancelled_at',
         'cancellation_reason',
@@ -189,14 +146,10 @@ class Event extends Model
         'cancelled_at' => 'datetime',
         'rsvp_enabled' => 'boolean',
         'qr_checkin_enabled' => 'boolean',
-        'ai_generated' => 'boolean',
-        'dates_in_utc' => 'boolean',
         'guest_list_ids' => 'array',
         'invitation_platforms' => 'array',
         'group_messages' => 'array',
         'per_guest_messages' => 'array',
-        'custom_messages' => 'array',
-        'attachments' => 'array',
     ];
 
     public function user(): BelongsTo

@@ -8,10 +8,12 @@ use App\Shared\Models\Guest;
 use App\Organizer\Services\OrganizerNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Carbon\Carbon;
 
 class RsvpController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Handle RSVP submission from guest invitation
      */

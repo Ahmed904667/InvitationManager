@@ -1444,21 +1444,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             'location' => 'nullable|string|max:255',
             'venue_name' => 'nullable|string|max:255',
             'venue_address' => 'nullable|string',
-            'parking_info' => 'nullable|string|max:255',
-            
             // Invitation Settings
             'invitation_title' => 'nullable|string|max:255',
-            'invitation_subtitle' => 'nullable|string|max:255',
-            'invitation_message' => 'nullable|string',
-            'rsvp_message' => 'nullable|string',
-            'rsvp_deadline' => 'nullable|string|max:255',
-            'rsvp_contact' => 'nullable|string|max:255',
             'rsvp_enabled' => 'boolean',
             
             // QR Code Settings
             'qr_checkin_enabled' => 'boolean',
-            'qr_code_url' => 'nullable|url',
-            'qr_description' => 'nullable|string|max:255',
             
             // Design Settings
             'hero_color1' => 'nullable|string|max:7',
@@ -1680,8 +1671,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('update', $event);
         
-        // For sent events, redirect to the new update page
-        if ($event->status === 'sent') {
+        // For sent or running events, redirect to the new update page
+        if (in_array($event->status, ['sent', 'running'])) {
             return redirect()->route('organizer.events.update-sent', $event);
         }
         
@@ -2164,7 +2155,6 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                     'has_guest_list_ids' => isset($data['guest_list_ids']),
                     'guest_list_ids_count' => isset($data['guest_list_ids']) ? count($data['guest_list_ids']) : 0,
                     'has_general_message' => isset($data['general_message']),
-                    'has_invitation_message' => isset($data['invitation_message']),
                     'has_send_type' => isset($data['send_type'])
                 ]);
                 
@@ -2296,18 +2286,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 'latitude' => !empty($data['latitude']) ? $data['latitude'] : null,
                 'longitude' => !empty($data['longitude']) ? $data['longitude'] : null,
                 'invitation_title' => $data['invitation_title'] ?? "You're Invited!",
-                'invitation_subtitle' => $data['invitation_subtitle'] ?? '',
-                'invitation_message' => $data['invitation_message'] ?? '',
                 'general_message' => $data['general_message'] ?? '',
                 'group_messages' => $data['group_messages'] ?? null,
                 'per_guest_messages' => $data['per_guest_messages'] ?? null,
                 'invitation_platforms' => $data['invitation_platforms'] ?? ['email'],
                 'rsvp_enabled' => $data['rsvp_enabled'] ?? false,
-                'rsvp_message' => $data['rsvp_message'] ?? '',
-                'rsvp_deadline' => $data['rsvp_deadline'] ?? '',
-                'rsvp_contact' => $data['rsvp_contact'] ?? '',
                 'qr_checkin_enabled' => $data['qr_checkin_enabled'] ?? true, // Enable QR check-in by default
-                'qr_description' => $data['qr_description'] ?? '',
                 'send_type' => $data['send_type'] ?? 'now',
                 'scheduled_at' => !empty($data['scheduled_at']) ? $data['scheduled_at'] : null,
                 // If editing an existing draft/scheduled event, preserve its status
@@ -2465,8 +2449,6 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             'latitude' => $event->latitude ?? '',
             'longitude' => $event->longitude ?? '',
             'invitation_title' => $event->invitation_title ?? "You're Invited!",
-            'invitation_subtitle' => $event->invitation_subtitle ?? '',
-            'invitation_message' => $event->invitation_message ?? '',
         ];
         $this->eventCreationService->storeStep(1, $step1Data);
 
@@ -2481,14 +2463,9 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
 
         // Step 3: Message configuration
         $step3Data = [
-            // Preserve explicit empty string; only fallback to invitation_message when value is truly null
-            'general_message' => ($event->general_message !== null) ? $event->general_message : ($event->invitation_message ?? ''),
+            'general_message' => $event->general_message ?? '',
             'group_messages' => $event->group_messages ?? [],
             'per_guest_messages' => $event->per_guest_messages ?? [],
-            'rsvp_message' => $event->rsvp_message ?? '',
-            'rsvp_deadline' => $event->rsvp_deadline ?? '',
-            'rsvp_contact' => $event->rsvp_contact ?? '',
-            'qr_description' => $event->qr_description ?? '',
             'ai_generated' => $event->ai_generated ?? false,
         ];
         $this->eventCreationService->storeStep(3, $step3Data);
@@ -2515,7 +2492,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         $this->authorize('update', $event);
 
         // Different validation rules based on event status
-        if ($event->status === 'sent') {
+        if (in_array($event->status, ['sent', 'running'])) {
             // For sent events, allow updates but don't change status
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
@@ -2524,21 +2501,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 'end_date' => $this->validateEndDate($request),
                 'venue_name' => 'nullable|string|max:255',
                 'venue_address' => 'nullable|string',
-                'parking_info' => 'nullable|string|max:255',
-                
                 // Invitation Settings
                 'invitation_title' => 'nullable|string|max:255',
-                'invitation_subtitle' => 'nullable|string|max:255',
-                'invitation_message' => 'nullable|string',
-                'rsvp_message' => 'nullable|string',
-                'rsvp_deadline' => 'nullable|string|max:255',
-                'rsvp_contact' => 'nullable|string|max:255',
                 'rsvp_enabled' => 'boolean',
                 
                 // QR Code Settings
                 'qr_checkin_enabled' => 'boolean',
-                'qr_code_url' => 'nullable|url',
-                'qr_description' => 'nullable|string|max:255',
                 
                 // Design Settings
                 'hero_color1' => 'nullable|string|max:7',
@@ -2563,21 +2531,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 'end_date' => $this->validateEndDate($request),
                 'venue_name' => 'nullable|string|max:255',
                 'venue_address' => 'nullable|string',
-                'parking_info' => 'nullable|string|max:255',
-                
                 // Invitation Settings
                 'invitation_title' => 'nullable|string|max:255',
-                'invitation_subtitle' => 'nullable|string|max:255',
-                'invitation_message' => 'nullable|string',
-                'rsvp_message' => 'nullable|string',
-                'rsvp_deadline' => 'nullable|string|max:255',
-                'rsvp_contact' => 'nullable|string|max:255',
                 'rsvp_enabled' => 'boolean',
                 
                 // QR Code Settings
                 'qr_checkin_enabled' => 'boolean',
-                'qr_code_url' => 'nullable|url',
-                'qr_description' => 'nullable|string|max:255',
                 
                 // Design Settings
                 'hero_color1' => 'nullable|string|max:7',
@@ -2651,12 +2610,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             }
         }
 
-        // Handle guest notifications for sent events
-        if ($event->status === 'sent' && $request->boolean('notify_guests')) {
+        // Handle guest notifications for sent or running events
+        if (in_array($event->status, ['sent', 'running']) && $request->boolean('notify_guests')) {
             $this->sendUpdateNotifications($event, $originalEvent, $validated, $request->input('update_message'));
         }
 
-        $successMessage = $event->status === 'sent' ? 'Event updated successfully! Guests have been notified of changes.' : 'Event updated successfully!';
+        $successMessage = in_array($event->status, ['sent', 'running']) ? 'Event updated successfully! Guests have been notified of changes.' : 'Event updated successfully!';
         
         return redirect()->route('organizer.events.show', $event)
             ->with('success', $successMessage);
@@ -2698,13 +2657,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             'end_date' => 'End Date',
             'venue_name' => 'Venue Name',
             'venue_address' => 'Venue Address',
-            'parking_info' => 'Parking Information',
             'invitation_title' => 'Invitation Title',
-            'invitation_subtitle' => 'Invitation Subtitle',
-            'invitation_message' => 'Invitation Message',
-            'rsvp_message' => 'RSVP Message',
-            'rsvp_deadline' => 'RSVP Deadline',
-            'rsvp_contact' => 'RSVP Contact',
         ];
         
         foreach ($fieldsToCheck as $field => $label) {
@@ -2977,10 +2930,10 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('update', $event);
         
-        // Only allow updates for sent events
-        if ($event->status !== 'sent') {
+        // Only allow updates for sent or running events
+        if (!in_array($event->status, ['sent', 'running'])) {
             return redirect()->route('organizer.events.edit', $event)
-                ->with('error', 'This feature is only available for sent events.');
+                ->with('error', 'This feature is only available for sent or running events.');
         }
 
         // Load event with all related data
@@ -3069,8 +3022,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('update', $event);
         
-        if ($event->status !== 'sent') {
-            return back()->with('error', 'This feature is only available for sent events.');
+        if (!in_array($event->status, ['sent', 'running'])) {
+            return back()->with('error', 'This feature is only available for sent or running events.');
         }
 
         // Log the incoming request data for debugging
@@ -3087,6 +3040,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             'end_date' => 'nullable|date|after:start_date',
             'venue_name' => 'nullable|string|max:255',
             'venue_address' => 'nullable|string',
+            'send_update_notification' => 'nullable|boolean',
         ]);
 
         // Log the validated data for debugging
@@ -3119,18 +3073,83 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 'changes' => $changes,
                 'user_id' => Auth::id()
             ]);
+            
+            // Send notifications if checkbox is checked
+            if ($request->has('send_update_notification') && $request->boolean('send_update_notification')) {
+                try {
+                    // Create a message describing the changes
+                    $changeMessages = [];
+                    foreach ($changes as $field => $change) {
+                        $oldValue = $this->formatChangeValue($field, $change['old']);
+                        $newValue = $this->formatChangeValue($field, $change['new']);
+                        $changeMessages[] = ucfirst(str_replace('_', ' ', $field)) . ': ' . $oldValue . ' → ' . $newValue;
+                    }
+                    $customMessage = "Event Update for {$event->name}:\n\n" . implode("\n", $changeMessages) . "\n\nPlease check your invitation for the latest information.";
+                    
+                    // Send notifications via both email and WhatsApp
+                    $this->sendEventUpdateNotifications($event, ['email', 'whatsapp'], $customMessage);
+                    
+                    Log::info('Event update notifications sent', [
+                        'event_id' => $event->id,
+                        'changes' => $changes,
+                        'user_id' => Auth::id()
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to send event update notifications', [
+                        'event_id' => $event->id,
+                        'error' => $e->getMessage(),
+                        'user_id' => Auth::id()
+                    ]);
+                }
+            }
+        }
+
+        // Prepare success message
+        $successMessage = 'Event information updated successfully!';
+        if (!empty($changes) && $request->has('send_update_notification') && $request->boolean('send_update_notification')) {
+            $successMessage .= ' Update notifications have been sent to all guests.';
         }
 
         // Return JSON response for AJAX requests
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Event information updated successfully!',
+                'message' => $successMessage,
                 'changes' => $changes
             ]);
         }
 
-        return back()->with('success', 'Event information updated successfully!');
+        return back()->with('success', $successMessage);
+    }
+
+    /**
+     * Format change values for display in notifications
+     */
+    private function formatChangeValue($field, $value)
+    {
+        if (empty($value)) {
+            return 'Not set';
+        }
+
+        // Format date fields
+        if (in_array($field, ['start_date', 'end_date', 'scheduled_at', 'created_at', 'updated_at'])) {
+            try {
+                $date = \Carbon\Carbon::parse($value);
+                
+                // Convert to user's timezone if available
+                $userTimezone = Auth::user()->timezone ?? 'UTC';
+                if ($userTimezone !== 'UTC') {
+                    $date = $date->setTimezone($userTimezone);
+                }
+                
+                return $date->format('M j, Y \a\t g:i A');
+            } catch (\Exception $e) {
+                return $value; // Return original if parsing fails
+            }
+        }
+
+        // Format other fields
+        return $value;
     }
 
     /**
@@ -3353,8 +3372,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('update', $event);
         
-        if ($event->status !== 'sent') {
-            return back()->with('error', 'This feature is only available for sent events.');
+        if (!in_array($event->status, ['sent', 'running'])) {
+            return back()->with('error', 'This feature is only available for sent or running events.');
         }
 
         $validated = $request->validate([
@@ -3415,8 +3434,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('update', $event);
         
-        if ($event->status !== 'sent') {
-            return back()->with('error', 'This feature is only available for sent events.');
+        if (!in_array($event->status, ['sent', 'running'])) {
+            return back()->with('error', 'This feature is only available for sent or running events.');
         }
 
         $validated = $request->validate([
@@ -3593,7 +3612,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
 
             return response()->json([
                 'success' => true,
-                'message' => "Successfully added " . count($createdGuests) . " guests and sent invitations!",
+                'message' => "Successfully processed " . count($createdGuests) . " guests and sent invitations!",
                 'guests' => $createdGuests
             ]);
 
@@ -3651,6 +3670,19 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             if ($invitationData['message_type'] === 'individual' && 
                 isset($invitationData['individual_messages'][$guest->id])) {
                 $message = $invitationData['individual_messages'][$guest->id];
+                Log::info('📧 [INDIVIDUAL_MESSAGE] Using individual message for guest', [
+                    'guest_id' => $guest->id,
+                    'guest_name' => $guest->name,
+                    'message_preview' => substr($message, 0, 100) . '...'
+                ]);
+            } else {
+                Log::info('📧 [GENERAL_MESSAGE] Using general message for guest', [
+                    'guest_id' => $guest->id,
+                    'guest_name' => $guest->name,
+                    'message_type' => $invitationData['message_type'],
+                    'has_individual_message' => isset($invitationData['individual_messages'][$guest->id]),
+                    'available_individual_keys' => array_keys($invitationData['individual_messages'] ?? [])
+                ]);
             }
 
             // Generate unique token for this guest (shared across all platforms)
@@ -3681,24 +3713,50 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                     continue;
                 }
 
-                // Create invitation record (same as EventCreationService)
-                $invitation = \App\Shared\Models\Invitation::create([
+                // Check if invitation already exists for this guest/platform combination
+                $existingInvitation = \App\Shared\Models\Invitation::where([
                     'event_id' => $event->id,
                     'guest_id' => $guest->id,
-                    'token' => $token,
-                    'channel' => $platform,
-                    'recipient' => $recipient,
-                    'message' => $completeMessage,
-                    'status' => 'pending',
-                ]);
+                    'channel' => $platform
+                ])->first();
 
-                Log::info('📧 [NEW_GUEST_INVITATION] Created invitation record', [
-                    'invitation_id' => $invitation->id,
-                    'guest_id' => $guest->id,
-                    'token' => $token,
-                    'invite_url' => $inviteUrl,
-                    'platform' => $platform
-                ]);
+                if ($existingInvitation) {
+                    // Update existing invitation with new message and token
+                    $existingInvitation->update([
+                        'token' => $token,
+                        'message' => $completeMessage,
+                        'status' => 'pending',
+                        'recipient' => $recipient
+                    ]);
+                    $invitation = $existingInvitation;
+                    
+                    Log::info('📧 [NEW_GUEST_INVITATION] Updated existing invitation', [
+                        'invitation_id' => $invitation->id,
+                        'event_id' => $event->id,
+                        'guest_id' => $guest->id,
+                        'platform' => $platform,
+                        'new_token' => $token
+                    ]);
+                } else {
+                    // Create new invitation record
+                    $invitation = \App\Shared\Models\Invitation::create([
+                        'event_id' => $event->id,
+                        'guest_id' => $guest->id,
+                        'token' => $token,
+                        'channel' => $platform,
+                        'recipient' => $recipient,
+                        'message' => $completeMessage,
+                        'status' => 'pending',
+                    ]);
+                    
+                    Log::info('📧 [NEW_GUEST_INVITATION] Created new invitation record', [
+                        'invitation_id' => $invitation->id,
+                        'event_id' => $event->id,
+                        'guest_id' => $guest->id,
+                        'platform' => $platform,
+                        'token' => $token
+                    ]);
+                }
 
                 // Send via channel (same logic as EventCreationService)
                 $sent = false;
@@ -3782,8 +3840,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('update', $event);
         
-        if ($event->status !== 'sent') {
-            return back()->with('error', 'This feature is only available for sent events.');
+        if (!in_array($event->status, ['sent', 'running'])) {
+            return back()->with('error', 'This feature is only available for sent or running events.');
         }
 
         $validated = $request->validate([
@@ -4537,8 +4595,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('update', $event);
         
-        if ($event->status !== 'sent') {
-            return back()->with('error', 'This feature is only available for sent events.');
+        if (!in_array($event->status, ['sent', 'running'])) {
+            return back()->with('error', 'This feature is only available for sent or running events.');
         }
 
         $validated = $request->validate([
@@ -4830,8 +4888,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     {
         $this->authorize('update', $event);
         
-        if ($event->status !== 'sent') {
-            return back()->with('error', 'This feature is only available for sent events.');
+        if (!in_array($event->status, ['sent', 'running'])) {
+            return back()->with('error', 'This feature is only available for sent or running events.');
         }
 
         $validated = $request->validate([

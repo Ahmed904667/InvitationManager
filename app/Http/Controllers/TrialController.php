@@ -180,8 +180,6 @@ class TrialController extends Controller
             'location' => $sampleEventData['venue_address'] ?? '123 Sample Street, Sample City, SC 12345',
             'rsvp_enabled' => true,
             'qr_checkin_enabled' => true,
-            'qr_description' => 'Show this QR code at the entrance for quick check-in.',
-            'qr_code_url' => route('trial.invite', ['token' => $token]) . '?qr=1',
             'user' => (object) [
                 'timezone' => 'UTC'
             ]
@@ -194,7 +192,6 @@ class TrialController extends Controller
             'rsvp_status' => $trial->rsvp_status ?? 'none',
             'rsvp_at' => $trial->rsvp_at,
             'rsvp_note' => $trial->rsvp_note,
-            'qr_code_url' => route('trial.invite', ['token' => $token]) . '?qr=1',
             'guest' => (object) [
                 'name' => $trial->name,
                 'email' => $trial->contact,

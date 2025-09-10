@@ -6,7 +6,9 @@
         <h1>Event Preview</h1>
         <p>This is how your invitation will appear to guests</p>
         <div class="preview-actions">
-            <a href="{{ route('organizer.events.edit', $event) }}" class="btn btn-secondary">Edit Event</a>
+            @if(!in_array($event->status, ['running', 'completed', 'cancelled']))
+                <a href="{{ route('organizer.events.edit', $event) }}" class="btn btn-secondary">Edit Event</a>
+            @endif
             <a href="{{ route('organizer.events.show', $event) }}" class="btn btn-primary">Back to Event</a>
         </div>
     </div>
@@ -17,9 +19,6 @@
             <div class="invitation-hero" style="background: linear-gradient(135deg, {{ $event->hero_color1 ?? '#ff6b6b' }}, {{ $event->hero_color2 ?? '#ffa726' }});">
                 <div class="hero-content">
                     <h1 class="hero-title">{{ $event->invitation_title ?? "You're Invited!" }}</h1>
-                    @if($event->invitation_subtitle)
-                        <p class="hero-subtitle">{{ $event->invitation_subtitle }}</p>
-                    @endif
                     <div class="hero-date">{{ $event->formatted_date }}</div>
                 </div>
             </div>

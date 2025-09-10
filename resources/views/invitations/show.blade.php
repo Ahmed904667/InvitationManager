@@ -169,7 +169,7 @@
                     <h2 class="text-2xl font-bold text-gray-900">QR Check-in</h2>
                 </div>
                 @php
-                    $qrData = trim(($event->qr_code_url ?: $inviteUrl) ?? '');
+                    $qrData = trim($inviteUrl ?? '');
                     $qrPrimary = $qrData !== '' ? ('https://chart.googleapis.com/chart?cht=qr&chld=L|0&chs=280x280&chl=' . rawurlencode($qrData)) : '';
                     $qrFallback = $qrData !== '' ? ('https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' . rawurlencode($qrData)) : '';
                 @endphp
@@ -185,11 +185,7 @@
                         <p class="text-gray-500 font-medium">QR code not available</p>
                     </div>
                 @endif
-                @if(!empty($event->qr_description))
-                    <p class="text-gray-600 text-lg leading-relaxed">{{ $event->qr_description }}</p>
-                @else
                     <p class="text-gray-600 text-lg leading-relaxed">Show this QR code at the entrance for quick check-in.</p>
-                @endif
             </div>
             @endif
 
@@ -641,7 +637,7 @@
                         <h2 class="text-2xl font-bold text-gray-900">QR Check-in Preview</h2>
                     </div>
                 @php
-                    $qrData = trim(($event->qr_code_url ?: $inviteUrl) ?? '');
+                    $qrData = trim($inviteUrl ?? '');
                         $qrPrimary = $qrData !== '' ? ('https://chart.googleapis.com/chart?cht=qr&chld=L|0&chs=280x280&chl=' . rawurlencode($qrData)) : '';
                         $qrFallback = $qrData !== '' ? ('https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' . rawurlencode($qrData)) : '';
                 @endphp

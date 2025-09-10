@@ -27,7 +27,7 @@ class TrialEventGenerationService
                     [
                         'parts' => [
                             [
-                                'text' => "You are an expert event planner. Generate realistic sample event data based on the event type provided. Return ONLY a valid JSON object with the following structure: {\"name\": \"Event Name\", \"description\": \"Event description\", \"venue_name\": \"Venue Name\", \"venue_address\": \"Full address\", \"start_date\": \"YYYY-MM-DD HH:MM:SS\", \"end_date\": \"YYYY-MM-DD HH:MM:SS\", \"invitation_title\": \"Invitation Title\", \"invitation_subtitle\": \"Invitation Subtitle\", \"invitation_message\": \"Personal invitation message\", \"rsvp_message\": \"RSVP instructions\", \"additional_information\": \"Additional event details\", \"parking_info\": \"Parking information\"}. Make the event realistic and professional.\n\nGenerate sample event data for a '{$eventType}' event organized by {$organizerName}. Make it realistic and engaging."
+                                'text' => "You are an expert event planner. Generate realistic sample event data based on the event type provided. Return ONLY a valid JSON object with the following structure: {\"name\": \"Event Name\", \"description\": \"Event description\", \"venue_name\": \"Venue Name\", \"venue_address\": \"Full address\", \"start_date\": \"YYYY-MM-DD HH:MM:SS\", \"end_date\": \"YYYY-MM-DD HH:MM:SS\", \"invitation_title\": \"Invitation Title\"}. Make the event realistic and professional.\n\nGenerate sample event data for a '{$eventType}' event organized by {$organizerName}. Make it realistic and engaging."
                             ]
                         ]
                     ]
@@ -86,11 +86,6 @@ class TrialEventGenerationService
                 'venue_name' => 'Garden Manor',
                 'venue_address' => '123 Garden Lane, Beautiful City, BC 12345',
                 'invitation_title' => 'You\'re Invited to Our Wedding',
-                'invitation_subtitle' => 'Celebrate with us as we begin our journey together',
-                'invitation_message' => 'We would be honored to have you join us for our special day.',
-                'rsvp_message' => 'Please RSVP by [date] to help us plan for your attendance.',
-                'additional_information' => 'Dress code: Semi-formal. Ceremony will be followed by dinner and dancing.',
-                'parking_info' => 'Complimentary valet parking available.',
             ],
             'birthday' => [
                 'name' => 'Birthday Celebration',
@@ -98,11 +93,6 @@ class TrialEventGenerationService
                 'venue_name' => 'Party Palace',
                 'venue_address' => '456 Celebration Street, Fun City, FC 67890',
                 'invitation_title' => 'Birthday Party Invitation',
-                'invitation_subtitle' => 'Let\'s celebrate together!',
-                'invitation_message' => 'We\'d love to celebrate with you on this special day.',
-                'rsvp_message' => 'Please let us know if you can make it by [date].',
-                'additional_information' => 'Casual attire. Food, drinks, and entertainment provided.',
-                'parking_info' => 'Free parking available in the venue lot.',
             ],
             'corporate' => [
                 'name' => 'Corporate Event',
@@ -110,11 +100,6 @@ class TrialEventGenerationService
                 'venue_name' => 'Business Center',
                 'venue_address' => '789 Corporate Plaza, Business District, BD 54321',
                 'invitation_title' => 'Corporate Event Invitation',
-                'invitation_subtitle' => 'Professional networking and development',
-                'invitation_message' => 'We invite you to join us for this important corporate event.',
-                'rsvp_message' => 'Please confirm your attendance by [date].',
-                'additional_information' => 'Business attire required. Refreshments will be served.',
-                'parking_info' => 'Valet parking available for $10.',
             ],
             'conference' => [
                 'name' => 'Annual Conference',
@@ -122,11 +107,6 @@ class TrialEventGenerationService
                 'venue_name' => 'Convention Center',
                 'venue_address' => '321 Conference Blvd, Tech City, TC 98765',
                 'invitation_title' => 'Conference Invitation',
-                'invitation_subtitle' => 'Learn, network, and grow',
-                'invitation_message' => 'We\'re excited to have you join us for this educational event.',
-                'rsvp_message' => 'Please register by [date] to secure your spot.',
-                'additional_information' => 'Professional attire. Lunch and materials included.',
-                'parking_info' => 'Complimentary parking in the convention center garage.',
             ],
             'graduation' => [
                 'name' => 'Graduation Ceremony',
@@ -134,11 +114,6 @@ class TrialEventGenerationService
                 'venue_name' => 'University Auditorium',
                 'venue_address' => '654 Education Avenue, College Town, CT 13579',
                 'invitation_title' => 'Graduation Invitation',
-                'invitation_subtitle' => 'Celebrating achievements and new beginnings',
-                'invitation_message' => 'Join us in celebrating this milestone achievement.',
-                'rsvp_message' => 'Please confirm your attendance by [date].',
-                'additional_information' => 'Formal attire. Reception to follow the ceremony.',
-                'parking_info' => 'Free parking available in university lots.',
             ]
         ];
 

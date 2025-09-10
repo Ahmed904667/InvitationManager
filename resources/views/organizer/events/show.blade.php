@@ -48,12 +48,14 @@
                 </svg>
                 Notifications
             </a>
-            <a href="{{ route('organizer.events.edit', $event) }}" class="btn-primary">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                </svg>
-                Edit Event
-            </a>
+            @if(!in_array($event->status, ['running', 'completed', 'cancelled']))
+                <a href="{{ route('organizer.events.edit', $event) }}" class="btn-primary">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                    Edit Event
+                </a>
+            @endif
         </div>
     </div>
 
@@ -159,12 +161,6 @@
                             </div>
                             @endif
                             
-                            @if($event->parking_info)
-                            <div>
-                                <span class="text-sm font-medium" style="color: var(--text-secondary);">Parking:</span>
-                                <p class="text-sm" style="color: var(--text-primary);">{{ $event->parking_info }}</p>
-                            </div>
-                            @endif
                         </div>
                     </div>
                     
@@ -206,12 +202,6 @@
                                 </div>
                             </div>
                             
-                            @if($event->rsvp_deadline)
-                            <div>
-                                <span class="text-sm font-medium" style="color: var(--text-secondary);">RSVP Deadline:</span>
-                                <p class="text-sm" style="color: var(--text-primary);">{{ $event->rsvp_deadline }}</p>
-                            </div>
-                            @endif
                         </div>
                     </div>
                 </div>
@@ -1034,7 +1024,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update RSVP statuses in the table and summary
     function updateRsvpStatuses() {
         // Update detailed RSVP statuses
-        fetch(`/organizer/events/${eventId}/rsvp/details`)
+        fetch(`/organizer/events/${eventId}/rsvp/details`, {
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json'
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -1094,7 +1090,13 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
         // Update RSVP summary statistics
-        fetch(`/organizer/events/${eventId}/rsvp/stats`)
+        fetch(`/organizer/events/${eventId}/rsvp/stats`, {
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json'
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {

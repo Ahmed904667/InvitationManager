@@ -93,13 +93,6 @@
                     <small class="text-gray-500 text-sm">You can also select a point on the map below.</small>
                 </div>
                 
-                <div>
-                    <label for="parking_info" class="block text-sm font-medium text-gray-700 mb-2">Parking Information</label>
-                    <input type="text" id="parking_info" name="parking_info" 
-                           value="{{ old('parking_info', $event->parking_info) }}" 
-                           placeholder="e.g., Free parking available, Street parking only"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
             </div>
             
             <div class="mt-4">
@@ -120,19 +113,8 @@
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 
-                <div>
-                    <label for="invitation_subtitle" class="block text-sm font-medium text-gray-700 mb-2">Invitation Subtitle</label>
-                    <input type="text" id="invitation_subtitle" name="invitation_subtitle" 
-                           value="{{ old('invitation_subtitle', $event->invitation_subtitle) }}" 
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
             </div>
             
-            <div class="mt-6">
-                <label for="invitation_message" class="block text-sm font-medium text-gray-700 mb-2">Invitation Message</label>
-                <textarea id="invitation_message" name="invitation_message" rows="3" 
-                          class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ old('invitation_message', $event->invitation_message) }}</textarea>
-            </div>
         </div>
 
         <!-- RSVP Settings -->
@@ -146,28 +128,9 @@
                     <label for="rsvp_enabled" class="ml-2 block text-sm text-gray-900">Enable RSVP</label>
                 </div>
                 
-                <div>
-                    <label for="rsvp_message" class="block text-sm font-medium text-gray-700 mb-2">RSVP Message</label>
-                    <textarea id="rsvp_message" name="rsvp_message" rows="2" 
-                              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ old('rsvp_message', $event->rsvp_message) }}</textarea>
-                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="rsvp_deadline" class="block text-sm font-medium text-gray-700 mb-2">RSVP Deadline</label>
-                        <input type="text" id="rsvp_deadline" name="rsvp_deadline" 
-                               value="{{ old('rsvp_deadline', $event->rsvp_deadline) }}" 
-                               placeholder="e.g., Please RSVP by December 15th"
-                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
                     
-                    <div>
-                        <label for="rsvp_contact" class="block text-sm font-medium text-gray-700 mb-2">RSVP Contact</label>
-                        <input type="text" id="rsvp_contact" name="rsvp_contact" 
-                               value="{{ old('rsvp_contact', $event->rsvp_contact) }}" 
-                               placeholder="e.g., Email: rsvp@example.com"
-                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
                 </div>
             </div>
         </div>
@@ -183,13 +146,6 @@
                     <label for="qr_checkin_enabled" class="ml-2 block text-sm text-gray-900">Enable QR Code Check-in</label>
                 </div>
                 
-                <div>
-                    <label for="qr_description" class="block text-sm font-medium text-gray-700 mb-2">QR Code Description</label>
-                    <input type="text" id="qr_description" name="qr_description" 
-                           value="{{ old('qr_description', $event->qr_description) }}" 
-                           placeholder="Show this QR code at the entrance for quick check-in"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
             </div>
         </div>
 
