@@ -7,6 +7,47 @@ use App\Shared\Models\Event;
 use App\Shared\Models\Guest;
 use App\Shared\Models\User;
 
+/**
+ * @property int $id
+ * @property int $event_id
+ * @property int $guest_id
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $removed_at
+ * @property string|null $removal_reason
+ * @property int|null $removed_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property bool $checked_in
+ * @property \Illuminate\Support\Carbon|null $checked_in_at
+ * @property int|null $checked_in_by
+ * @property string|null $check_in_notes
+ * @property int|null $scanned_by_scanner_id
+ * @property string|null $scanner_name
+ * @property-read User|null $checkedInBy
+ * @property-read Event $event
+ * @property-read Guest $guest
+ * @property-read User|null $removedBy
+ * @property-read \App\Scanner|null $scannedByScanner
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereCheckInNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereCheckedIn($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereCheckedInAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereCheckedInBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereEventId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereGuestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereRemovalReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereRemovedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereRemovedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereScannedByScannerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereScannerName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EventGuest whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class EventGuest extends Model
 {
     protected $table = 'event_guest';

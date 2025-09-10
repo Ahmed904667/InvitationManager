@@ -5,6 +5,37 @@ namespace App\Shared\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $name
+ * @property array<array-key, mixed>|null $settings
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string|null $description
+ * @property int|null $max_guests
+ * @property array<array-key, mixed>|null $health
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Event> $events
+ * @property-read int|null $events_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\GuestGroup> $guestGroups
+ * @property-read int|null $guest_groups_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Guest> $guests
+ * @property-read int|null $guests_count
+ * @property-read \App\Shared\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereHealth($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereMaxGuests($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereSettings($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuestList whereUserId($value)
+ * @mixin \Eloquent
+ */
 class GuestList extends Model
 {
     use HasFactory;

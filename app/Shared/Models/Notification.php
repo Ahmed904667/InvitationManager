@@ -4,6 +4,47 @@ namespace App\Shared\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int|null $event_id
+ * @property int|null $guest_id
+ * @property int|null $user_id
+ * @property string $type
+ * @property string $channel
+ * @property string $message
+ * @property string $status
+ * @property string|null $external_id
+ * @property array<array-key, mixed>|null $delivery_details
+ * @property string|null $error_message
+ * @property \Illuminate\Support\Carbon|null $sent_at
+ * @property \Illuminate\Support\Carbon|null $delivered_at
+ * @property \Illuminate\Support\Carbon|null $failed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Shared\Models\Event|null $event
+ * @property-read \App\Shared\Models\Guest|null $guest
+ * @property-read \App\Shared\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereChannel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereDeliveredAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereDeliveryDetails($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereErrorMessage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereEventId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereExternalId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereFailedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereGuestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereMessage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereSentAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Notification whereUserId($value)
+ * @mixin \Eloquent
+ */
 class Notification extends Model
 {
     protected $fillable = [

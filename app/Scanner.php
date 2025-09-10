@@ -6,6 +6,35 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property int $event_id
+ * @property string $name
+ * @property string $token
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property array<array-key, mixed>|null $settings
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string $timezone
+ * @property-read \App\Shared\Models\Event $event
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Guest> $scannedGuests
+ * @property-read int|null $scanned_guests_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereEventId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereLastUsedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereSettings($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereTimezone($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class Scanner extends Model
 {
     use HasFactory;

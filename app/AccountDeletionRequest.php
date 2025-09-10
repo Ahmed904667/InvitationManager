@@ -7,6 +7,33 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
 use App\Shared\Models\User;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $token
+ * @property string $email
+ * @property \Illuminate\Support\Carbon $requested_at
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property bool $confirmed
+ * @property \Illuminate\Support\Carbon|null $confirmed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereConfirmed($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereConfirmedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereRequestedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountDeletionRequest whereUserId($value)
+ * @mixin \Eloquent
+ */
 class AccountDeletionRequest extends Model
 {
     protected $fillable = [

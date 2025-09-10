@@ -8,6 +8,122 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $description
+ * @property \Illuminate\Support\Carbon $start_date
+ * @property \Illuminate\Support\Carbon|null $end_date
+ * @property string|null $location
+ * @property string|null $venue_name
+ * @property string|null $venue_address
+ * @property string|null $parking_info
+ * @property string $invitation_title
+ * @property string|null $invitation_subtitle
+ * @property string|null $invitation_message
+ * @property string|null $rsvp_message
+ * @property string|null $rsvp_deadline
+ * @property string|null $rsvp_contact
+ * @property bool $rsvp_enabled
+ * @property bool $qr_checkin_enabled
+ * @property string|null $qr_code_url
+ * @property string|null $qr_description
+ * @property string $hero_color1
+ * @property string $hero_color2
+ * @property string $accent_color
+ * @property string $font_family
+ * @property array<array-key, mixed>|null $guest_list_ids
+ * @property string|null $message_template
+ * @property array<array-key, mixed>|null $custom_messages
+ * @property array<array-key, mixed>|null $attachments
+ * @property string $send_type
+ * @property \Illuminate\Support\Carbon|null $scheduled_at
+ * @property string $status
+ * @property int $user_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string|null $additional_information
+ * @property array<array-key, mixed>|null $invitation_platforms
+ * @property string $message_mode
+ * @property string|null $general_message
+ * @property array<array-key, mixed>|null $group_messages
+ * @property array<array-key, mixed>|null $per_guest_messages
+ * @property bool $ai_generated
+ * @property bool $dates_in_utc
+ * @property \Illuminate\Support\Carbon|null $cancelled_at
+ * @property string|null $cancellation_reason
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Guest> $activeGuests
+ * @property-read int|null $active_guests_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Scanner> $activeScanners
+ * @property-read int|null $active_scanners_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\EventGuest> $eventGuests
+ * @property-read int|null $event_guests_count
+ * @property-read string $formatted_date
+ * @property-read string $formatted_end_date
+ * @property-read string $formatted_start_date
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\GuestList> $guestLists
+ * @property-read int|null $guest_lists_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Invitation> $invitations
+ * @property-read int|null $invitations_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Notification> $notifications
+ * @property-read int|null $notifications_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Guest> $removedGuests
+ * @property-read int|null $removed_guests_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Scanner> $scanners
+ * @property-read int|null $scanners_count
+ * @property-read \App\Shared\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event completed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event past()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event upcoming()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereAccentColor($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereAdditionalInformation($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereAiGenerated($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereAttachments($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereCancellationReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereCancelledAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereCustomMessages($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereDatesInUtc($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereEndDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereFontFamily($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereGeneralMessage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereGroupMessages($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereGuestListIds($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereHeroColor1($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereHeroColor2($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereInvitationMessage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereInvitationPlatforms($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereInvitationSubtitle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereInvitationTitle($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereLocation($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereMessageMode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereMessageTemplate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereParkingInfo($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event wherePerGuestMessages($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereQrCheckinEnabled($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereQrCodeUrl($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereQrDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereRsvpContact($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereRsvpDeadline($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereRsvpEnabled($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereRsvpMessage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereScheduledAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereSendType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereStartDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereVenueAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Event whereVenueName($value)
+ * @mixin \Eloquent
+ */
 class Event extends Model
 {
     use HasFactory;
