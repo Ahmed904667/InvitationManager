@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Theme manager initialized');
     }
     
+    // Initialize timezone detection
+    initializeTimezoneDetection();
+    
     // Initialize mobile menu toggle
     initializeMobileMenu();
     
@@ -26,6 +29,100 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize offline detection
     initializeOfflineDetection();
 });
+
+// Timezone detection functionality
+function initializeTimezoneDetection() {
+    // Detect browser timezone - FIXED: use timeZone not timezone
+    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    console.log('🌍 Detected browser timezone:', browserTimezone);
+    console.log('🌍 Full resolved options:', Intl.DateTimeFormat().resolvedOptions());
+    
+    // Validate timezone before using it
+    if (browserTimezone && browserTimezone !== 'undefined' && browserTimezone !== 'null') {
+        // Add timezone to all forms
+        addTimezoneToForms(browserTimezone);
+        
+        // Add timezone to AJAX requests
+        addTimezoneToAjaxRequests(browserTimezone);
+        
+        // Re-run timezone detection when new forms are added to the page
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) { // Element node
+                            if (node.tagName === 'FORM' || node.querySelector && node.querySelector('form')) {
+                                console.log('🌍 New form detected, adding timezone');
+                                addTimezoneToForms(browserTimezone);
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    } else {
+        console.error('🌍 Invalid browser timezone detected:', browserTimezone);
+    }
+}
+
+
+function addTimezoneToForms(timezone) {
+    // Add timezone to all forms
+    const forms = document.querySelectorAll('form');
+    console.log('🌍 Adding timezone to', forms.length, 'forms');
+    console.log('🌍 Detected timezone:', timezone);
+    
+    forms.forEach(form => {
+        // Remove existing timezone fields first
+        const existingTimezone = form.querySelector('input[name="timezone"]');
+        const existingBrowserTimezone = form.querySelector('input[name="browser_timezone"]');
+        
+        if (existingTimezone) {
+            existingTimezone.remove();
+        }
+        if (existingBrowserTimezone) {
+            existingBrowserTimezone.remove();
+        }
+        
+        // Add timezone field
+        const timezoneInput = document.createElement('input');
+        timezoneInput.type = 'hidden';
+        timezoneInput.name = 'timezone';
+        timezoneInput.value = timezone;
+        form.appendChild(timezoneInput);
+        
+        // Add browser_timezone for explicit detection
+        const browserTimezoneInput = document.createElement('input');
+        browserTimezoneInput.type = 'hidden';
+        browserTimezoneInput.name = 'browser_timezone';
+        browserTimezoneInput.value = timezone;
+        form.appendChild(browserTimezoneInput);
+        
+        console.log('🌍 Added timezone fields to form:', form.action || 'unknown');
+        console.log('🌍 Form now has timezone field:', form.querySelector('input[name="timezone"]')?.value);
+        console.log('🌍 Form now has browser_timezone field:', form.querySelector('input[name="browser_timezone"]')?.value);
+    });
+}
+
+function addTimezoneToAjaxRequests(timezone) {
+    // Override fetch to include timezone header
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options = {}) {
+        if (typeof url === 'string' && url.startsWith('/')) {
+            options.headers = {
+                ...options.headers,
+                'X-Timezone': timezone
+            };
+        }
+        return originalFetch(url, options);
+    };
+}
 
 // Mobile menu functionality
 function initializeMobileMenu() {

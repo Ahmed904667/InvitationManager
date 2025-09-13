@@ -374,10 +374,10 @@ class OrganizerService
                 return $event->invitations()->where('status', 'sent')->count();
             });
             
-            // Get upcoming events (events that haven't started yet)
+            // Get upcoming events (events with status sent or scheduled that haven't started yet)
             $upcomingEvents = $events->filter(function($event) {
-                return $event->start_date > now() && $event->status !== 'completed';
-            })->take(5);
+                return in_array($event->status, ['sent', 'scheduled']) && $event->start_date > now();
+            })->take(3);
             
             // Get recent activity (recent events and guest lists)
             $recentActivity = collect();
@@ -409,7 +409,10 @@ class OrganizerService
             $recentActivity = $recentActivity->sortByDesc('created_at')->take(5);
             
             // Get recent guest lists for the dedicated section
-            $recentGuestLists = $user->guestLists()->latest('created_at')->take(5)->get();
+            $recentGuestLists = $user->guestLists()->withCount('guests')->latest('created_at')->take(5)->get();
+            
+            // Get completed events count (all user guests with completed status)
+            $completedEventsCount = $events->where('status', 'completed')->count();
             
             return [
                 'total_events' => $events->count(),
@@ -419,7 +422,7 @@ class OrganizerService
                 'total_checkins' => $totalCheckins,
                 'overall_checkin_rate' => $totalGuests > 0 ? round(($totalCheckins / $totalGuests) * 100, 1) : 0,
                 'active_events' => $events->where('status', 'active')->count(),
-                'completed_events' => $events->where('status', 'completed')->count(),
+                'completed_events' => $completedEventsCount,
                 'upcoming_events' => $upcomingEvents,
                 'recent_activity' => $recentActivity,
                 'recent_guest_lists' => $recentGuestLists,

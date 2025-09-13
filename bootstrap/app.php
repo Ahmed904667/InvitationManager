@@ -17,7 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'organizer' => \App\Http\Middleware\OrganizerMiddleware::class,
             'scanner' => \App\Http\Middleware\ScannerMiddleware::class,
         ]);
-        
 
     })
     ->withProviders([

@@ -81,7 +81,7 @@
                             <h5 class="text-xl font-semibold text-primary mb-2">{{ $step1Data['name'] }}</h5>
                             <p class="text-info-500 font-medium mb-2 flex items-center">
                                 <i class="fas fa-calendar mr-2"></i>
-                                {{ \Carbon\Carbon::parse($step1Data['start_date'])->format('l, F j, Y \a\t g:i A') }}
+                                {{ \Carbon\Carbon::parse($step1Data['start_date'], 'UTC')->setTimezone(Auth::user()->timezone ?? 'UTC')->format('l, F j, Y \a\t g:i A') }}
                             </p>
                             @if(!empty($step1Data['description']))
                                 <p class="text-secondary">{{ $step1Data['description'] }}</p>

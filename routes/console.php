@@ -8,6 +8,15 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// Register the event status update command
+Artisan::command('events:update-statuses', function () {
+    $this->info('Dispatching event status update job...');
+    
+    \App\Jobs\UpdateEventStatuses::dispatch();
+    
+    $this->info('Event status update job dispatched successfully!');
+})->purpose('Update event statuses based on start and end times');
+
 // Schedule the event status update check to run every 5 minutes for real-time status updates
 Schedule::command('events:update-statuses')
     ->everyFiveMinutes()

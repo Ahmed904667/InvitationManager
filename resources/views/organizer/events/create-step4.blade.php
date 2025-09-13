@@ -70,6 +70,10 @@ input[type="datetime-local"]:focus {
             <input type="hidden" name="end_date" value="{{ $allData['end_date'] }}">
         @endif
         
+        @if(isset($allData['additional_information']))
+            <input type="hidden" name="additional_information" value="{{ $allData['additional_information'] }}">
+        @endif
+        
         @if(isset($allData['guest_list_ids']) && is_array($allData['guest_list_ids']))
             @foreach($allData['guest_list_ids'] as $guestListId)
                 <input type="hidden" name="guest_list_ids[]" value="{{ $guestListId }}">
@@ -94,6 +98,27 @@ input[type="datetime-local"]:focus {
         
         @if(isset($allData['ai_generated']))
             <input type="hidden" name="ai_generated" value="1">
+        @endif
+        
+        {{-- Location fields --}}
+        @if(isset($allData['location']))
+            <input type="hidden" name="location" value="{{ $allData['location'] }}">
+        @endif
+        
+        @if(isset($allData['venue_name']))
+            <input type="hidden" name="venue_name" value="{{ $allData['venue_name'] }}">
+        @endif
+        
+        @if(isset($allData['venue_address']))
+            <input type="hidden" name="venue_address" value="{{ $allData['venue_address'] }}">
+        @endif
+        
+        @if(isset($allData['latitude']))
+            <input type="hidden" name="latitude" value="{{ $allData['latitude'] }}">
+        @endif
+        
+        @if(isset($allData['longitude']))
+            <input type="hidden" name="longitude" value="{{ $allData['longitude'] }}">
         @endif
         
         {{-- Preserve mode parameter for update/create distinction --}}
@@ -570,6 +595,9 @@ input[type="datetime-local"]:focus {
     'warning' => true,
     'showWarningBox' => false
 ])
+
+{{-- Duplicate Guests Modal --}}
+@include('components.duplicate-guests-modal')
 
 <script>
 // Global variables and functions
@@ -1632,6 +1660,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(() => {
                         window.location.href = data.redirect;
                     }, 1000);
+                } else if (data && data.duplicates_found) {
+                    // Duplicate guests found - show modal
+                    if (data.duplicates && typeof showDuplicateGuestsModal === 'function') {
+                        showDuplicateGuestsModal(data.duplicates);
+                    } else {
+                        showNotification(data.message || 'Duplicate guests found. Please check your guest lists.', 'error');
+                    }
                 } else if (data && data.errors) {
                     // Validation errors
                     showFormErrors(data.errors);

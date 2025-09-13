@@ -324,8 +324,17 @@
                 return;
             }
 
-            // Store form data
-            formData = { name, email, password, password_confirmation: passwordConfirmation, terms };
+            // Store form data with timezone
+            const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            formData = { 
+                name, 
+                email, 
+                password, 
+                password_confirmation: passwordConfirmation, 
+                terms,
+                browser_timezone: browserTimezone,
+                timezone: browserTimezone
+            };
 
             // Send OTP
             sendOTP(email, name);
@@ -398,7 +407,7 @@
             verifyOtpBtn.textContent = 'Verifying...';
             hideOtpError();
 
-            // Add OTP to form data
+            // Add OTP to form data (timezone is already included in formData)
             const dataToSend = { ...formData, otp_code: otpCode, email: formData.email };
 
             fetch('{{ route("register.verify-otp") }}', {
@@ -407,7 +416,8 @@
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-Timezone': formData.browser_timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify(dataToSend)

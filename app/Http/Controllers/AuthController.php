@@ -8,10 +8,12 @@ use App\PasswordResetToken;
 use App\Mail\PasswordResetMail;
 use App\Mail\OTPMail;
 use App\Rules\StrongPassword;
+use App\Services\TimezoneService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Socialite\Facades\Socialite;
@@ -40,8 +42,45 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
             
-            // Redirect based on user role
+            // Update user timezone and last login on login
             $user = Auth::user();
+            $detectedTimezone = TimezoneService::detectTimezone($request);
+            
+            // Update last login timestamp
+            $user->update(['last_login_at' => now()]);
+            
+            // Log timezone information for debugging
+            Log::info('🌍 [LOGIN TIMEZONE] User login timezone check', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'current_timezone_from_db' => $user->timezone,
+                'detected_timezone' => $detectedTimezone,
+                'is_different' => $detectedTimezone !== $user->timezone,
+                'is_valid' => TimezoneService::isValidTimezone($detectedTimezone),
+                'request_data' => $request->only(['timezone', 'browser_timezone'])
+            ]);
+            
+            if ($detectedTimezone !== $user->timezone && TimezoneService::isValidTimezone($detectedTimezone)) {
+                $oldTimezone = $user->timezone;
+                $user->update(['timezone' => $detectedTimezone]);
+                
+                Log::info('🌍 [LOGIN TIMEZONE] Updated user timezone on login', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'old_timezone' => $oldTimezone,
+                    'new_timezone' => $detectedTimezone
+                ]);
+            } else {
+                Log::info('🌍 [LOGIN TIMEZONE] No timezone update needed', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'current_timezone' => $user->timezone,
+                    'detected_timezone' => $detectedTimezone,
+                    'reason' => $detectedTimezone === $user->timezone ? 'same_timezone' : 'invalid_timezone'
+                ]);
+            }
+            
+            // Redirect based on user role
             return redirect()->intended($this->getDashboardRoute($user));
         }
 
@@ -66,16 +105,71 @@ class AuthController extends Controller
             $user = User::where('email', $email)->first();
 
             if (!$user) {
+                // Detect timezone for new user
+                $detectedTimezone = TimezoneService::detectTimezone($request);
+                
+                // Log timezone information for new Google user
+                Log::info('🌍 [GOOGLE SIGNUP TIMEZONE] New Google user timezone detection', [
+                    'user_email' => $email,
+                    'detected_timezone' => $detectedTimezone,
+                    'is_valid' => TimezoneService::isValidTimezone($detectedTimezone),
+                    'request_data' => $request->only(['timezone', 'browser_timezone'])
+                ]);
+                
                 $user = User::create([
                     'name' => $name,
                     'email' => $email,
                     'password' => Hash::make(bin2hex(random_bytes(8))),
-                    'role' => 'organizer' // Default role for new users
+                    'role' => 'organizer', // Default role for new users
+                    'timezone' => $detectedTimezone
                 ]);
+                
+                Log::info('🌍 [GOOGLE SIGNUP TIMEZONE] Set timezone for new Google user', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'saved_timezone' => $detectedTimezone
+                ]);
+            } else {
+                // Update timezone for existing user
+                $detectedTimezone = TimezoneService::detectTimezone($request);
+                
+                // Log timezone information for existing Google user
+                Log::info('🌍 [GOOGLE LOGIN TIMEZONE] Existing Google user timezone check', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'current_timezone_from_db' => $user->timezone,
+                    'detected_timezone' => $detectedTimezone,
+                    'is_different' => $detectedTimezone !== $user->timezone,
+                    'is_valid' => TimezoneService::isValidTimezone($detectedTimezone),
+                    'request_data' => $request->only(['timezone', 'browser_timezone'])
+                ]);
+                
+                if ($detectedTimezone !== $user->timezone && TimezoneService::isValidTimezone($detectedTimezone)) {
+                    $oldTimezone = $user->timezone;
+                    $user->update(['timezone' => $detectedTimezone]);
+                    
+                    Log::info('🌍 [GOOGLE LOGIN TIMEZONE] Updated timezone for existing Google user', [
+                        'user_id' => $user->id,
+                        'user_email' => $user->email,
+                        'old_timezone' => $oldTimezone,
+                        'new_timezone' => $detectedTimezone
+                    ]);
+                } else {
+                    Log::info('🌍 [GOOGLE LOGIN TIMEZONE] No timezone update needed for Google user', [
+                        'user_id' => $user->id,
+                        'user_email' => $user->email,
+                        'current_timezone' => $user->timezone,
+                        'detected_timezone' => $detectedTimezone,
+                        'reason' => $detectedTimezone === $user->timezone ? 'same_timezone' : 'invalid_timezone'
+                    ]);
+                }
             }
 
             Auth::login($user);
             $request->session()->regenerate();
+            
+            // Update last login timestamp for Google users
+            $user->update(['last_login_at' => now()]);
 
             $redirectUrl = $this->getDashboardRoute($user);
             
@@ -254,7 +348,17 @@ class AuthController extends Controller
      */
     public function showResetPassword($token)
     {
-        return view('auth.reset-password', compact('token'));
+        // Find the token and get the associated email
+        $resetToken = PasswordResetToken::where('token', $token)->first();
+        
+        if (!$resetToken || $resetToken->isExpired()) {
+            return redirect()->route('login')->withErrors(['token' => 'Invalid or expired password reset link.']);
+        }
+        
+        return view('auth.reset-password', [
+            'token' => $token,
+            'email' => $resetToken->email
+        ]);
     }
 
     /**
@@ -264,7 +368,6 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'token' => 'required|string',
-            'email' => 'required|email|exists:users,email',
             'password' => ['required', 'string', 'confirmed', new StrongPassword]
         ]);
 
@@ -272,17 +375,24 @@ class AuthController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
-        $email = $request->email;
         $token = $request->token;
         $password = $request->password;
 
-        // Validate token
-        if (!PasswordResetToken::validateToken($email, $token)) {
+        // Find the token and get the associated email
+        $resetToken = PasswordResetToken::where('token', $token)->first();
+        
+        if (!$resetToken || $resetToken->isExpired()) {
             return back()->withErrors(['token' => 'Invalid or expired password reset link.'])->withInput();
         }
 
+        $email = $resetToken->email;
+
         // Update password
         $user = User::where('email', $email)->first();
+        if (!$user) {
+            return back()->withErrors(['email' => 'User not found.'])->withInput();
+        }
+
         $user->update([
             'password' => Hash::make($password)
         ]);
@@ -413,13 +523,31 @@ class AuthController extends Controller
         }
 
         try {
+            // Detect timezone for new user
+            $detectedTimezone = TimezoneService::detectTimezone($request);
+            
+            // Log timezone information for new user
+            Log::info('🌍 [SIGNUP TIMEZONE] New user timezone detection', [
+                'user_email' => $email,
+                'detected_timezone' => $detectedTimezone,
+                'is_valid' => TimezoneService::isValidTimezone($detectedTimezone),
+                'request_data' => $request->only(['timezone', 'browser_timezone'])
+            ]);
+            
             // Create user account
             $user = User::create([
                 'name' => $name,
                 'email' => $email,
                 'password' => Hash::make($password),
                 'role' => 'organizer', // Default role for new users
-                'email_verified_at' => now() // Mark email as verified
+                'email_verified_at' => now(), // Mark email as verified
+                'timezone' => $detectedTimezone
+            ]);
+            
+            Log::info('🌍 [SIGNUP TIMEZONE] Set timezone for new user during registration', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'saved_timezone' => $detectedTimezone
             ]);
 
             // Clear any session data
@@ -427,6 +555,9 @@ class AuthController extends Controller
 
             // Login the user
             Auth::login($user);
+            
+            // Update last login timestamp for new users
+            $user->update(['last_login_at' => now()]);
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([

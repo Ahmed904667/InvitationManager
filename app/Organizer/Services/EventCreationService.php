@@ -8,6 +8,7 @@ use App\Shared\Models\Event;
 use App\Shared\Models\GuestList;
 use App\Shared\Models\Guest;
 use App\Shared\Models\Invitation;
+use App\EventGuest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
@@ -99,6 +100,11 @@ class EventCreationService
         
         // Clear draft-related session variables
         Session::forget('editing_draft_event_id');
+        
+        // Clear duplicate guest related session variables
+        Session::forget('excluded_guest_ids');
+        Session::forget('event_duplicate_guests');
+        Session::forget('event_guest_list_ids');
         
         Log::info('🧹 [SESSION] Cleared all event creation session data', [
             'user_id' => Auth::id()
@@ -395,6 +401,15 @@ class EventCreationService
         $data = $this->getAllStepsData();
         $data['user_id'] = Auth::id();
         
+        // Get excluded guest IDs from session (duplicates that were removed)
+        $excludedGuestIds = Session::get('excluded_guest_ids', []);
+        
+        Log::info('🔍 [EVENT_CREATION] Excluded guest IDs from session', [
+            'user_id' => Auth::id(),
+            'excluded_guest_ids' => $excludedGuestIds,
+            'excluded_count' => count($excludedGuestIds)
+        ]);
+        
         // Check if we're editing a draft event
         $editingDraftId = Session::get('editing_draft_event_id');
         
@@ -405,7 +420,7 @@ class EventCreationService
             'data_keys' => array_keys($data),
             'guest_list_ids' => $data['guest_list_ids'] ?? 'not_set',
             'guest_list_ids_type' => gettype($data['guest_list_ids'] ?? 'not_set'),
-            'guest_list_ids_count' => is_array($data['guest_list_ids'] ?? null) ? count($data['guest_list_ids']) : 'not_array'
+            'guest_list_ids_count' => is_array($data['guest_list_ids'] ?? null) ? count($data['guest_list_ids']) : 'not_array',
         ]);
         
         // Set default status based on send_type
@@ -421,14 +436,15 @@ class EventCreationService
         $data['name'] = $data['name'] ?? 'Untitled Event';
         $data['start_date'] = $data['start_date'] ?? now();
         
-        // Handle empty end_date - allow it to be saved as null (it's optional)
+        // Handle end_date - if not provided, the Event model mutator will automatically set it to day after start_date
         if (isset($data['end_date'])) {
             if (empty($data['end_date'])) {
-                $data['end_date'] = null;
-                Log::info('🔧 [EVENT_CREATION] End date cleared - setting to null', [
+                // Don't set to null - let the Event model mutator handle it automatically
+                unset($data['end_date']);
+                Log::info('🔧 [EVENT_CREATION] End date not provided - will be auto-set to day after start_date', [
                     'user_id' => Auth::id(),
-                    'action' => 'end_date_cleared',
-                    'value' => 'null'
+                    'action' => 'end_date_auto_set',
+                    'start_date' => $data['start_date'] ?? 'not_set'
                 ]);
             } else {
                 Log::info('✅ [EVENT_CREATION] End date provided', [
@@ -437,6 +453,12 @@ class EventCreationService
                     'value' => $data['end_date']
                 ]);
             }
+        } else {
+            Log::info('🔧 [EVENT_CREATION] No end_date in data - will be auto-set to day after start_date', [
+                'user_id' => Auth::id(),
+                'action' => 'end_date_auto_set',
+                'start_date' => $data['start_date'] ?? 'not_set'
+            ]);
         }
 
         // Ensure dates are in UTC format (simple approach)
@@ -468,6 +490,9 @@ class EventCreationService
                 'platforms' => $data['invitation_platforms']
             ]);
         }
+        
+        // Store excluded guest IDs in the event for scheduled invitations
+        $data['excluded_guest_ids'] = $excludedGuestIds;
         
         // CRITICAL: For scheduled events, ensure we have message content
         if ($data['send_type'] === 'scheduled') {
@@ -559,7 +584,7 @@ class EventCreationService
                                 'guests_count' => $guestList->guests->count()
                             ]);
                             
-                            $eventGuests = $eventGuestService->addGuestListToEvent($draftEvent, $guestList);
+                            $eventGuests = $eventGuestService->addGuestListToEvent($draftEvent, $guestList, $excludedGuestIds);
                             
                             Log::info('🔗 [EVENT_CREATION] Created event-guest relationships for updated draft', [
                                 'event_id' => $draftEvent->id,
@@ -619,7 +644,7 @@ class EventCreationService
                                 'guests_count' => $guestList->guests->count()
                             ]);
                             
-                            $eventGuests = $eventGuestService->addGuestListToEvent($event, $guestList);
+                            $eventGuests = $eventGuestService->addGuestListToEvent($event, $guestList, $excludedGuestIds);
                             
                             Log::info('🔗 [EVENT_CREATION] Created event-guest relationships', [
                                 'event_id' => $event->id,
@@ -673,7 +698,7 @@ class EventCreationService
                             'guests_count' => $guestList->guests->count()
                         ]);
                         
-                        $eventGuests = $eventGuestService->addGuestListToEvent($event, $guestList);
+                        $eventGuests = $eventGuestService->addGuestListToEvent($event, $guestList, $excludedGuestIds);
                         
                         Log::info('🔗 [EVENT_CREATION] Created event-guest relationships (new event)', [
                             'event_id' => $event->id,
@@ -777,7 +802,7 @@ class EventCreationService
     /**
      * Generate and send invitations for an event to all guests in selected lists.
      */
-    public function sendInvitationsForEvent(Event $event, array $allData = []): void
+    public function sendInvitationsForEvent(Event $event, array $allData = [], array $excludedGuestIds = []): void
     {
         // DEBUG: Log complete input data received by sendInvitationsForEvent
         Log::info('🔍 [SEND_INVITATIONS_DEBUG] Complete input data received by sendInvitationsForEvent', [
@@ -786,6 +811,8 @@ class EventCreationService
             'allData_count' => count($allData),
             'allData_keys' => array_keys($allData),
             'allData_content' => $allData,
+            'excluded_guest_ids' => $excludedGuestIds,
+            'excluded_count' => count($excludedGuestIds),
             
             // Event data before loading relationships
             'event_before_load' => [
@@ -807,6 +834,18 @@ class EventCreationService
         ]);
         
         $event->load('guestLists.guests');
+        
+        // Get active guests for this event (excludes removed duplicates)
+        $activeEventGuests = EventGuest::where('event_id', $event->id)
+            ->where('status', EventGuest::STATUS_ACTIVE)
+            ->with('guest')
+            ->get();
+        
+        Log::info('📧 [INVITATION] Active guests for invitation sending', [
+            'event_id' => $event->id,
+            'active_guests_count' => $activeEventGuests->count(),
+            'active_guest_ids' => $activeEventGuests->pluck('guest_id')->toArray()
+        ]);
         
         // DEBUG: Log event data after loading relationships
         Log::info('🔍 [SEND_INVITATIONS_DEBUG] Event data after loading relationships', [
@@ -888,14 +927,18 @@ class EventCreationService
         $totalGuestsProcessed = 0;
         $totalInvitationsSent = 0;
 
-        foreach ($event->guestLists as $guestList) {
-            foreach ($guestList->guests as $guest) {
-                $totalGuestsProcessed++;
+        // Send invitations only to active guests (excludes removed duplicates)
+        foreach ($activeEventGuests as $eventGuest) {
+            $guest = $eventGuest->guest;
+            $totalGuestsProcessed++;
+            
+            // Find the guest list for this guest
+            $guestList = $guest->guestList;
                 
-                // Determine message for this guest (per-guest > group > general)
-                $message = $messagesPerGuest[$guest->id] ?? null;
-                if (!$message && isset($guest->group_id) && isset($messagesGroup[$guestList->id]) && is_array($messagesGroup[$guestList->id])) {
-                    $message = $messagesGroup[$guestList->id][$guest->group_id] ?? null;
+            // Determine message for this guest (per-guest > group > general)
+            $message = $messagesPerGuest[$guest->id] ?? null;
+            if (!$message && isset($guest->group_id) && isset($messagesGroup[$guestList->id]) && is_array($messagesGroup[$guestList->id])) {
+                $message = $messagesGroup[$guestList->id][$guest->group_id] ?? null;
                 } elseif (!$message && isset($messagesGroup[$guestList->id]) && is_string($messagesGroup[$guestList->id])) {
                     $message = $messagesGroup[$guestList->id];
                 }
@@ -931,7 +974,7 @@ class EventCreationService
                 );
 
                 // Append invite URL to message (shared across platforms)
-                $completeMessage = trim(($personalized ?? '') . "\n\n" . $inviteUrl . "\n\n" . "Thank you!  ");
+                $completeMessage = trim(($personalized ?? '') . "\n\n" . $inviteUrl);
 
                 foreach ($platforms as $platform) {
                     
@@ -1022,7 +1065,6 @@ class EventCreationService
                         $totalInvitationsSent++;
                     }
                 }
-            }
         }
         
         // Log final results
@@ -1270,11 +1312,24 @@ class EventCreationService
         // Load event relationships
         $event->load('guestLists.guests');
         
+        // Get active guests for this event (excludes removed duplicates)
+        $activeEventGuests = EventGuest::where('event_id', $event->id)
+            ->where('status', EventGuest::STATUS_ACTIVE)
+            ->with('guest')
+            ->get();
+        
+        Log::info('📅 [SCHEDULED_INVITATIONS] Active guests for scheduled invitation sending', [
+            'event_id' => $event->id,
+            'active_guests_count' => $activeEventGuests->count(),
+            'active_guest_ids' => $activeEventGuests->pluck('guest_id')->toArray()
+        ]);
+        
         // Use ONLY stored event data (no session data)
         $messageGeneral = $event->general_message;
         $messagesGroup = $event->group_messages ?? [];
         $messagesPerGuest = $event->per_guest_messages ?? [];
         $platforms = $event->invitation_platforms ?? ['email'];
+        $excludedGuestIds = $event->excluded_guest_ids ?? [];
         
         Log::info('📅 [SCHEDULED_INVITATIONS] Data resolution for scheduled event', [
             'event_id' => $event->id,
@@ -1300,13 +1355,17 @@ class EventCreationService
         $totalGuestsProcessed = 0;
         $totalInvitationsSent = 0;
 
-        foreach ($event->guestLists as $guestList) {
-            foreach ($guestList->guests as $guest) {
-                $totalGuestsProcessed++;
-                
-                // Determine message for this guest (per-guest > group > general)
-                $message = $messagesPerGuest[$guest->id] ?? null;
-                if (!$message && isset($guest->guest_group_id) && isset($messagesGroup[$guestList->id]) && is_array($messagesGroup[$guestList->id])) {
+        // Send invitations only to active guests (excludes removed duplicates)
+        foreach ($activeEventGuests as $eventGuest) {
+            $guest = $eventGuest->guest;
+            $totalGuestsProcessed++;
+            
+            // Find the guest list for this guest
+            $guestList = $guest->guestList;
+            
+            // Determine message for this guest (per-guest > group > general)
+            $message = $messagesPerGuest[$guest->id] ?? null;
+            if (!$message && isset($guest->guest_group_id) && isset($messagesGroup[$guestList->id]) && is_array($messagesGroup[$guestList->id])) {
                     $message = $messagesGroup[$guestList->id][$guest->guest_group_id] ?? null;
                 } elseif (!$message && isset($messagesGroup[$guestList->id]) && is_string($messagesGroup[$guestList->id])) {
                     $message = $messagesGroup[$guestList->id];
@@ -1493,7 +1552,6 @@ class EventCreationService
                         $totalInvitationsSent++;
                     }
                 }
-            }
         }
 
         Log::info('📅 [SCHEDULED_INVITATIONS] Completed scheduled invitations', [
@@ -1504,6 +1562,4 @@ class EventCreationService
             'platforms_used' => $platforms
         ]);
     }
-
-
 }

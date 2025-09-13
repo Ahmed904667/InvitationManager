@@ -869,7 +869,10 @@ document.addEventListener('click', function(event) {
 });
 
 // Cancel Event functionality
-function showCancelEventModal(eventId, eventName) {
+function showCancelEventModal(eventId, eventName, eventStatus) {
+    // Determine if this is a scheduled event
+    const isScheduled = eventStatus === 'scheduled';
+    
     const modalHtml = `
         <div id="cancelEventModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -883,8 +886,8 @@ function showCancelEventModal(eventId, eventName) {
                         </button>
                     </div>
                     <div class="mb-4">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 bg-yellow-100">
-                            <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 ${isScheduled ? 'bg-blue-100' : 'bg-yellow-100'}">
+                            <svg class="h-6 w-6 ${isScheduled ? 'text-blue-600' : 'text-yellow-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
                             </svg>
                         </div>
@@ -892,33 +895,37 @@ function showCancelEventModal(eventId, eventName) {
                         <p class="text-sm mb-4 text-gray-600">
                             Are you sure you want to cancel the event <span class="font-medium">"${eventName}"</span>?
                         </p>
-                        <div class="rounded-md p-4 bg-yellow-50 border border-yellow-200 mb-4">
+                        <div class="rounded-md p-4 ${isScheduled ? 'bg-blue-50 border border-blue-200' : 'bg-yellow-50 border border-yellow-200'} mb-4">
                             <div class="flex">
                                 <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-5 w-5 ${isScheduled ? 'text-blue-400' : 'text-yellow-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
                                     </svg>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-yellow-800">Warning</h3>
-                                    <div class="mt-2 text-sm text-yellow-700">
-                                        <p>This will cancel the event, send an apology message to all guests, and remove all scheduled messages.</p>
+                                    <h3 class="text-sm font-medium ${isScheduled ? 'text-blue-800' : 'text-yellow-800'}">${isScheduled ? 'Scheduled Event' : 'Warning'}</h3>
+                                    <div class="mt-2 text-sm ${isScheduled ? 'text-blue-700' : 'text-yellow-700'}">
+                                        <p>${isScheduled ? 
+                                            'This will cancel the scheduled event and remove all scheduled invitations. No messages will be sent to guests since invitations haven\'t been sent yet.' : 
+                                            'This will cancel the event, send an apology message to all guests, and remove all scheduled messages.'}</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        ${!isScheduled ? `
                         <div class="mb-4">
                             <label for="apologyMessage" class="block text-sm font-medium text-gray-700 mb-2">
                                 Apology Message for Guests
                             </label>
                             <textarea id="apologyMessage" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your apology message to send to all guests...">We sincerely apologize, but we need to cancel this event. We will notify you of any future events. Thank you for your understanding.</textarea>
                         </div>
+                        ` : ''}
                     </div>
                     <div class="flex justify-end space-x-3">
                         <button onclick="closeCancelEventModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500">
                             Cancel
                         </button>
-                        <button onclick="confirmCancelEvent(${eventId})" class="px-4 py-2 text-sm font-medium text-white bg-yellow-600 border border-transparent rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                        <button onclick="confirmCancelEvent(${eventId}, '${eventStatus}')" class="px-4 py-2 text-sm font-medium text-white ${isScheduled ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'} border border-transparent rounded-md focus:outline-none focus:ring-2">
                             Cancel Event
                         </button>
                     </div>
@@ -937,12 +944,17 @@ function closeCancelEventModal() {
     }
 }
 
-function confirmCancelEvent(eventId) {
-    const apologyMessage = document.getElementById('apologyMessage').value.trim();
+function confirmCancelEvent(eventId, eventStatus) {
+    const isScheduled = eventStatus === 'scheduled';
     
-    if (!apologyMessage) {
-        window.GuestManager.showNotification('Please enter an apology message', 'error');
-        return;
+    // For sent events, validate apology message
+    if (!isScheduled) {
+        const apologyMessage = document.getElementById('apologyMessage').value.trim();
+        
+        if (!apologyMessage) {
+            window.GuestManager.showNotification('Please enter an apology message', 'error');
+            return;
+        }
     }
     
     // Show loading state
@@ -952,6 +964,12 @@ function confirmCancelEvent(eventId) {
         eventCard.style.pointerEvents = 'none';
     }
     
+    // Prepare request body
+    const requestBody = {};
+    if (!isScheduled) {
+        requestBody.apology_message = document.getElementById('apologyMessage').value.trim();
+    }
+    
     fetch(`/organizer/events/${eventId}/cancel`, {
         method: 'POST',
         headers: {
@@ -959,15 +977,16 @@ function confirmCancelEvent(eventId) {
             'X-Requested-With': 'XMLHttpRequest',
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            apology_message: apologyMessage
-        })
+        body: JSON.stringify(requestBody)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Show success notification
-            window.GuestManager.showNotification('Event cancelled successfully', 'success');
+            // Show success notification with appropriate message
+            const successMessage = isScheduled ? 
+                'Scheduled event cancelled successfully. No invitations were sent to guests.' : 
+                'Event cancelled successfully. Apology messages sent to all guests.';
+            window.GuestManager.showNotification(successMessage, 'success');
             
             // Close modal
             closeCancelEventModal();

@@ -36,6 +36,11 @@ class RsvpController extends Controller
                 return back()->with('error', 'This invitation has expired because the event has ended.');
             }
 
+            // Check if event is cancelled
+            if ($event->status === 'cancelled') {
+                return back()->with('error', 'This event has been cancelled.');
+            }
+
             // Validate the request
             $validated = $request->validate([
                 'rsvp_status' => 'required|in:yes,no,maybe',

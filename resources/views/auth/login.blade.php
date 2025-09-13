@@ -137,33 +137,37 @@
             </form>
 
             <div class="mt-6 lg:mt-8">
-                <div class="relative">
+                <!-- Label -->
+                <div class="relative mb-4">
                     <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-300 dark:border-gray-600" />
+                        <div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
                     </div>
                     <div class="relative flex justify-center text-xs lg:text-sm">
-                        <span class="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">Or continue with</span>
+                        <span class="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                            Or continue with
+                        </span>
                     </div>
                 </div>
 
-                <div class="mt-4 lg:mt-6">
+                <!-- Button -->
+                <div class="flex justify-center">
                     <div id="g_id_onload"
-                         data-client_id="{{ config('services.google.client_id') }}"
-                         data-callback="handleCredentialResponse"
-                         data-auto_prompt="false"
-                         data-cancel_on_tap_outside="false"
-                         data-context="signin"
-                         data-ux_mode="popup"
-                         data-itp_support="true">
+                        data-client_id="{{ config('services.google.client_id') }}"
+                        data-callback="handleCredentialResponse"
+                        data-auto_prompt="false"
+                        data-cancel_on_tap_outside="false"
+                        data-context="signin"
+                        data-ux_mode="popup"
+                        data-itp_support="true">
                     </div>
-                    <div class="g_id_signin" 
-                         data-type="standard" 
-                         data-shape="rectangular" 
-                         data-theme="outline" 
-                         data-text="signin_with" 
-                         data-size="large" 
-                         data-logo_alignment="left"
-                         data-width="300">
+                    <div class="g_id_signin"
+                        data-type="standard" 
+                        data-shape="rectangular" 
+                        data-theme="outline" 
+                        data-text="signin_with" 
+                        data-size="large" 
+                        data-logo_alignment="left"
+                        data-width="300">
                     </div>
                 </div>
             </div>
@@ -197,11 +201,13 @@ function handleCredentialResponse(response) {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
         },
         credentials: 'same-origin',
         body: JSON.stringify({
-            credential: response.credential
+            credential: response.credential,
+            browser_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         })
     })
     .then(response => {

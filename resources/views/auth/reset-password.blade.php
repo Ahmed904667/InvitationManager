@@ -54,8 +54,13 @@
                     <div class="text-center mb-8">
                         <h2 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">Reset Password</h2>
                         <p class="text-sm lg:text-base text-gray-600 dark:text-gray-400">
-                            Enter your email and new password to reset your account.
+                            Enter a new password for your account.
                         </p>
+                        <div class="mt-4 px-4 py-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg">
+                            <p class="text-sm text-primary-800 dark:text-primary-200">
+                                <strong>Account:</strong> {{ $email }}
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Error Messages -->
@@ -75,21 +80,6 @@
                         <input type="hidden" name="token" value="{{ $token }}">
                         
                         <div class="space-y-3 lg:space-y-4">
-                            <div>
-                                <label for="email" class="block text-sm lg:text-base font-medium text-gray-700 dark:text-gray-300 mb-1 lg:mb-2">
-                                    Email Address
-                                </label>
-                                <input 
-                                    id="email" 
-                                    name="email" 
-                                    type="email" 
-                                    autocomplete="email" 
-                                    required 
-                                    value="{{ old('email') }}"
-                                    class="w-full px-3 py-2 lg:px-4 lg:py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white text-sm lg:text-base @error('email') border-red-500 focus:ring-red-500 focus:border-red-500 @enderror"
-                                    placeholder="Enter your email address">
-                            </div>
-
                             <div>
                                 <label for="password" class="block text-sm lg:text-base font-medium text-gray-700 dark:text-gray-300 mb-1 lg:mb-2">
                                     New Password

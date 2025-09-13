@@ -119,6 +119,9 @@ Route::delete('/guest-lists/{guestList}/groups/{group}', [GuestListController::c
     Route::post('/events/create/auto-save', [\App\Organizer\Controllers\EventController::class, 'autoSave'])->name('events.create.auto-save');
     Route::post('/events/create/clear-session', [\App\Organizer\Controllers\EventController::class, 'clearSession'])->name('events.create.clear-session');
     Route::get('/events/create/new', [\App\Organizer\Controllers\EventController::class, 'createNew'])->name('events.create.new');
+    
+    // Duplicate guest management
+    Route::post('/events/create/remove-duplicates', [\App\Organizer\Controllers\EventController::class, 'removeDuplicateGuests'])->name('events.create.remove-duplicates');
     Route::get('/events/{event}/continue', [\App\Organizer\Controllers\EventController::class, 'continueEditing'])->name('events.continue');
     
     // Legacy single-step create (kept for backward compatibility)

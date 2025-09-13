@@ -20,7 +20,6 @@ use Illuminate\Support\Facades\Storage;
  * @property string $role
  * @property int $is_active
  * @property \Illuminate\Support\Carbon|null $last_login_at
- * @property array<array-key, mixed>|null $scanner_settings
  * @property \Illuminate\Support\Carbon|null $last_offline_sync
  * @property string $timezone
  * @property string|null $phone
@@ -54,7 +53,6 @@ use Illuminate\Support\Facades\Storage;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereProfilePhotoPath($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRole($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereScannerSettings($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereTimezone($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  * @mixin \Eloquent
@@ -76,7 +74,6 @@ class User extends Authenticatable
         'role',
         'is_active',
         'last_login_at',
-        'scanner_settings',
         'notification_settings',
         'last_offline_sync',
         'timezone',
@@ -118,12 +115,11 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-                    'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-        'last_login_at' => 'datetime',
-        'last_offline_sync' => 'datetime',
-        'scanner_settings' => 'array',
-        'notification_settings' => 'array',
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'last_login_at' => 'datetime',
+            'last_offline_sync' => 'datetime',
+            'notification_settings' => 'array',
         ];
     }
 

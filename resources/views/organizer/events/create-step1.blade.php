@@ -415,9 +415,13 @@ function initMap() {
                                 venueNameInput.value = best.formatted_address.split(',')[0];
                             }
                         }
+                        // Trigger auto-save after reverse geocoding updates
+                        immediateAutoSave();
                     });
                 } else if (best.formatted_address) {
                     venueNameInput.value = best.formatted_address.split(',')[0];
+                    // Trigger auto-save after reverse geocoding updates
+                    immediateAutoSave();
                 }
             }
         });
@@ -463,6 +467,9 @@ function initMap() {
             venueNameInput.value = place.name;
         }
         setAutocompleteBoundsFrom(loc);
+        
+        // Trigger auto-save when location is updated from Google Maps
+        immediateAutoSave();
     });
 
     venueAutocomplete.addListener('place_changed', () => {
@@ -482,6 +489,9 @@ function initMap() {
             addressInput.value = place.formatted_address;
         }
         setAutocompleteBoundsFrom(loc);
+        
+        // Trigger auto-save when location is updated from Google Maps
+        immediateAutoSave();
     });
 
     map.addListener('click', (e) => {
@@ -492,6 +502,9 @@ function initMap() {
         lngInput.value = loc.lng().toFixed(6);
         setAutocompleteBoundsFrom(loc);
         reverseGeocodeAndSet(loc);
+        
+        // Trigger auto-save when location is updated from map click
+        immediateAutoSave();
     });
 
     marker.addListener('dragend', (e) => {
@@ -500,6 +513,9 @@ function initMap() {
         lngInput.value = loc.lng().toFixed(6);
         setAutocompleteBoundsFrom(loc);
         reverseGeocodeAndSet(loc);
+        
+        // Trigger auto-save when location is updated from marker drag
+        immediateAutoSave();
     });
 
     // Try to use user's current location if no initial coordinates provided
@@ -515,6 +531,9 @@ function initMap() {
                 lngInput.value = loc.lng.toFixed(6);
                 setAutocompleteBoundsFrom(loc);
                 reverseGeocodeAndSet(loc);
+                
+                // Trigger auto-save when location is updated from geolocation
+                immediateAutoSave();
             },
             () => {
                 // If denied or failed, we keep default KL
@@ -689,6 +708,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     autoSaveInputs.forEach(input => {
         if (input.name === 'name' || input.name === 'start_date' || input.name === 'description') {
+            input.addEventListener('input', immediateAutoSave);
+            input.addEventListener('change', immediateAutoSave);
+        } else if (input.name === 'venue_name' || input.name === 'venue_address' || input.name === 'location' || input.name === 'latitude' || input.name === 'longitude') {
+            // Location fields should trigger immediate auto-save
             input.addEventListener('input', immediateAutoSave);
             input.addEventListener('change', immediateAutoSave);
         } else {

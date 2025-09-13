@@ -26,6 +26,7 @@ Route::get('/api/stats', [LandingController::class, 'getStats'])->name('api.stat
 Route::get('/api/stats/detailed', [LandingController::class, 'getDetailedStats'])->name('api.stats.detailed');
 Route::get('/api/stats/period', [LandingController::class, 'getStatsForPeriod'])->name('api.stats.period');
 
+
 // Trial form submission
 Route::post('/trial', [TrialController::class, 'store'])->name('trial.store');
 
@@ -167,6 +168,11 @@ Route::get('/invite/{token}', function(string $token) {
         return view('invitations.canceled', compact('event', 'invitation'));
     }
     
+    // Check if event is completed
+    if ($event->status === 'completed' || $event->isCompleted()) {
+        return view('invitations.completed', compact('event', 'invitation'));
+    }
+    
     $guest = \App\Shared\Models\Guest::findOrFail($invitation->guest_id);
 
     // Get existing reminders for this invitation
@@ -192,6 +198,15 @@ Route::post('/invite/{token}/rsvp', [App\Http\Controllers\RsvpController::class,
 Route::get('/invite/{token}/event.ics', function(string $token) {
     $invitation = \App\Shared\Models\Invitation::where('token', $token)->firstOrFail();
     $event = \App\Shared\Models\Event::findOrFail($invitation->event_id);
+    
+    // Check if event is cancelled or completed
+    if ($event->status === 'cancelled' || $event->cancelled_at) {
+        abort(410, 'Event has been cancelled');
+    }
+    
+    if ($event->status === 'completed' || $event->isCompleted()) {
+        abort(410, 'Event has been completed');
+    }
     $start = \Carbon\Carbon::parse($event->start_date)->utc();
     $end = !empty($event->end_date) ? \Carbon\Carbon::parse($event->end_date)->utc() : (clone $start)->addHour();
     $summary = $event->name ?? 'Event';
@@ -221,6 +236,21 @@ Route::post('/invite/{token}/reminder', function(string $token, Illuminate\Http\
     $invitation = \App\Shared\Models\Invitation::where('token', $token)->firstOrFail();
     $event = \App\Shared\Models\Event::findOrFail($invitation->event_id);
     $guest = \App\Shared\Models\Guest::findOrFail($invitation->guest_id);
+    
+    // Check if event is cancelled or completed
+    if ($event->status === 'cancelled' || $event->cancelled_at) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Cannot schedule reminders for cancelled events.'
+        ], 410);
+    }
+    
+    if ($event->status === 'completed' || $event->isCompleted()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Cannot schedule reminders for completed events.'
+        ], 410);
+    }
     
     $validated = $request->validate([
         'reminder_time' => 'required|date|after:now',
@@ -424,5 +454,6 @@ Route::get('/test/webhook/{notification_id}/{status}', function($notificationId,
         'twilio_status' => $status
     ]);
 });
+
 
 

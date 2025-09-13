@@ -158,17 +158,10 @@
             // Auto-focus on OTP input
             document.getElementById('otp_code').focus();
 
-            // Auto-submit when 6 digits are entered
+            // Format input to only allow digits
             document.getElementById('otp_code').addEventListener('input', function(e) {
                 const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
                 e.target.value = value;
-                
-                if (value.length === 6) {
-                    // Auto-submit form
-                    setTimeout(() => {
-                        e.target.form.submit();
-                    }, 500);
-                }
             });
         });
 

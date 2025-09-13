@@ -119,9 +119,12 @@ class Event extends Model
         'description',
         'start_date',
         'end_date',
+        'end_date_explicitly_set',
         'location',
         'venue_name',
         'venue_address',
+        'latitude',
+        'longitude',
         'invitation_title',
         'rsvp_enabled',
         'qr_checkin_enabled',
@@ -130,6 +133,7 @@ class Event extends Model
         'general_message',
         'group_messages',
         'per_guest_messages',
+        'excluded_guest_ids',
         'guest_list_ids',
         'send_type',
         'scheduled_at',
@@ -146,11 +150,52 @@ class Event extends Model
         'cancelled_at' => 'datetime',
         'rsvp_enabled' => 'boolean',
         'qr_checkin_enabled' => 'boolean',
+        'end_date_explicitly_set' => 'boolean',
         'guest_list_ids' => 'array',
         'invitation_platforms' => 'array',
         'group_messages' => 'array',
         'per_guest_messages' => 'array',
+        'excluded_guest_ids' => 'array',
     ];
+
+    /**
+     * Automatically set end_date to the day after start_date if not provided
+     */
+    public function setEndDateAttribute($value)
+    {
+        // If end_date is explicitly provided and not empty, use it and mark as explicitly set
+        if (!empty($value)) {
+            $this->attributes['end_date'] = $value;
+            $this->attributes['end_date_explicitly_set'] = true;
+            return;
+        }
+
+        // If start_date is set and end_date is not provided, set end_date to the day after start_date
+        if (!empty($this->attributes['start_date'])) {
+            $startDate = \Carbon\Carbon::parse($this->attributes['start_date']);
+            $this->attributes['end_date'] = $startDate->copy()->addDay()->format('Y-m-d H:i:s');
+            $this->attributes['end_date_explicitly_set'] = false; // Auto-generated
+        } else {
+            // If no start_date, set end_date to null
+            $this->attributes['end_date'] = null;
+            $this->attributes['end_date_explicitly_set'] = false;
+        }
+    }
+
+    /**
+     * When start_date is set, automatically set end_date if not already set
+     */
+    public function setStartDateAttribute($value)
+    {
+        $this->attributes['start_date'] = $value;
+        
+        // If end_date is not set or is null, set it to the day after start_date
+        if (empty($this->attributes['end_date']) && !empty($value)) {
+            $startDate = \Carbon\Carbon::parse($value);
+            $this->attributes['end_date'] = $startDate->copy()->addDay()->format('Y-m-d H:i:s');
+            $this->attributes['end_date_explicitly_set'] = false; // Auto-generated
+        }
+    }
 
     public function user(): BelongsTo
     {
@@ -255,8 +300,13 @@ class Event extends Model
         }
         
         // If no end date, check if start date has passed (by day)
+        // This handles the case where end_date is null and we want to mark as completed after one day
         // Use copy() to avoid mutating the original Carbon instance
-        return $this->start_date->copy()->startOfDay()->isBefore($now->copy()->startOfDay());
+        $startOfDay = $this->start_date->copy()->startOfDay();
+        $nowStartOfDay = $now->copy()->startOfDay();
+        
+        // Event is completed if the start date's day has passed
+        return $nowStartOfDay->isAfter($startOfDay);
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Shared\Models\Invitation;
 use App\Shared\Models\Notification;
 
 use App\Organizer\Services\EventCreationService;
+use App\Organizer\Services\EventDuplicateGuestService;
 use App\Services\EventGuestService;
 use App\Services\TwilioService;
 use Illuminate\Http\Request;
@@ -1077,20 +1078,74 @@ class EventController extends Controller
         // Note: All time validation is now handled in the custom validation section above
         // This ensures consistent timezone handling and validation logic
 
+        // Check for duplicate guests across selected guest lists
+        $guestListIds = $allDataCheck['guest_list_ids'] ?? [];
+        $excludedGuestIds = Session::get('excluded_guest_ids', []);
+        
+        Log::info('🔍 [DUPLICATE_CHECK] Checking allData for guest list IDs', [
+            'user_id' => Auth::id(),
+            'allData_keys' => array_keys($allData),
+            'guest_list_ids' => $guestListIds,
+            'guest_list_ids_empty' => empty($guestListIds),
+            'excluded_guest_ids' => $excludedGuestIds
+        ]);
+        
+        if (!empty($guestListIds)) {
+            Log::info('🔍 [DUPLICATE_CHECK] Starting duplicate validation', [
+                'user_id' => Auth::id(),
+                'guest_list_ids' => $guestListIds,
+                'excluded_guest_ids' => $excludedGuestIds
+            ]);
+            
+            $duplicateService = new EventDuplicateGuestService();
+            $duplicates = $duplicateService->findDuplicateGuests($guestListIds, $excludedGuestIds);
+            
+            Log::info('🔍 [DUPLICATE_CHECK] Duplicate validation result', [
+                'user_id' => Auth::id(),
+                'duplicates_found' => !empty($duplicates),
+                'duplicates' => $duplicates
+            ]);
+            
+            if (!empty($duplicates)) {
+                // Store duplicates in session for the modal to display
+                Session::put('event_duplicate_guests', $duplicates);
+                Session::put('event_guest_list_ids', $guestListIds);
+                
+                if ($request->expectsJson() || $request->hasHeader('X-Form-Submission')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Duplicate guests found across your selected guest lists.',
+                        'duplicates_found' => true,
+                        'duplicates' => $duplicates,
+                        'redirect' => null // Stay on the same page to show modal
+                    ], 422);
+                }
+                
+                // For non-AJAX requests, redirect back with duplicate data
+                return redirect()->back()
+                    ->with('duplicate_guests', $duplicates)
+                    ->with('error', 'Duplicate guests found across your selected guest lists. Please review and remove duplicates before proceeding.');
+            }
+        }
+
         $this->eventCreationService->storeStep(4, $validated);
 
         // Capture all step data BEFORE event creation clears the session
         $allDataSnapshot = $this->eventCreationService->getAllStepsData();
+        
 
+        // Get excluded guest IDs before creating event (session gets cleared during creation)
+        $excludedGuestIds = Session::get('excluded_guest_ids', []);
+        
         // Create the event
         $event = $this->eventCreationService->createEvent();
-
+        
         // Clear any editing draft session variables
         Session::forget('editing_draft_event_id');
 
         // Send invitations according to selection
         if ($validated['send_type'] === 'now') {
-            app(\App\Organizer\Services\EventCreationService::class)->sendInvitationsForEvent($event, $allDataSnapshot);
+            app(\App\Organizer\Services\EventCreationService::class)->sendInvitationsForEvent($event, $allDataSnapshot, $excludedGuestIds);
         }
         // Note: For scheduled events, the job is already dispatched by EventCreationService::createEvent()
 
@@ -1105,6 +1160,37 @@ class EventController extends Controller
 
         return redirect()->route('organizer.events.show', $event)
             ->with('success', 'Event created successfully! Invitations ' . ($validated['send_type'] === 'now' ? 'are being sent.' : 'will be sent at the scheduled time.'));
+    }
+
+    /**
+     * Handle removal of duplicate guests from event
+     */
+    public function removeDuplicateGuests(Request $request)
+    {
+        $validated = $request->validate([
+            'guests_to_remove' => 'required|array',
+            'guests_to_remove.*' => 'integer|exists:guests,id'
+        ]);
+
+        $guestsToRemove = $validated['guests_to_remove'];
+        
+        // Store the excluded guest IDs in session for event creation
+        Session::put('excluded_guest_ids', $guestsToRemove);
+        
+        // Clear the duplicate guests session data
+        Session::forget('event_duplicate_guests');
+        Session::forget('event_guest_list_ids');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Duplicate guests removed from event. You can now proceed with event creation.',
+                'removed_count' => count($guestsToRemove)
+            ]);
+        }
+
+        return redirect()->route('organizer.events.create.step4')
+            ->with('success', 'Duplicate guests removed from event. You can now proceed with event creation.');
     }
 
     /**
@@ -1727,6 +1813,16 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 'has_start_date' => !empty($data['start_date']),
                 'has_guest_list_ids' => isset($data['guest_list_ids']),
                 'guest_list_ids_value' => $data['guest_list_ids'] ?? 'NOT_PROVIDED',
+                'has_location' => isset($data['location']),
+                'has_venue_name' => isset($data['venue_name']),
+                'has_venue_address' => isset($data['venue_address']),
+                'has_latitude' => isset($data['latitude']),
+                'has_longitude' => isset($data['longitude']),
+                'location_value' => $data['location'] ?? 'NOT_SET',
+                'venue_name_value' => $data['venue_name'] ?? 'NOT_SET',
+                'venue_address_value' => $data['venue_address'] ?? 'NOT_SET',
+                'latitude_value' => $data['latitude'] ?? 'NOT_SET',
+                'longitude_value' => $data['longitude'] ?? 'NOT_SET',
                 'request_method' => $request->method(),
                 'request_url' => $request->url(),
                 'user_agent' => $request->header('User-Agent')
@@ -1789,7 +1885,9 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             // Store data based on current step
             if ($currentStep >= 1) {
                 // Only store Step 1 data if it's actually provided in the request
-                if (isset($data['name']) || isset($data['start_date']) || isset($data['description']) || isset($data['end_date'])) {
+                if (isset($data['name']) || isset($data['start_date']) || isset($data['description']) || isset($data['end_date']) || 
+                    isset($data['location']) || isset($data['venue_name']) || isset($data['venue_address']) || 
+                    isset($data['latitude']) || isset($data['longitude'])) {
                     $step1Data = [
                         'name' => $data['name'] ?? '',
                         'description' => $data['description'] ?? '',
@@ -4522,13 +4620,9 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             ->orderBy('created_at', 'desc')
             ->get();
             
-        // Calculate updated statistics
-        $stats = [
-            'queued' => $invitations->whereIn('status', ['queued', 'sending', 'pending'])->count(),
-            'delivered' => $invitations->whereIn('status', ['delivered', 'sent'])->count(),
-            'read' => $invitations->where('status', 'read')->count(),
-            'failed' => $invitations->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
-        ];
+        // Calculate updated statistics using InvitationStatusService
+        $invitationService = new \App\Services\InvitationStatusService();
+        $stats = $invitationService->getInvitationStats($event);
         
         $message = "Updated {$updatedCount} invitation statuses.";
         if (!empty($errors)) {
@@ -5364,7 +5458,8 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
     }
 
     /**
-     * Cancel an event and send apology message to all guests
+     * Cancel an event and send apology message to all guests (for sent events only)
+     * For scheduled events, simply remove scheduled invitations without sending apology messages
      */
     public function cancel(Request $request, Event $event)
     {
@@ -5383,12 +5478,61 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 ->with('error', 'This event cannot be cancelled.');
         }
         
-        $request->validate([
-            'apology_message' => 'required|string|max:1000'
-        ]);
-        
         try {
             \DB::beginTransaction();
+            
+            // Handle scheduled events differently - no apology messages needed
+            if ($event->status === 'scheduled') {
+                \Log::info('📅 [EVENT_CANCELLATION] Cancelling scheduled event without sending apology messages', [
+                    'event_id' => $event->id,
+                    'event_name' => $event->name,
+                    'event_status' => $event->status,
+                    'scheduled_at' => $event->scheduled_at
+                ]);
+                
+                // Remove all scheduled invitations for this event
+                // Cancel any pending jobs in the queue for this event
+                $deletedJobs = \DB::table('jobs')
+                    ->where('payload', 'like', '%"event_id":' . $event->id . '%')
+                    ->orWhere('payload', 'like', '%SendScheduledEventInvitations%')
+                    ->where('payload', 'like', '%"event_id":' . $event->id . '%')
+                    ->delete();
+                
+                // Also cancel any job batches related to this event
+                $cancelledBatches = \DB::table('job_batches')
+                    ->where('payload', 'like', '%"event_id":' . $event->id . '%')
+                    ->update(['cancelled_at' => now()->timestamp]);
+                
+                \Log::info('📅 [EVENT_CANCELLATION] Removed scheduled invitations', [
+                    'event_id' => $event->id,
+                    'deleted_jobs' => $deletedJobs,
+                    'cancelled_batches' => $cancelledBatches
+                ]);
+                
+                // Update event status to cancelled
+                $event->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                    'cancellation_reason' => 'Event cancelled before invitations were sent'
+                ]);
+                
+                \DB::commit();
+                
+                if (request()->wantsJson() || request()->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Scheduled event cancelled successfully. No invitations were sent to guests.'
+                    ]);
+                }
+                
+                return redirect()->route('organizer.events.index')
+                    ->with('success', 'Scheduled event cancelled successfully. No invitations were sent to guests.');
+            }
+            
+            // For sent events, require apology message and send to guests
+            $request->validate([
+                'apology_message' => 'required|string|max:1000'
+            ]);
             
             // Get all active guests for this event
             $activeGuests = $event->activeGuests()->get();

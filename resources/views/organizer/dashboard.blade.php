@@ -126,21 +126,21 @@
                 </div>
             </div>
 
-            <!-- Recent Activity -->
+            <!-- Completed Events -->
             <div class="card">
                 <div class="p-3 sm:p-5">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
                             <div class="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 rounded-md flex items-center justify-center">
                                 <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
                         </div>
                         <div class="ml-3 sm:ml-5 w-0 flex-1">
                             <dl>
-                                <dt class="text-xs sm:text-sm font-medium text-secondary truncate">Recent Activity</dt>
-                                <dd class="text-base sm:text-lg font-medium text-primary">{{ count($stats['recent_activity'] ?? []) }}</dd>
+                                <dt class="text-xs sm:text-sm font-medium text-secondary truncate">Completed Events</dt>
+                                <dd class="text-base sm:text-lg font-medium text-primary">{{ $stats['completed_events'] ?? 0 }}</dd>
                             </dl>
                         </div>
                     </div>
@@ -187,10 +187,14 @@
                             <div class="flex-1 min-w-0">
                                 <h4 class="text-sm font-medium text-primary truncate">{{ $event->name }}</h4>
                                 <p class="text-xs sm:text-sm text-secondary">
-                                    {{ $event->event_date ? $event->event_date->format('M j, Y') : 'No date set' }}
+                                    @if($event->start_date)
+                                        {{ $event->convertFromUtc($event->start_date, Auth::user()->timezone ?? 'UTC')->format('M j, Y g:i A') }}
+                                    @else
+                                        No date set
+                                    @endif
                                 </p>
                             </div>
-                            <a href="{{ route('organizer.guest-lists.edit', $event) }}" class="text-primary-600 hover:text-primary-800 text-xs sm:text-sm font-medium transition-colors duration-200 ml-2 flex-shrink-0">
+                            <a href="{{ route('organizer.events.show', $event) }}" class="text-primary-600 hover:text-primary-800 text-xs sm:text-sm font-medium transition-colors duration-200 ml-2 flex-shrink-0">
                                 Manage →
                             </a>
                         </div>
@@ -200,6 +204,13 @@
                         </div>
                         @endforelse
                     </div>
+                    @if(($stats['upcoming_events'] ?? collect())->count() > 0)
+                    <div class="mt-4">
+                        <a href="{{ route('organizer.events.index') }}" class="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-200">
+                            Show more events →
+                        </a>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>

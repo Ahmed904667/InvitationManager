@@ -48,6 +48,14 @@
                 </svg>
                 Notifications
             </a>
+            @if($event->status === 'running')
+                <button onclick="markEventAsComplete({{ $event->id }})" class="btn-success" id="mark-complete-btn">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Mark as Complete
+                </button>
+            @endif
             @if(!in_array($event->status, ['running', 'completed', 'cancelled']))
                 <a href="{{ route('organizer.events.edit', $event) }}" class="btn-primary">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,6 +307,37 @@
         <!-- Tab Content -->
         <div id="guests-content" class="tab-content">
         
+        <!-- Search Bar for Guests -->
+        <div class="p-6 border-b" style="border-color: var(--border-primary);">
+            <div class="flex items-center space-x-4">
+                <div class="flex-1">
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="guest-search" 
+                            placeholder="Search guests by name, email, or phone..." 
+                            class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            style="background: var(--bg-primary); border-color: var(--border-primary); color: var(--text-primary);"
+                        >
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5" style="color: var(--text-secondary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <button 
+                            id="clear-search" 
+                            class="absolute inset-y-0 right-0 pr-3 flex items-center hidden"
+                            style="color: var(--text-secondary);"
+                        >
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 18"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         @php
             // Group active event guests by guest list
             $guestsByList = $activeEventGuests->groupBy(function($eventGuest) {
@@ -307,37 +346,13 @@
             
             // Helper functions for invitation status
             function getInvitationStatusClass($status) {
-                switch ($status) {
-                    case 'delivered':
-                    case 'sent':
-                        return 'success';
-                    case 'read':
-                        return 'emerald';
-                    case 'failed':
-                    case 'undelivered':
-                    case 'canceled':
-                    case 'bounced':
-                        return 'danger';
-                    default:
-                        return 'warning';
-                }
+                $invitationService = new \App\Services\InvitationStatusService();
+                return $invitationService->getStatusClass($status);
             }
             
             function getInvitationStatusText($status) {
-                switch ($status) {
-                    case 'delivered':
-                    case 'sent':
-                        return 'Delivered';
-                    case 'read':
-                        return 'Read';
-                    case 'failed':
-                    case 'undelivered':
-                    case 'canceled':
-                    case 'bounced':
-                        return 'Failed';
-                    default:
-                        return 'Queued';
-                }
+                $invitationService = new \App\Services\InvitationStatusService();
+                return $invitationService->getStatusText($status);
             }
         @endphp
         
@@ -680,24 +695,28 @@
                 </div>
                 
                 @php
-                    $invitations = $event->invitations()
-                        ->with(['guest'])
-                        ->orderBy('created_at', 'desc')
-                        ->get()
-                        ->groupBy('channel');
+                    $invitationService = new \App\Services\InvitationStatusService();
+                    $invitationStats = $invitationService->getInvitationStats($event);
+                    $invitations = $invitationService->getAllInvitations($event);
                     
-                    $invitationStats = [
-                        'queued' => $event->invitations()->whereIn('status', ['queued', 'sending', 'pending'])->count(),
-                        'delivered' => $event->invitations()->whereIn('status', ['delivered', 'sent'])->count(),
-                        'read' => $event->invitations()->where('status', 'read')->count(),
-                        'failed' => $event->invitations()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
-                    ];
+                    // Debug output
+                    \Log::info('Invitation Stats Debug', [
+                        'event_status' => $event->status,
+                        'invitation_stats' => $invitationStats,
+                        'invitation_platforms' => $event->invitation_platforms,
+                        'event_guests_count' => $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count()
+                    ]);
                 @endphp
                 
                 <!-- Invitation Statistics -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <div class="text-center p-3 rounded-lg" style="background: var(--orange-100);">
-                        <div class="text-xl font-bold invitation-queued-count" style="color: var(--orange-600);">{{ $invitationStats['queued'] }}</div>
+                        <div class="text-xl font-bold invitation-queued-count" style="color: var(--orange-600);">
+                            {{ $invitationStats['queued'] }}
+                            @if($event->status === 'scheduled')
+                                <small class="block text-xs">(Virtual)</small>
+                            @endif
+                        </div>
                         <div class="text-xs" style="color: var(--text-secondary);">Queued</div>
                     </div>
                     <div class="text-center p-3 rounded-lg" style="background: var(--green-100);">
@@ -753,25 +772,36 @@
                                         <td class="px-4 py-4 whitespace-nowrap">
                                             <span class="badge badge-{{ getInvitationStatusClass($invitation->status) }} invitation-status">
                                                 {{ getInvitationStatusText($invitation->status) }}
+                                                @if(isset($invitation->is_virtual) && $invitation->is_virtual)
+                                                    <span class="text-xs ml-1">(Scheduled)</span>
+                                                @endif
                                             </span>
                                         </td>
                                         <td class="px-4 py-4 whitespace-nowrap text-sm invitation-sent-at" style="color: var(--text-primary);">
                                             @if($invitation->sent_at)
                                                 {{ $invitation->sent_at->setTimezone($userTimezone)->format('M j, Y g:i A') }}
+                                            @elseif(isset($invitation->is_virtual) && $invitation->is_virtual)
+                                                <span class="text-xs" style="color: var(--text-secondary);">Scheduled for {{ $event->scheduled_at ? $event->scheduled_at->setTimezone($userTimezone)->format('M j, Y g:i A') : 'TBD' }}</span>
                                             @else
                                                 -
                                             @endif
                                         </td>
                                         <td class="px-4 py-4 whitespace-nowrap text-sm" style="color: var(--text-secondary);">
-                                            @if($invitation->token)
+                                            @if(isset($invitation->is_virtual) && $invitation->is_virtual)
                                                 <div class="text-xs">
-                                                    <strong>Token:</strong> {{ Str::limit($invitation->token, 20) }}
+                                                    <strong>Status:</strong> Queued for scheduled send
                                                 </div>
-                                            @endif
-                                            @if($invitation->external_id)
-                                                <div class="text-xs mt-1">
-                                                    <strong>Twilio SID:</strong> {{ Str::limit($invitation->external_id, 20) }}
-                                                </div>
+                                            @else
+                                                @if($invitation->token)
+                                                    <div class="text-xs">
+                                                        <strong>Token:</strong> {{ Str::limit($invitation->token, 20) }}
+                                                    </div>
+                                                @endif
+                                                @if($invitation->external_id)
+                                                    <div class="text-xs mt-1">
+                                                        <strong>Twilio SID:</strong> {{ Str::limit($invitation->external_id, 20) }}
+                                                    </div>
+                                                @endif
                                             @endif
                                         </td>
                                     </tr>
@@ -783,7 +813,11 @@
                     @endforeach
                 @else
                 <div class="text-center py-8">
-                    <p class="text-sm" style="color: var(--text-secondary);">No invitations sent yet</p>
+                    @if($event->status === 'scheduled')
+                        <p class="text-sm" style="color: var(--text-secondary);">No invitations queued yet. Invitations will appear here when the event is scheduled to send.</p>
+                    @else
+                        <p class="text-sm" style="color: var(--text-secondary);">No invitations sent yet</p>
+                    @endif
                 </div>
                 @endif
             </div>
@@ -1158,6 +1192,83 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(refreshInterval);
         }
     });
+    
+    // Guest search functionality
+    const guestSearchInput = document.getElementById('guest-search');
+    const clearSearchBtn = document.getElementById('clear-search');
+    const searchResultsCount = document.getElementById('search-results-count');
+    
+    if (guestSearchInput) {
+        guestSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            
+            // Show/hide clear button
+            if (searchTerm) {
+                clearSearchBtn.classList.remove('hidden');
+            } else {
+                clearSearchBtn.classList.add('hidden');
+            }
+            
+            // Filter guests
+            filterGuests(searchTerm);
+        });
+        
+        // Clear search functionality
+        clearSearchBtn.addEventListener('click', function() {
+            guestSearchInput.value = '';
+            this.classList.add('hidden');
+            filterGuests('');
+        });
+    }
+    
+    function filterGuests(searchTerm) {
+        const guestRows = document.querySelectorAll('#guests-content tbody tr[data-guest-id]');
+        let visibleCount = 0;
+        
+        guestRows.forEach(row => {
+            const guestName = row.querySelector('td:first-child a')?.textContent?.toLowerCase() || '';
+            const guestEmail = row.querySelector('td:nth-child(2) div:first-child')?.textContent?.toLowerCase() || '';
+            const guestPhone = row.querySelector('td:nth-child(2) div:last-child')?.textContent?.toLowerCase() || '';
+            
+            const matches = !searchTerm || 
+                guestName.includes(searchTerm) || 
+                guestEmail.includes(searchTerm) || 
+                guestPhone.includes(searchTerm);
+            
+            if (matches) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Update results count
+        if (searchResultsCount) {
+            searchResultsCount.textContent = visibleCount;
+        }
+        
+        // Show/hide "no results" message
+        const guestLists = document.querySelectorAll('#guests-content .p-6.border-b.last\\:border-b-0');
+        guestLists.forEach(list => {
+            const rows = list.querySelectorAll('tbody tr[data-guest-id]');
+            const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none');
+            
+            let noResultsMsg = list.querySelector('.no-search-results');
+            if (visibleRows.length === 0 && searchTerm) {
+                if (!noResultsMsg) {
+                    noResultsMsg = document.createElement('div');
+                    noResultsMsg.className = 'no-search-results text-center py-8';
+                    noResultsMsg.style.color = 'var(--text-secondary)';
+                    noResultsMsg.innerHTML = '<p class="text-sm">No guests found matching your search</p>';
+                    list.appendChild(noResultsMsg);
+                }
+                noResultsMsg.style.display = 'block';
+            } else if (noResultsMsg) {
+                noResultsMsg.style.display = 'none';
+            }
+        });
+    }
     
     // Add event listener to refresh button
     const refreshBtn = document.getElementById('refresh-notifications-btn');
@@ -1565,6 +1676,69 @@ document.addEventListener('DOMContentLoaded', function() {
     
 });
 
+
+// Mark Event as Complete Function
+function markEventAsComplete(eventId) {
+    if (confirm('Are you sure you want to mark this event as complete? This action cannot be undone.')) {
+        const button = document.getElementById('mark-complete-btn');
+        const originalText = button.innerHTML;
+        
+        // Show loading state
+        button.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Marking Complete...';
+        button.disabled = true;
+        
+        // Send request to mark event as complete
+        fetch(`/organizer/events/${eventId}/complete`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                if (typeof showNotification === 'function') {
+                    showNotification('Event marked as complete successfully!', 'success');
+                } else if (window.GuestManager?.showNotification) {
+                    window.GuestManager.showNotification('Event marked as complete successfully!', 'success');
+                } else {
+                    alert('Event marked as complete successfully!');
+                }
+                
+                // Reload the page to reflect the status change
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error(data.message || 'Failed to mark event as complete');
+            }
+        })
+        .catch(error => {
+            console.error('Error marking event as complete:', error);
+            
+            // Show error message
+            if (typeof showNotification === 'function') {
+                showNotification(error.message || 'Failed to mark event as complete', 'error');
+            } else if (window.GuestManager?.showNotification) {
+                window.GuestManager.showNotification(error.message || 'Failed to mark event as complete', 'error');
+            } else {
+                alert(error.message || 'Failed to mark event as complete');
+            }
+            
+            // Reset button state
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    }
+}
 
 // Notification Modal Functions
 function openSendNotificationModal() {

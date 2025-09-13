@@ -31,7 +31,7 @@ class EventGuestService
     /**
      * Add multiple guests to an event (from a guest list)
      */
-    public function addGuestListToEvent(Event $event, $guestList): array
+    public function addGuestListToEvent(Event $event, $guestList, array $excludedGuestIds = []): array
     {
         $addedGuests = [];
         
@@ -45,11 +45,24 @@ class EventGuestService
             'guest_list_id' => $guestList->id,
             'guest_list_name' => $guestList->name,
             'guests_count' => $guestList->guests->count(),
-            'guests_loaded' => $guestList->relationLoaded('guests')
+            'guests_loaded' => $guestList->relationLoaded('guests'),
+            'excluded_guest_ids' => $excludedGuestIds,
+            'excluded_count' => count($excludedGuestIds)
         ]);
         
-        DB::transaction(function () use ($event, $guestList, &$addedGuests) {
+        DB::transaction(function () use ($event, $guestList, $excludedGuestIds, &$addedGuests) {
             foreach ($guestList->guests as $guest) {
+                // Skip excluded guests (duplicates that were removed)
+                if (in_array($guest->id, $excludedGuestIds)) {
+                    \Log::info('🔗 [EVENT_GUEST_SERVICE] Skipping excluded guest', [
+                        'event_id' => $event->id,
+                        'guest_id' => $guest->id,
+                        'guest_name' => $guest->name,
+                        'reason' => 'excluded_duplicate'
+                    ]);
+                    continue;
+                }
+                
                 \Log::info('🔗 [EVENT_GUEST_SERVICE] Adding guest to event', [
                     'event_id' => $event->id,
                     'guest_id' => $guest->id,

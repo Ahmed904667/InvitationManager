@@ -1065,19 +1065,18 @@ function hideTextboxLoading(textareaId) {
 
 // Apply assistant actions
 function applyAssistantActions(actions) {
-    console.log('🔍 [DEBUG] Applying assistant actions:', actions);
+    
     
     // Temporarily disable auto-save while updating textareas
     disableAutoSave = true;
     
     actions.forEach(action => {
-        console.log('🔍 [DEBUG] Processing action:', action.type, action);
+        
         switch (action.type) {
             case 'update_group_template':
-                console.log('🔍 [DEBUG] Processing update_group_template action:', action);
+                
                 const groupTextarea = document.getElementById(`group_template_${action.listId}_${action.groupId}`);
-                console.log('🔍 [DEBUG] Looking for group textarea with ID:', `group_template_${action.listId}_${action.groupId}`);
-                console.log('🔍 [DEBUG] Found group textarea:', groupTextarea);
+                
                 
                 if (groupTextarea) {
                     // Convert markdown to plain text for textarea and handle line breaks
@@ -1090,7 +1089,6 @@ function applyAssistantActions(actions) {
                     groupTextarea.value = plainContent;
                     hideTextboxLoading(`group_template_${action.listId}_${action.groupId}`);
                     
-                    console.log('🔍 [DEBUG] Applied group message to textarea:', plainContent.substring(0, 100) + '...');
                     
                     // Show language info if available
                     if (action.language && action.language !== 'en') {
@@ -1098,15 +1096,13 @@ function applyAssistantActions(actions) {
                         showLanguageNotification(`Generated group message in ${languageName}`);
                     }
                 } else {
-                    console.error('❌ [DEBUG] Group textarea not found for list ID:', action.listId, 'group ID:', action.groupId);
+                    
                 }
                 break;
                 
             case 'update_guest_message':
-                console.log('🔍 [DEBUG] Processing update_guest_message action:', action);
+                
                 const guestTextarea = document.querySelector(`textarea[name="per_guest_messages[${action.guestId}]"]`);
-                console.log('🔍 [DEBUG] Looking for textarea with name:', `per_guest_messages[${action.guestId}]`);
-                console.log('🔍 [DEBUG] Found textarea:', guestTextarea);
                 
                 if (guestTextarea) {
                     // Convert markdown to plain text for textarea and handle line breaks
@@ -1119,7 +1115,6 @@ function applyAssistantActions(actions) {
                     guestTextarea.value = plainContent;
                     hideTextboxLoading(guestTextarea.id);
                     
-                    console.log('🔍 [DEBUG] Applied message to textarea:', plainContent.substring(0, 100) + '...');
                     
                     // Show language info if available
                     if (action.language && action.language !== 'en') {
@@ -1127,12 +1122,12 @@ function applyAssistantActions(actions) {
                         showLanguageNotification(`Generated message for ${guestTextarea.getAttribute('data-guest-name')} in ${languageName}`);
                     }
                 } else {
-                    console.error('❌ [DEBUG] Textarea not found for guest ID:', action.guestId);
+                    
                     // Try to find all textareas with per_guest_messages to debug
                     const allGuestTextareas = document.querySelectorAll('textarea[name^="per_guest_messages["]');
-                    console.log('🔍 [DEBUG] All guest textareas found:', allGuestTextareas.length);
+                    
                     allGuestTextareas.forEach((ta, index) => {
-                        console.log(`🔍 [DEBUG] Textarea ${index}:`, ta.name, ta.getAttribute('data-guest-name'));
+                        
                     });
                 }
                 break;
