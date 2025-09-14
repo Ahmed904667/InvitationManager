@@ -636,7 +636,7 @@ class ScannerController extends Controller
                 // Convert UTC time to scanner's timezone for display
                 $scannerTime = $scanner->toScannerTimezone($eventGuest->checked_in_at);
                 return [
-                    'guest_name' => $eventGuest->guest->name,
+                    'guest_name' => $eventGuest->guest ? $eventGuest->guest->name : 'Unknown Guest',
                     'time' => $scannerTime->diffForHumans()
                 ];
             });
@@ -737,7 +737,7 @@ class ScannerController extends Controller
                 // Convert UTC time to scanner's timezone for display
                 $scannerTime = $scanner->toScannerTimezone($eventGuest->checked_in_at);
                 return [
-                    'name' => $eventGuest->guest->name,
+                    'name' => $eventGuest->guest ? $eventGuest->guest->name : 'Unknown Guest',
                     'checked_in_at' => $scannerTime->toISOString(),
                     'time_ago' => $scannerTime->diffForHumans()
                 ];
@@ -772,9 +772,9 @@ class ScannerController extends Controller
             $scannerTime = $scanner->toScannerTimezone($eventGuest->checked_in_at);
             $csv .= sprintf(
                 "%s,%s,%s,%s,%s\n",
-                $eventGuest->guest->name,
-                $eventGuest->guest->email ?? '',
-                $eventGuest->guest->phone ?? '',
+                $eventGuest->guest ? $eventGuest->guest->name : 'Unknown Guest',
+                $eventGuest->guest ? ($eventGuest->guest->email ?? '') : '',
+                $eventGuest->guest ? ($eventGuest->guest->phone ?? '') : '',
                 $scannerTime->format('Y-m-d H:i:s'),
                 $eventGuest->scanner_name
             );
@@ -830,8 +830,8 @@ class ScannerController extends Controller
                 // Convert UTC time to scanner's timezone for display
                 $scannerTime = $scanner->toScannerTimezone($eventGuest->checked_in_at);
                 return [
-                    'id' => $eventGuest->guest->id,
-                    'name' => $eventGuest->guest->name,
+                    'id' => $eventGuest->guest ? $eventGuest->guest->id : null,
+                    'name' => $eventGuest->guest ? $eventGuest->guest->name : 'Unknown Guest',
                     'time' => $scannerTime->toISOString(),
                     'date' => $scannerTime->format('M j')
                 ];

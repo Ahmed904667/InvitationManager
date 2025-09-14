@@ -112,7 +112,9 @@ class EventGuestService
     {
         return EventGuest::where('event_id', $event->id)
                         ->where('status', EventGuest::STATUS_ACTIVE)
-                        ->with(['guest.guestList', 'guest.invitations' => function($query) use ($event) {
+                        ->with(['guest' => function($query) {
+                            $query->withoutGlobalScope('not_deleted');
+                        }, 'guest.guestList', 'guest.invitations' => function($query) use ($event) {
                             $query->where('event_id', $event->id);
                         }])
                         ->get();
@@ -125,7 +127,9 @@ class EventGuestService
     {
         return EventGuest::where('event_id', $event->id)
                         ->where('status', EventGuest::STATUS_REMOVED)
-                        ->with('guest.guestList')
+                        ->with(['guest' => function($query) {
+                            $query->withoutGlobalScope('not_deleted');
+                        }, 'guest.guestList'])
                         ->get();
     }
 

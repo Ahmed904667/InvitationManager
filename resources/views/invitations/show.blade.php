@@ -84,7 +84,10 @@
                 </svg>
                 You're Invited
             </div>
-            <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">{{ $event->name }}</h1>
+            <h1 class="text-5xl md:text-6xl font-bold mb-4 leading-tight">{{ $event->name }}</h1>
+            <div class="mb-6">
+                <p class="text-xl text-white/90">Hosted by <span class="font-semibold">{{ $event->user->name ?? 'Event Organizer' }}</span></p>
+            </div>
             @php
                 // Get organizer's timezone
                 $organizerTimezone = $event->user->timezone ?? 'UTC';
@@ -626,37 +629,7 @@
 
         <!-- Old QR and Calendar sections removed - now moved to top between About Event and Location -->
 
-        @if($rsvpEnabled && $currentRsvp === 'none' && $event->qr_checkin_enabled)
-                <div id="qr-preview" class="bg-white/80 backdrop-blur-sm p-8 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300 text-center hidden">
-                    <div class="flex items-center justify-center mb-6">
-                        <div class="p-3 bg-indigo-100 rounded-2xl mr-4">
-                            <svg class="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM13 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V4zM9 4a1 1 0 000 2v1a1 1 0 001 1h1a1 1 0 100-2V6a1 1 0 00-1-1H9zM9 13a1 1 0 100 2h1a1 1 0 001 1v1a1 1 0 102 0v-1a1 1 0 001-1h1a1 1 0 100-2h-1a1 1 0 00-1-1v-1a1 1 0 10-2 0v1a1 1 0 00-1 1H9z" clip-rule="evenodd"></path>
-                            </svg>
-                        </div>
-                        <h2 class="text-2xl font-bold text-gray-900">QR Check-in Preview</h2>
-                    </div>
-                @php
-                    $qrData = trim($inviteUrl ?? '');
-                        $qrPrimary = $qrData !== '' ? ('https://chart.googleapis.com/chart?cht=qr&chld=L|0&chs=280x280&chl=' . rawurlencode($qrData)) : '';
-                        $qrFallback = $qrData !== '' ? ('https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' . rawurlencode($qrData)) : '';
-                @endphp
-                @if($qrData !== '')
-                        <div class="inline-block p-6 bg-white rounded-2xl shadow-lg border-4 border-indigo-100 mb-6">
-                            <img src="{{ $qrPrimary }}" alt="QR Code" class="mx-auto rounded-xl" onerror="this.onerror=null;this.src='{{ $qrFallback }}';">
-                        </div>
-                @else
-                        <div class="p-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 mb-6">
-                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM13 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V4z" clip-rule="evenodd"></path>
-                            </svg>
-                            <p class="text-gray-500 font-medium">QR code not available</p>
-                        </div>
-                    @endif
-                    <p class="text-gray-600 text-lg leading-relaxed">Show this QR code at the entrance for quick check-in.</p>
-                </div>
-                @endif
-        </div>
+
 
         <!-- Reminder Modal -->
         <div id="reminderModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4" onclick="closeReminderModal()">
@@ -799,13 +772,34 @@
             </div>
         </div>
         
-        <!-- Footer with subtle branding -->
-        <div class="mt-16 pb-8 text-center">
-            <div class="inline-flex items-center px-6 py-3 bg-white/60 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
-                <svg class="w-5 h-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="text-gray-600 font-medium">Powered by Invaro</span>
+        <!-- Footer -->
+        <div class="mt-16 pb-8">
+            <div class="bg-white p-8 rounded-3xl border border-gray-200 shadow-lg">
+                <div class="text-center">
+                    <p class="text-lg font-semibold text-gray-900 mb-2">{{ $event->user->name ?? 'Event Organizer' }}</p>
+                    <p class="text-gray-600 mb-4">This invitation was sent using Invaro</p>
+                    <p class="text-gray-700 mb-4">If you have any questions, please contact the event organizer directly:</p>
+                    
+                    <!-- Organizer Contact Information -->
+                    <div class="flex justify-center w-full">
+                        <div class=" p-6 bg-primary-50 rounded-2xl border border-primary-200 shadow-sm max-w-md mx-auto">
+                            <p class="text-gray-800 mb-2">
+                                <strong>Email:</strong> 
+                                <a href="mailto:{{ $event->user->email ?? config('mail.from.address') }}" class="text-blue-600 hover:text-blue-800 transition-colors">
+                                    {{ $event->user->email ?? config('mail.from.address') }}
+                                </a>
+                            </p>
+                            @if($event->user->phone ?? false)
+                            <p class="text-gray-800">
+                                <strong>Phone & WhatsApp:</strong> 
+                                <a href="tel:{{ $event->user->phone }}" class="text-blue-600 hover:text-blue-800 transition-colors">
+                                    {{ $event->user->phone }}
+                                </a>
+                            </p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

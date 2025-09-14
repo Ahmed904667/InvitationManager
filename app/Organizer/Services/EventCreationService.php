@@ -1015,10 +1015,13 @@ class EventCreationService
                     $twilioResponse = null;
                     try {
                         if ($platform === 'email') {
-                            // Simple mail send (replace with Mailable for rich template)
-                            \Mail::raw($completeMessage, function($mail) use ($recipient, $event) {
-                                $mail->to($recipient)->subject($event->invitation_title ?? ('Invitation: ' . $event->name));
-                            });
+                            // Use rich email template
+                            \Mail::to($recipient)->send(new \App\Mail\EventInvitationMail(
+                                $event,
+                                $guest,
+                                $personalized,
+                                $inviteUrl
+                            ));
                             $sent = true;
                         } elseif ($platform === 'whatsapp') {
                             $twilio = app(\App\Services\TwilioService::class);
@@ -1476,10 +1479,13 @@ class EventCreationService
                     $twilioResponse = null;
                     try {
                         if ($platform === 'email') {
-                            // Simple mail send (replace with Mailable for rich template)
-                            \Mail::raw($completeMessage, function($mail) use ($recipient, $event) {
-                                $mail->to($recipient)->subject($event->invitation_title ?? ('Invitation: ' . $event->name));
-                            });
+                            // Use rich email template
+                            \Mail::to($recipient)->send(new \App\Mail\EventInvitationMail(
+                                $event,
+                                $guest,
+                                $personalized,
+                                $inviteUrl
+                            ));
                             $sent = true;
                         } elseif ($platform === 'whatsapp') {
                             $twilio = app(\App\Services\TwilioService::class);

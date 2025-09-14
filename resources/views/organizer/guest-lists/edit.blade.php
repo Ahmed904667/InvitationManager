@@ -663,54 +663,117 @@
 <div id="importModal" class="modal hidden">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="text-lg font-medium text-primary">Import Guests</h3>
-            <button type="button" class="modal-close" onclick="hideModal('importModal')">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
+            <h3 class="modal-title">Import Guests</h3>
+            <button type="button" class="modal-close" onclick="hideModal('importModal')"></button>
         </div>
         <form id="importForm" class="m-0 p-0">
-            <div class="space-y-6">
-                <div>
-                    <label class="form-label">Import File</label>
-                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                        <div class="space-y-1 text-center">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            <div class="flex text-sm text-gray-600">
-                                <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                                    <span>Upload a file</span>
-                                    <input id="file-upload" name="file" type="file" class="sr-only" accept=".csv,.xlsx,.xls">
-                                </label>
-                                <p class="pl-1">or drag and drop</p>
-                            </div>
-                            <p class="text-xs text-gray-500">CSV, Excel files up to 10MB</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-blue-800">Import Format</h3>
-                            <div class="mt-2 text-sm text-blue-700">
-                                <p>Your file should include columns: Name, Email, Phone (optional), Language (optional), Group (optional)</p>
-                                <p class="text-xs mt-1">Group column will be used to automatically assign guests to groups. New groups will be created if they don't exist.</p>
+            <div class="modal-body">
+                <div class="space-y-6">
+                    <!-- File Upload Section -->
+                    <div>
+                        <label class="form-label">Import File <span class="text-red-500">*</span></label>
+                        <div class="mt-2">
+                            <div class="flex justify-center px-6 pt-8 pb-8 border-2 border-dashed rounded-xl transition-colors duration-200 hover:border-primary-300" 
+                                 style="border-color: var(--border-primary); background: var(--bg-secondary);">
+                                <div class="space-y-3 text-center">
+                                    <div class="mx-auto w-16 h-16 rounded-full flex items-center justify-center" style="background: var(--primary-100);">
+                                        <svg class="w-8 h-8" style="color: var(--primary-600);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <div class="flex items-center justify-center text-sm" style="color: var(--text-primary);">
+                                            <label for="file-upload" class="relative cursor-pointer font-medium transition-colors duration-200" 
+                                                   style="color: var(--primary-600);" 
+                                                   onmouseover="this.style.color='var(--primary-700)'" 
+                                                   onmouseout="this.style.color='var(--primary-600)'">
+                                                <span>Click to upload</span>
+                                                <input id="file-upload" name="file" type="file" class="sr-only" accept=".csv,.xlsx,.xls" required>
+                                            </label>
+                                            <span class="mx-2" style="color: var(--text-secondary);">or</span>
+                                            <span style="color: var(--text-secondary);">drag and drop</span>
+                                        </div>
+                                        <p class="text-xs" style="color: var(--text-secondary);">CSV, Excel files up to 10MB</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div id="fileImportGroupInfo" class="text-xs text-blue-600">
-                    <strong>Note:</strong> The Group column will be used to automatically assign guests to groups. New groups will be created if they don't exist.
+
+                    <!-- Format Information -->
+                    <div class="rounded-xl p-4 border" style="background: var(--primary-50); border-color: var(--primary-200);">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--primary-100);">
+                                    <svg class="w-5 h-5" style="color: var(--primary-600);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="ml-3 flex-1">
+                                <h4 class="text-sm font-semibold mb-2" style="color: var(--primary-800);">Required File Format</h4>
+                                <div class="text-sm space-y-2" style="color: var(--primary-700);">
+                                    <p>Your file should include these columns:</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2" id="importFormatFields">
+                                        <!-- Always show Name and Email as required -->
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+                                            <span class="text-xs font-medium">Name (required)</span>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+                                            <span class="text-xs font-medium">Email (required)</span>
+                                        </div>
+                                        
+                                        <!-- Show Phone if enabled in settings -->
+                                        @if($guestList->settings['fields']['phone'] ?? false)
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+                                            <span class="text-xs font-medium">Phone (required)</span>
+                                        </div>
+                                        @endif
+                                        
+                                        <!-- Show Language if enabled in settings -->
+                                        @if($guestList->settings['fields']['language'] ?? false)
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+                                            <span class="text-xs font-medium">Language (required)</span>
+                                        </div>
+                                        @endif
+                                        
+                                        <!-- Show Group if enabled in settings -->
+                                        @if($guestList->settings['fields']['group'] ?? false)
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+                                            <span class="text-xs font-medium">Group (required)</span>
+                                        </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Group Assignment Note (only show if groups are enabled) -->
+                    @if($guestList->settings['fields']['group'] ?? false)
+                    <div id="fileImportGroupInfo" class="rounded-lg p-3 border" style="background: var(--bg-secondary); border-color: var(--border-primary);">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="w-4 h-4 mt-0.5" style="color: var(--primary-600);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-2">
+                                <p class="text-xs font-medium" style="color: var(--text-primary);">
+                                    <strong>Group Assignment:</strong> If you include a Group column, guests will be automatically assigned to groups. New groups will be created if they don't exist.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
-            <div class="modal-footer" style="margin-top: 0; padding-top: 16px; padding-bottom: 16px; border-top: 1px solid var(--border-primary); background: var(--bg-secondary); gap: 0;">
+            <div class="modal-footer d-flex justify-between items-center">
                 <button type="button" class="modal-btn modal-btn-secondary" onclick="hideModal('importModal')">Cancel</button>
                 <button type="submit" class="modal-btn modal-btn-primary">Import Guests</button>
             </div>
@@ -1015,12 +1078,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set initial filter state
     setTimeout(() => {
         refreshFilters();
+        updateImportFormatFields();
     }, 500);
     
-    // Listen for settings changes to refresh filters
+    // Listen for settings changes to refresh filters and import modal
     if (window.guestListSettings) {
         window.addEventListener('settingsUpdated', function() {
             refreshFilters();
+            updateImportFormatFields();
+        });
+    }
+    
+    // Also listen for settings form submission
+    const settingsForm = document.getElementById('listSettingsForm');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', function() {
+            // Update import format after a short delay to allow settings to be processed
+            setTimeout(() => {
+                updateImportFormatFields();
+            }, 1000);
         });
     }
 });
@@ -1261,6 +1337,124 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// Function to update import format fields based on current settings
+function updateImportFormatFields() {
+    const formatFieldsContainer = document.getElementById('importFormatFields');
+    const groupInfoDiv = document.getElementById('fileImportGroupInfo');
+    
+    if (!formatFieldsContainer || !window.guestListSettings) return;
+    
+    // Clear existing fields except Name and Email
+    formatFieldsContainer.innerHTML = `
+        <!-- Always show Name and Email as required -->
+        <div class="flex items-center">
+            <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+            <span class="text-xs font-medium">Name (required)</span>
+        </div>
+        <div class="flex items-center">
+            <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+            <span class="text-xs font-medium">Email (required)</span>
+        </div>
+    `;
+    
+    // Add Phone if enabled
+    if (window.guestListSettings.fields && window.guestListSettings.fields.phone) {
+        formatFieldsContainer.innerHTML += `
+            <div class="flex items-center">
+                <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+                <span class="text-xs font-medium">Phone (required)</span>
+            </div>
+        `;
+    }
+    
+    // Add Language if enabled
+    if (window.guestListSettings.fields && window.guestListSettings.fields.language) {
+        formatFieldsContainer.innerHTML += `
+            <div class="flex items-center">
+                <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+                <span class="text-xs font-medium">Language (required)</span>
+            </div>
+        `;
+    }
+    
+    // Add Group if enabled
+    if (window.guestListSettings.fields && window.guestListSettings.fields.group) {
+        formatFieldsContainer.innerHTML += `
+            <div class="flex items-center">
+                <div class="w-2 h-2 rounded-full mr-2" style="background: var(--primary-500);"></div>
+                <span class="text-xs font-medium">Group (required)</span>
+            </div>
+        `;
+    }
+    
+    // Show/hide group assignment note
+    if (groupInfoDiv) {
+        if (window.guestListSettings.fields && window.guestListSettings.fields.group) {
+            groupInfoDiv.style.display = '';
+        } else {
+            groupInfoDiv.style.display = 'none';
+        }
+    }
+}
+
+// Make the function globally available
+window.updateImportFormatFields = updateImportFormatFields;
+
+// Function to refresh import format when settings are saved
+window.refreshImportFormatOnSettingsUpdate = function() {
+    // Update the global settings object
+    if (window.guestListSettings) {
+        // This will be called after settings are updated
+        updateImportFormatFields();
+    }
+};
+
+// Fallback showModal function if not defined elsewhere
+if (typeof window.showModal === 'undefined') {
+    window.showModal = function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('show');
+        }
+    };
+}
+
+// Override showImportModal to update format fields when modal is shown
+const originalShowImportModal = window.showImportModal;
+window.showImportModal = function() {
+    updateImportFormatFields();
+    if (originalShowImportModal) {
+        originalShowImportModal();
+    } else {
+        // Fallback if the function doesn't exist yet
+        showModal('importModal');
+    }
+};
+
+// Also update when the modal is shown via other means
+document.addEventListener('DOMContentLoaded', function() {
+    const importModal = document.getElementById('importModal');
+    if (importModal) {
+        // Use MutationObserver to detect when modal becomes visible
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    const target = mutation.target;
+                    if (!target.classList.contains('hidden') && target.classList.contains('show')) {
+                        updateImportFormatFields();
+                    }
+                }
+            });
+        });
+        
+        observer.observe(importModal, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+});
 
 // Dropdown toggles
 // Enhanced JavaScript functionality

@@ -89,7 +89,7 @@
                             @error('description')
                                 <div class="form-error">{{ $message }}</div>
                             @enderror
-                            <small class="text-secondary text-sm">This will help generate better AI-powered invitations later.</small>
+                            <small class="text-secondary text-sm">This information will be included in your invitations.</small>
                         </div>
                     </div>
                 </div>
@@ -217,7 +217,7 @@
                         @error('additional_information')
                             <div class="form-error">{{ $message }}</div>
                         @enderror
-                        <small class="text-secondary text-sm">This information will be included in your invitations.</small>
+                        <small class="text-secondary text-sm">This will help generate better AI-powered invitations later.</small>
                     </div>
                 </div>
             </div>
@@ -225,14 +225,12 @@
 
         {{-- Form Actions --}}
         <div class="flex justify-between items-center mt-8">
-            <div class="text-sm text-secondary">
-                <i class="fas fa-info-circle mr-1"></i>
-                All fields marked with <span class="text-danger-500">*</span> are required
-            </div>
-            <div class="flex space-x-4">
+            <div class="flex items-center space-x-2">
                 <button type="button" onclick="window.history.back()" class="btn btn-secondary">
                     <i class="fas fa-arrow-left mr-2"></i> Back
                 </button>
+            </div>
+            <div class="flex space-x-4">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-arrow-right mr-2"></i> Next Step
                 </button>

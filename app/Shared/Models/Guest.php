@@ -76,13 +76,65 @@ class Guest extends Model
         'checked_in_by',
         'check_in_notes',
         'scanned_by_scanner_id',
-        'scanner_name'
+        'scanner_name',
+        'is_deleted'
     ];
 
     protected $casts = [
         'checked_in' => 'boolean',
         'checked_in_at' => 'datetime',
+        'is_deleted' => 'boolean',
     ];
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted()
+    {
+        static::addGlobalScope('not_deleted', function ($builder) {
+            $builder->where('is_deleted', false);
+        });
+    }
+
+    /**
+     * Soft delete the guest
+     */
+    public function softDelete(): void
+    {
+        $this->update(['is_deleted' => true]);
+    }
+
+    /**
+     * Restore a soft-deleted guest
+     */
+    public function restore(): void
+    {
+        $this->update(['is_deleted' => false]);
+    }
+
+    /**
+     * Check if the guest is soft deleted
+     */
+    public function isSoftDeleted(): bool
+    {
+        return $this->is_deleted === true;
+    }
+
+    /**
+     * Query scope to include soft-deleted guests
+     */
+    public function scopeWithDeleted($query)
+    {
+        return $query->withoutGlobalScope('not_deleted');
+    }
+
+    /**
+     * Query scope to get only soft-deleted guests
+     */
+    public function scopeOnlyDeleted($query)
+    {
+        return $query->withoutGlobalScope('not_deleted')->where('is_deleted', true);
+    }
 
     public function guestList()
     {

@@ -18,7 +18,7 @@ class EventDuplicateGuestService
             return [];
         }
 
-        // Get all guests from the selected guest lists
+        // Get all guests from the selected guest lists (excluding soft-deleted)
         $query = Guest::whereIn('guest_list_id', $guestListIds)
             ->whereHas('guestList', function($query) {
                 $query->where('user_id', Auth::id());

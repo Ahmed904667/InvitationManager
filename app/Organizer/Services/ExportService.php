@@ -61,18 +61,35 @@ class ExportService
         // Set headers
         $headers = $this->getExportHeaders($guestList);
         $col = 'A';
-        foreach ($headers as $header) {
+        $phoneColumnIndex = null;
+        foreach ($headers as $index => $header) {
             $sheet->setCellValue($col . '1', $header);
+            if ($header === 'Phone') {
+                $phoneColumnIndex = $col;
+            }
             $col++;
+        }
+        
+        // Set phone column format to text to prevent Excel from treating phone numbers as numbers
+        if ($phoneColumnIndex) {
+            $sheet->getStyle($phoneColumnIndex . ':' . $phoneColumnIndex)->getNumberFormat()->setFormatCode('@');
         }
         
         // Set data
         $row = 2;
+        $headers = $this->getExportHeaders($guestList);
         foreach ($guests as $guest) {
             $guestData = $this->formatGuestForExport($guest, $guestList);
             $col = 'A';
-            foreach ($guestData as $value) {
-                $sheet->setCellValue($col . $row, $value);
+            foreach ($guestData as $index => $value) {
+                $headerName = $headers[$index] ?? '';
+                
+                // Format phone numbers as strings to prevent Excel from treating them as numbers
+                if ($headerName === 'Phone' && !empty($value)) {
+                    $sheet->setCellValueExplicit($col . $row, $value, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                } else {
+                    $sheet->setCellValue($col . $row, $value);
+                }
                 $col++;
             }
             $row++;
@@ -217,7 +234,12 @@ class ExportService
             $row[] = $guest->email ?? '';
         }
         if ($fields['phone'] ?? false) {
-            $row[] = $guest->phone ?? '';
+            $phone = $guest->phone ?? '';
+            // Simple approach: add a leading space to force string treatment
+            if (!empty($phone)) {
+                $phone = ' ' . $phone;
+            }
+            $row[] = $phone;
         }
         if ($fields['language'] ?? false) {
             $row[] = $guest->language ?? '';

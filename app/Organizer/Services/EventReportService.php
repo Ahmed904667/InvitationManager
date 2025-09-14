@@ -197,8 +197,8 @@ class EventReportService
             $invitation = $invitations->get($eventGuest->guest_id);
             
             $guests[] = [
-                'name' => $eventGuest->guest->name ?? 'N/A',
-                'email' => $eventGuest->guest->email ?? 'N/A',
+                'name' => $eventGuest->guest ? $eventGuest->guest->name : 'N/A',
+                'email' => $eventGuest->guest ? $eventGuest->guest->email : 'N/A',
                 'rsvp_status' => $invitation ? $invitation->rsvp_status : null,
                 'rsvp_date' => $invitation && $invitation->rsvp_at ? $invitation->rsvp_at->format('M j, Y g:i A') : null,
                 'checkin_time' => $eventGuest->checked_in_at ? $eventGuest->checked_in_at->format('M j, Y g:i A') : null,

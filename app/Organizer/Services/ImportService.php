@@ -141,7 +141,7 @@ class ImportService
 
         foreach ($contacts as $contact) {
             try {
-                // Check for duplicate email
+                // Check for duplicate email (excluding soft-deleted guests)
                 if (!empty($contact['email'])) {
                     $existingGuest = $guestList->guests()
                         ->where('email', $contact['email'])
@@ -154,7 +154,7 @@ class ImportService
                     }
                 }
 
-                // Check for duplicate phone
+                // Check for duplicate phone (excluding soft-deleted guests)
                 if (!empty($contact['phone'])) {
                     $existingGuest = $guestList->guests()
                         ->where('phone', $contact['phone'])

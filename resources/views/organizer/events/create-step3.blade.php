@@ -61,7 +61,7 @@
                             </div>
                             <div class="flex items-center">
                                 <i class="fas fa-calendar mr-2"></i>
-                                {{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->format('l, F j, Y \a\t g:i A') : '' }}
+                                {{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'], 'UTC')->setTimezone(Auth::user()->timezone ?? 'UTC')->format('l, F j, Y \a\t g:i A') : '' }}
                             </div>
                             <div class="flex items-center">
                                 <i class="fas fa-paper-plane mr-2"></i>
@@ -283,7 +283,7 @@
                                                                                     data-guest-name="{{ $guest->name }}"
                                                                                     data-group-name="{{ $groupData['group_name'] }}"
                                                                                                                                                         data-event-name="{{ $allData['name'] ?? '' }}"
-                                                                    data-event-date="{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'])->format('l, F j, Y \a\t g:i A') : '' }}"
+                                                                    data-event-date="{{ isset($allData['start_date']) ? \Carbon\Carbon::parse($allData['start_date'], 'UTC')->setTimezone(Auth::user()->timezone ?? 'UTC')->format('l, F j, Y \a\t g:i A') : '' }}"
                                                                     data-guest-language="{{ $guest->language ?? 'en' }}"
                                                                     name="per_guest_messages[{{ $guest->id }}]" 
                                                                     class="w-full min-h-[80px] text-sm px-3 py-2 bg-[var(--bg-primary)] text-[var(--text-primary)] border-2 border-[var(--border-primary)] rounded-lg focus:ring-2 focus:ring-[var(--primary-500)] focus:border-[var(--primary-500)] transition-all duration-200 resize-y"

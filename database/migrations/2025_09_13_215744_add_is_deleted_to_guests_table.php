@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::table('guests', function (Blueprint $table) {
             $table->boolean('is_deleted')->default(false)->after('check_in_notes');
+            $table->dropColumn('deleted_at');
         });
     }
 
@@ -23,6 +24,7 @@ return new class extends Migration
     {
         Schema::table('guests', function (Blueprint $table) {
             $table->dropColumn('is_deleted');
+            $table->timestamp('deleted_at')->nullable();
         });
     }
 };

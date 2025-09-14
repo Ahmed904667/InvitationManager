@@ -65,7 +65,7 @@ class EventController extends Controller
             $activeGuestLists = collect();
             foreach ($event->guestLists as $guestList) {
                 $guestsInEvent = $activeEventGuests->filter(function($eventGuest) use ($guestList) {
-                    return $eventGuest->guest->guest_list_id === $guestList->id;
+                    return $eventGuest->guest && $eventGuest->guest->guest_list_id === $guestList->id;
                 });
                 
                 if ($guestsInEvent->count() > 0) {
@@ -85,7 +85,7 @@ class EventController extends Controller
             $activeGuestLists = collect();
             foreach ($event->guestLists as $guestList) {
                 $guestsInEvent = $activeEventGuests->filter(function($eventGuest) use ($guestList) {
-                    return $eventGuest->guest->guest_list_id === $guestList->id;
+                    return $eventGuest->guest && $eventGuest->guest->guest_list_id === $guestList->id;
                 });
                 
                 if ($guestsInEvent->count() > 0) {
@@ -105,7 +105,7 @@ class EventController extends Controller
             $activeGuestLists = collect();
             foreach ($event->guestLists as $guestList) {
                 $guestsInEvent = $activeEventGuests->filter(function($eventGuest) use ($guestList) {
-                    return $eventGuest->guest->guest_list_id === $guestList->id;
+                    return $eventGuest->guest && $eventGuest->guest->guest_list_id === $guestList->id;
                 });
                 
                 if ($guestsInEvent->count() > 0) {
@@ -1704,6 +1704,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         // Use activeEventGuests instead of iterating through guest lists
         foreach ($activeEventGuests as $eventGuest) {
             $guest = $eventGuest->guest;
+            
+            // Skip if guest is null (soft-deleted)
+            if (!$guest) {
+                continue;
+            }
+            
             $totalGuests++;
             
             // Check RSVP status - only for active guests
@@ -1733,7 +1739,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         $activeGuestLists = collect();
         foreach ($event->guestLists as $guestList) {
             $guestsInEvent = $activeEventGuests->filter(function($eventGuest) use ($guestList) {
-                return $eventGuest->guest->guest_list_id === $guestList->id;
+                return $eventGuest->guest && $eventGuest->guest->guest_list_id === $guestList->id;
             });
             
             if ($guestsInEvent->count() > 0) {
@@ -3061,7 +3067,7 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
 
         // Get standalone guests (guests without guest_list_id)
         $standaloneGuests = $activeEventGuests->filter(function($eventGuest) {
-            return $eventGuest->guest->isStandalone();
+            return $eventGuest->guest && $eventGuest->guest->isStandalone();
         })->map(function($eventGuest) {
             return $eventGuest->guest;
         });
@@ -3072,6 +3078,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         // Check all active guests for messages
         foreach ($activeEventGuests as $eventGuest) {
             $guest = $eventGuest->guest;
+            
+            // Skip if guest is null (soft-deleted)
+            if (!$guest) {
+                continue;
+            }
+            
             $hasMessage = false;
             
             // Check if guest has a message in any of the message types
@@ -3364,6 +3376,11 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
 
             foreach ($activeEventGuests as $eventGuest) {
                 $guest = $eventGuest->guest;
+                
+                // Skip if guest is null (soft-deleted)
+                if (!$guest) {
+                    continue;
+                }
                 
                 foreach ($platforms as $platform) {
                     try {
@@ -3860,9 +3877,13 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
                 $sent = false;
                 try {
                     if ($platform === 'email') {
-                        \Mail::raw($completeMessage, function($mail) use ($recipient, $event) {
-                            $mail->to($recipient)->subject($event->invitation_title ?? ('Invitation: ' . $event->name));
-                        });
+                        // Use rich email template instead of raw text
+                        \Mail::to($recipient)->send(new \App\Mail\EventInvitationMail(
+                            $event,
+                            $guest,
+                            $personalized,
+                            $inviteUrl
+                        ));
                         $sent = true;
                     } elseif ($platform === 'whatsapp') {
                         $twilio = app(\App\Services\TwilioService::class);
@@ -4123,14 +4144,16 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
             ->get()
             ->groupBy('channel');
 
-                            $stats = [
-                        'queued' => $event->notifications()->whereIn('status', ['queued', 'sending', 'pending'])->count(),
-                        'delivered' => $event->notifications()->whereIn('status', ['delivered', 'sent'])->count(),
-                        'read' => $event->notifications()->where('status', 'read')->count(),
-                        'failed' => $event->notifications()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
-                    ];
+        $stats = [
+            'queued' => $event->notifications()->whereIn('status', ['queued', 'sending', 'pending'])->count(),
+            'delivered' => $event->notifications()->whereIn('status', ['delivered', 'sent'])->count(),
+            'read' => $event->notifications()->where('status', 'read')->count(),
+            'failed' => $event->notifications()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
+        ];
 
-        return view('organizer.events.notifications', compact('event', 'notifications', 'stats'));
+        $userTimezone = Auth::user()->timezone ?? 'UTC';
+
+        return view('organizer.events.notifications', compact('event', 'notifications', 'stats', 'userTimezone'));
     }
     
     /**
@@ -4706,6 +4729,12 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         
         foreach ($activeEventGuests as $eventGuest) {
             $guest = $eventGuest->guest;
+            
+            // Skip if guest is null (soft-deleted)
+            if (!$guest) {
+                continue;
+            }
+            
             $hasMessage = false;
             
             // Check if guest has a message

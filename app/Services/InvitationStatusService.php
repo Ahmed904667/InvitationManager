@@ -12,19 +12,16 @@ class InvitationStatusService
      */
     public function getInvitationStats(Event $event): array
     {
-        // Get actual invitations from database
-        $actualInvitations = $event->invitations();
-        
-        // Calculate actual invitation stats
+        // Get actual invitations from database - use fresh query for each count
         $actualStats = [
-            'queued' => $actualInvitations->whereIn('status', ['queued', 'sending', 'pending'])->count(),
-            'delivered' => $actualInvitations->whereIn('status', ['delivered', 'sent'])->count(),
-            'read' => $actualInvitations->where('status', 'read')->count(),
-            'failed' => $actualInvitations->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
+            'queued' => $event->invitations()->whereIn('status', ['queued', 'sending', 'pending'])->count(),
+            'delivered' => $event->invitations()->whereIn('status', ['delivered', 'sent'])->count(),
+            'read' => $event->invitations()->where('status', 'read')->count(),
+            'failed' => $event->invitations()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
         ];
         
-        // For scheduled events, replace queued count with virtual queued invitations
-        if ($event->status === 'scheduled') {
+        // For scheduled/sent events, replace queued count with virtual queued invitations
+        if (in_array($event->status, ['scheduled', 'sent'])) {
             $virtualQueuedCount = $this->getVirtualQueuedCount($event);
             $actualStats['queued'] = $virtualQueuedCount; // Replace instead of adding
         }
@@ -44,9 +41,9 @@ class InvitationStatusService
             ->get()
             ->groupBy('channel');
         
-        // For scheduled events, create virtual "queued" invitations for event guests
+        // For scheduled/sent events, create virtual "queued" invitations for event guests
         $virtualInvitations = collect();
-        if ($event->status === 'scheduled') {
+        if (in_array($event->status, ['scheduled', 'sent'])) {
             $virtualInvitations = $this->createVirtualInvitations($event);
         }
         

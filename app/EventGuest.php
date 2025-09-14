@@ -85,7 +85,7 @@ class EventGuest extends Model
 
     public function guest()
     {
-        return $this->belongsTo(Guest::class);
+        return $this->belongsTo(Guest::class)->withoutGlobalScope('not_deleted');
     }
 
     public function removedBy()

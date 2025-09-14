@@ -83,7 +83,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium" style="color: var(--text-secondary);">Active Guests</p>
-                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="totalGuests">{{ $activeEvents->sum('active_guests_count') + $cancelledEvents->sum('active_guests_count') + $completedEvents->sum('active_guests_count') }}</p>
+                    <p class="text-2xl font-bold" style="color: var(--text-primary);" id="totalGuests">{{ $activeEvents->sum('active_guests_count')}}</p>
                 </div>
             </div>
         </div>

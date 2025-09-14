@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('guests', function (Blueprint $table) {
-            $table->boolean('is_deleted')->default(false)->after('check_in_notes');
+            // Drop the old unique constraints using the correct index names
+            $table->dropIndex('guests_guest_list_email_unique');
+            $table->dropIndex('guests_guest_list_phone_unique');
         });
     }
 
@@ -22,7 +24,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('guests', function (Blueprint $table) {
-            $table->dropColumn('is_deleted');
+            // Restore the old unique constraints
+            $table->unique(['guest_list_id', 'email'], 'guests_guest_list_email_unique');
+            $table->unique(['guest_list_id', 'phone'], 'guests_guest_list_phone_unique');
         });
     }
 };

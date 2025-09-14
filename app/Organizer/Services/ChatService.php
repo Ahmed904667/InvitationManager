@@ -2457,12 +2457,14 @@ I can still generate messages with the current information, but they'll be more 
             if (isset($eventData[$key]) && !empty($eventData[$key]) && $eventData[$key] !== 'TBD') {
                 // Try to format the date nicely
                 try {
-                    $date = \Carbon\Carbon::parse($eventData[$key]);
-                    $formattedDate = $date->format('F j, Y \a\t g:i A');
+                    $date = \Carbon\Carbon::parse($eventData[$key], 'UTC');
+                    $organizerTimezone = \Illuminate\Support\Facades\Auth::user()->timezone ?? 'UTC';
+                    $formattedDate = $date->setTimezone($organizerTimezone)->format('F j, Y \a\t g:i A');
                     $this->logToChat('info', '🔍 [EXTRACT] Found event date', [
                         'key' => $key,
                         'value' => $eventData[$key],
-                        'formatted' => $formattedDate
+                        'formatted' => $formattedDate,
+                        'organizer_timezone' => $organizerTimezone
                     ]);
                     return $formattedDate;
                 } catch (\Exception $e) {

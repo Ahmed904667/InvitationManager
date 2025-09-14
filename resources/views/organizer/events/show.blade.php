@@ -286,14 +286,14 @@
     <!-- Guest Lists and Guests -->
     <div class="rounded-lg shadow-sm border" style="background: var(--bg-primary); border-color: var(--border-primary);">
         <div class="p-6 border-b" style="border-color: var(--border-primary);">
-            <h2 class="text-xl font-semibold" style="color: var(--text-primary);">Guest Lists & Guests</h2>
+            <h2 class="text-xl font-semibold" style="color: var(--text-primary);">Event Guests</h2>
         </div>
         
         <!-- Tabs -->
         <div class="border-b" style="border-color: var(--border-primary);">
             <nav class="flex space-x-8 px-6" aria-label="Tabs">
                 <button id="guests-tab" class="tab-button active py-4 px-1 border-b-2 font-medium text-sm transition-colors" style="border-color: var(--primary-600); color: var(--primary-600);">
-                    Guest Lists
+                    Guests
                 </button>
                 <button id="notifications-tab" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors" style="border-color: transparent; color: var(--text-secondary);">
                     Notifications
@@ -341,7 +341,7 @@
         @php
             // Group active event guests by guest list
             $guestsByList = $activeEventGuests->groupBy(function($eventGuest) {
-                return $eventGuest->guest->guest_list_id ?? 'standalone';
+                return $eventGuest->guest ? ($eventGuest->guest->guest_list_id ?? 'standalone') : 'deleted';
             });
             
             // Helper functions for invitation status
@@ -360,11 +360,32 @@
         @php
             $guestList = $guestListId !== 'standalone' ? $event->guestLists->find($guestListId) : null;
             $listName = $guestList ? $guestList->name : 'Standalone Guests';
+            $totalGuestsInList = $guestList ? $guestList->guests()->count() : 0;
+            $guestsInEvent = $eventGuests->count();
+            $softDeletedGuests = $eventGuests->filter(function($eventGuest) {
+                return $eventGuest->guest && $eventGuest->guest->isSoftDeleted();
+            });
         @endphp
         <div class="p-6 border-b last:border-b-0" style="border-color: var(--border-primary);">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-medium" style="color: var(--text-primary);">{{ $listName }}</h3>
-                <span class="text-sm" style="color: var(--text-secondary);">{{ $eventGuests->count() }} guests</span>
+                <div class="text-sm" style="color: var(--text-secondary);">
+                    @if($guestListId !== 'standalone')
+                        <span>{{ $guestsInEvent }} of {{ $totalGuestsInList }} guests in event</span>
+                        @if($totalGuestsInList > $guestsInEvent)
+                            <div class="text-xs text-orange-600 mt-1">
+                                {{ $totalGuestsInList - $guestsInEvent }} guests added after event creation
+                            </div>
+                        @endif
+                        @if($softDeletedGuests->count() > 0)
+                            <div class="text-xs text-red-600 mt-1">
+                                {{ $softDeletedGuests->count() }} guests deleted from list (preserved in event)
+                            </div>
+                        @endif
+                    @else
+                        <span>{{ $guestsInEvent }} standalone guests</span>
+                    @endif
+                </div>
             </div>
             
             @if($eventGuests->count() > 0)
@@ -383,6 +404,12 @@
                         @foreach($eventGuests as $eventGuest)
                         @php
                             $guest = $eventGuest->guest;
+                            
+                            // Skip if guest is null (soft-deleted)
+                            if (!$guest) {
+                                continue;
+                            }
+                            
                             $invitation = $guest->invitations->where('event_id', $event->id)->first();
                             $rsvpStatus = $invitation ? ($invitation->rsvp_status ?? 'no_response') : 'no_response';
                             // Treat 'none' as 'no_response'
@@ -390,12 +417,19 @@
                                 $rsvpStatus = 'no_response';
                             }
                         @endphp
-                        <tr class="hover:bg-gray-50" data-guest-id="{{ $guest->id }}">
+                        <tr class="hover:bg-gray-50 {{ $guest->isSoftDeleted() ? 'opacity-60' : '' }}" data-guest-id="{{ $guest->id }}">
                             <td class="px-4 py-4 whitespace-nowrap">
                                 <div>
-                                    <a href="{{ route('organizer.events.guests.show', ['event' => $event, 'guest' => $guest]) }}" class="text-sm font-medium hover:text-blue-600 transition-colors" style="color: var(--text-primary);">
-                                        {{ $guest->name }}
-                                    </a>
+                                    <div class="flex items-center gap-2">
+                                        <a href="{{ route('organizer.events.guests.show', ['event' => $event, 'guest' => $guest]) }}" class="text-sm font-medium hover:text-blue-600 transition-colors {{ $guest->isSoftDeleted() ? 'line-through text-gray-500' : '' }}" style="color: var(--text-primary);">
+                                            {{ $guest->name }}
+                                        </a>
+                                        @if($guest->isSoftDeleted())
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                Deleted from list
+                                            </span>
+                                        @endif
+                                    </div>
                                     @if($guest->notes)
                                     <div class="text-xs" style="color: var(--text-secondary);">{{ Str::limit($guest->notes, 50) }}</div>
                                     @endif
@@ -935,9 +969,7 @@
                     <button type="button" onclick="closeSendNotificationModal()" class="modal-btn modal-btn-secondary">
                         Cancel
                     </button>
-                    <button type="button" onclick="testRoute()" class="modal-btn modal-btn-info">
-                        Test Route
-                    </button>
+
                     <button type="submit" form="send-notification-form" class="modal-btn modal-btn-primary" id="send-notification-submit-btn">
                         Send Notification
                     </button>

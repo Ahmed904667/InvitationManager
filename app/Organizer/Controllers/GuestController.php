@@ -47,7 +47,7 @@ class GuestController extends Controller
                 'max:100',
                 function ($attribute, $value, $fail) use ($guestList) {
                     if (!empty($value)) {
-                        // Check if email already exists for another guest in the same list
+                        // Check if email already exists for another guest in the same list (excluding soft-deleted)
                         $existingGuest = $guestList->guests()
                             ->where('email', $value)
                             ->first();
@@ -64,7 +64,7 @@ class GuestController extends Controller
                 'max:30',
                 function ($attribute, $value, $fail) use ($guestList) {
                     if (!empty($value)) {
-                        // Check if phone number already exists for another guest in the same list
+                        // Check if phone number already exists for another guest in the same list (excluding soft-deleted)
                         $existingGuest = $guestList->guests()
                             ->where('phone', $value)
                             ->first();
@@ -108,7 +108,7 @@ class GuestController extends Controller
                 'max:100',
                 function ($attribute, $value, $fail) use ($guest, $guestList) {
                     if (!empty($value)) {
-                        // Check if email already exists for another guest in the same list
+                        // Check if email already exists for another guest in the same list (excluding soft-deleted)
                         $existingGuest = $guestList->guests()
                             ->where('id', '!=', $guest->id)
                             ->where('email', '!=', $guest->email)
@@ -127,7 +127,7 @@ class GuestController extends Controller
                 'max:30',
                 function ($attribute, $value, $fail) use ($guest, $guestList) {
                     if (!empty($value)) {
-                        // Check if phone number already exists for another guest in the same list
+                        // Check if phone number already exists for another guest in the same list (excluding soft-deleted)
                         $existingGuest = $guestList->guests()
                             ->where('id', '!=', $guest->id)
                             ->where('phone', '!=', $guest->phone)

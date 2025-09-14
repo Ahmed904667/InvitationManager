@@ -669,8 +669,10 @@ class OrganizerService
      */
     public function deleteGuestGroup(GuestGroup $group): void
     {
-        // Delete all guests in this group
-        $group->guests()->delete();
+        // Soft delete all guests in this group
+        $group->guests()->each(function($guest) {
+            $guest->softDelete();
+        });
         
         // Delete the group
         $group->delete();
@@ -796,11 +798,11 @@ class OrganizerService
     }
 
     /**
-     * Delete a guest
+     * Delete a guest (soft delete)
      */
     public function deleteGuest(Guest $guest): void
     {
-        $guest->delete();
+        $guest->softDelete();
     }
 
     /**
