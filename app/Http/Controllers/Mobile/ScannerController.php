@@ -367,7 +367,9 @@ class ScannerController extends Controller
             ->limit(10)
             ->get();
         
-        return view('mobile.scanner.profile', compact('scanner', 'stats', 'recentCheckIns'));
+        $organizerTimezone = $scanner->event->user->timezone ?? 'UTC';
+        
+        return view('mobile.scanner.profile', compact('scanner', 'stats', 'recentCheckIns', 'organizerTimezone'));
     }
 
     /**
@@ -896,82 +898,34 @@ class ScannerController extends Controller
             return response()->json(['error' => 'Scanner not found'], 404);
         }
         
-        $today = now()->startOfDay();
+        // Get organizer's timezone instead of scanner's timezone
+        $organizerTimezone = $scanner->event->user->timezone ?? 'UTC';
+        $currentTime = now()->setTimezone($organizerTimezone);
         
         // Get total check-ins for this scanner
         $totalCheckins = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
             ->where('checked_in', true)
             ->count();
         
-        // Get check-ins from last 12 hours based on scanner's timezone
-        $scannerCurrentTime = $scanner->getCurrentTime();
-        $twelveHoursAgo = $scannerCurrentTime->copy()->subHours(12);
-        // Convert scanner timezone times to UTC for database comparison
-        $twelveHoursAgoUTC = $twelveHoursAgo->utc();
+        // Get recent check-ins count (last 24 hours)
         $recentCheckins = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
             ->where('checked_in', true)
-            ->where('checked_in_at', '>=', $twelveHoursAgoUTC)
+            ->where('checked_in_at', '>=', now()->subHours(24))
             ->count();
         
-        // Find peak hour
-        $peakHour = $this->calculatePeakHour($scanner);
+        // Find peak hour using organizer's timezone
+        $peakHour = $this->calculatePeakHourWithOrganizerTimezone($scanner, $organizerTimezone);
         
-        // Get hourly data for last 12 hours based on scanner's timezone
-        $hourlyData = [];
-        $hourlyLabels = [];
-        $currentTime = $scanner->getCurrentTime();
-        $twelveHoursAgo = $currentTime->copy()->subHours(12);
-        
-        // Create 12 hourly buckets
-        for ($i = 0; $i < 12; $i++) {
-            $startTime = $twelveHoursAgo->copy()->addHours($i);
-            $endTime = $startTime->copy()->addHour();
-            
-            // Convert scanner timezone times to UTC for database comparison
-            $startTimeUTC = $startTime->utc();
-            $endTimeUTC = $endTime->utc();
-            
-            $checkIns = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
-                ->where('checked_in', true)
-                ->whereBetween('checked_in_at', [$startTimeUTC, $endTimeUTC])
-                ->count();
-            
-            $hourlyData[] = $checkIns;
-            
-            // Format hour label using scanner timezone
-            $hour = $startTime->hour;
-            if ($hour == 0) {
-                $hourlyLabels[] = '12 AM';
-            } elseif ($hour == 12) {
-                $hourlyLabels[] = '12 PM';
-            } elseif ($hour > 12) {
-                $hourlyLabels[] = ($hour - 12) . ' PM';
-            } else {
-                $hourlyLabels[] = $hour . ' AM';
-            }
-        }
-        
-        // Get daily data for last 7 days based on scanner's timezone
-        $dailyData = [];
-        $dailyLabels = [];
-        $currentTime = $scanner->getCurrentTime();
-        $today = $currentTime->copy()->startOfDay();
-        
-        for ($day = 6; $day >= 0; $day--) {
-            $date = $today->copy()->subDays($day);
-            
-            // Convert scanner timezone date to UTC for database comparison
-            $dateStartUTC = $date->utc();
-            $dateEndUTC = $date->copy()->addDay()->utc();
-            
-            $checkIns = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
-                ->where('checked_in', true)
-                ->whereBetween('checked_in_at', [$dateStartUTC, $dateEndUTC])
-                ->count();
-            
-            $dailyData[] = $checkIns;
-            $dailyLabels[] = $date->format('M j');
-        }
+        // Debug logging for analytics
+        \Log::info('Analytics Debug', [
+            'scanner_id' => $scanner->id,
+            'organizer_timezone' => $organizerTimezone,
+            'total_checkins' => $totalCheckins,
+            'recent_checkins' => $recentCheckins,
+            'peak_hour' => $peakHour,
+            'current_time' => now()->toDateTimeString(),
+            'current_time_organizer' => now()->setTimezone($organizerTimezone)->toDateTimeString()
+        ]);
         
         return response()->json([
             'success' => true,
@@ -979,10 +933,7 @@ class ScannerController extends Controller
                 'total_checkins' => $totalCheckins,
                 'today_checkins' => $recentCheckins,
                 'peak_hour' => $peakHour,
-                'hourly_data' => $hourlyData,
-                'hourly_labels' => $hourlyLabels,
-                'daily_data' => $dailyData,
-                'daily_labels' => $dailyLabels
+                'organizer_timezone' => $organizerTimezone
             ]
         ]);
     }
@@ -1031,6 +982,72 @@ class ScannerController extends Controller
     }
 
     /**
+     * Calculate peak hour for the scanner using organizer's timezone
+     */
+    private function calculatePeakHourWithOrganizerTimezone($scanner, $organizerTimezone)
+    {
+        $hourlyCounts = [];
+        
+        // Use the same simple 12-hour rolling window as chart data
+        $twelveHoursAgo = now()->subHours(12);
+        
+        // Get check-ins from last 12 hours (same as chart data)
+        $checkIns = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
+            ->where('checked_in', true)
+            ->where('checked_in_at', '>=', $twelveHoursAgo)
+            ->orderBy('checked_in_at', 'asc')
+            ->get();
+        
+        // Create 12 hourly buckets (same logic as chart data)
+        for ($i = 11; $i >= 0; $i--) {
+            $hourStart = now()->subHours($i)->startOfHour();
+            $hourEnd = $hourStart->copy()->endOfHour();
+            
+            // Count check-ins in this hour (same logic as chart data)
+            $count = $checkIns->filter(function ($checkIn) use ($hourStart, $hourEnd) {
+                return $checkIn->checked_in_at >= $hourStart && $checkIn->checked_in_at <= $hourEnd;
+            })->count();
+            
+            $hourlyCounts[$hourStart->setTimezone($organizerTimezone)->hour] = $count;
+        }
+        
+        if (empty($hourlyCounts) || max($hourlyCounts) == 0) {
+            return 'N/A';
+        }
+        
+        $maxCount = max($hourlyCounts);
+        $peakHour = array_keys($hourlyCounts, $maxCount)[0];
+        
+        // Convert the hour to proper 12-hour format in organizer's timezone
+        $peakTime = now()->setTimezone($organizerTimezone)->setHour($peakHour)->setMinute(0);
+        $formattedTime = $peakTime->format('g A');
+        
+        // Debug logging for peak hour calculation
+        \Log::info('Peak Hour Debug', [
+            'scanner_id' => $scanner->id,
+            'organizer_timezone' => $organizerTimezone,
+            'current_time' => now()->setTimezone($organizerTimezone)->toDateTimeString(),
+            'twelve_hours_ago' => $twelveHoursAgo->toDateTimeString(),
+            'checkins_count' => $checkIns->count(),
+            'hourly_counts' => $hourlyCounts,
+            'max_count' => $maxCount,
+            'peak_hour' => $peakHour,
+            'formatted_time' => $formattedTime,
+            'peak_time_utc' => $peakTime->utc()->toDateTimeString(),
+            'peak_time_organizer' => $peakTime->toDateTimeString(),
+            'checkins_data' => $checkIns->map(function($checkIn) use ($organizerTimezone) {
+                return [
+                    'id' => $checkIn->id,
+                    'checked_in_at' => $checkIn->checked_in_at->toDateTimeString(),
+                    'checked_in_at_organizer' => $checkIn->checked_in_at->setTimezone($organizerTimezone)->toDateTimeString()
+                ];
+            })->toArray()
+        ]);
+        
+        return $formattedTime;
+    }
+
+    /**
      * Detect and save timezone from client
      */
     public function detectTimezone(Request $request, $token)
@@ -1051,6 +1068,68 @@ class ScannerController extends Controller
             'success' => true,
             'message' => 'Timezone detected and saved',
             'timezone' => $request->timezone
+        ]);
+    }
+
+    /**
+     * Get chart data for check-ins over last 12 hours
+     */
+    public function getChartData(Request $request, $token)
+    {
+        $scanner = Scanner::where('token', $token)->firstOrFail();
+        $organizerTimezone = $scanner->event->user->timezone ?? 'UTC';
+        
+        // Get check-ins from last 12 hours
+        $twelveHoursAgo = now()->subHours(12);
+        
+        $checkIns = \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
+            ->where('checked_in', true)
+            ->where('checked_in_at', '>=', $twelveHoursAgo)
+            ->orderBy('checked_in_at', 'asc')
+            ->get();
+        
+        // Create hourly buckets for the last 12 hours
+        $hourlyData = [];
+        $labels = [];
+        $timestamps = [];
+        
+        for ($i = 11; $i >= 0; $i--) {
+            $hourStart = now()->subHours($i)->startOfHour();
+            $hourEnd = $hourStart->copy()->endOfHour();
+            
+            // Count check-ins in this hour
+            $count = $checkIns->filter(function ($checkIn) use ($hourStart, $hourEnd) {
+                return $checkIn->checked_in_at >= $hourStart && $checkIn->checked_in_at <= $hourEnd;
+            })->count();
+            
+            $hourlyData[] = $count;
+            
+            // Create label in scanner timezone
+            $label = $hourStart->setTimezone($organizerTimezone)->format('g A');
+            $labels[] = $label;
+            
+            // Store the actual timestamp for JavaScript conversion
+            $timestamps[] = $hourStart->toISOString();
+        }
+        
+        // Debug logging for chart data
+        \Log::info('Chart Data Debug', [
+            'scanner_id' => $scanner->id,
+            'organizer_timezone' => $organizerTimezone,
+            'twelve_hours_ago' => $twelveHoursAgo->toDateTimeString(),
+            'checkins_count' => $checkIns->count(),
+            'labels' => $labels,
+            'hourly_data' => $hourlyData,
+            'current_time' => now()->toDateTimeString()
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'chartData' => [
+                'labels' => $labels,
+                'data' => $hourlyData,
+                'timestamps' => $timestamps
+            ]
         ]);
     }
 }

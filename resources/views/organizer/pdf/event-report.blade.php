@@ -151,6 +151,7 @@
         .text-purple { color: #8b5cf6; }
         .text-yellow { color: #d97706; }
         .text-red { color: #dc2626; }
+        .text-orange { color: #ea580c; }
     </style>
 </head>
 <body>
@@ -241,6 +242,7 @@
                     <div class="stat-number">{{ $overview['total_guests'] }}</div>
                     <div class="stat-label">Total Guests</div>
                 </div>
+                @if($settings['checkin_enabled'] == 'Yes')
                 <div class="stat-item">
                     <div class="stat-number text-green">{{ $overview['checked_in_guests'] }}</div>
                     <div class="stat-label">Checked In</div>
@@ -249,6 +251,8 @@
                     <div class="stat-number text-blue">{{ $overview['checkin_rate'] }}%</div>
                     <div class="stat-label">Check-in Rate</div>
                 </div>
+                @endif
+                @if($settings['rsvp_enabled'] == 'Yes')
                 <div class="stat-item">
                     <div class="stat-number text-purple">{{ $overview['rsvp_yes'] }}</div>
                     <div class="stat-label">RSVP Yes</div>
@@ -261,6 +265,7 @@
                     <div class="stat-number text-red">{{ $overview['rsvp_no'] }}</div>
                     <div class="stat-label">RSVP No</div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -278,10 +283,6 @@
                     <div class="field-value">{{ $invitation_stats['total_invitations'] ?? 0 }}</div>
                 </div>
                 <div class="field-group">
-                    <span class="field-label">Unique Guests Invited:</span>
-                    <div class="field-value text-blue">{{ $invitation_stats['total_unique_guests_invited'] ?? 0 }}</div>
-                </div>
-                <div class="field-group">
                     <span class="field-label">Sent Successfully:</span>
                     <div class="field-value text-green">{{ $invitation_stats['sent_invitations'] ?? 0 }}</div>
                 </div>
@@ -290,17 +291,24 @@
                     <div class="field-value text-blue">{{ $invitation_stats['delivery_rate'] ?? 0 }}%</div>
                 </div>
                 <div class="field-group">
-                    <span class="field-label">RSVP Response Rate:</span>
-                    <div class="field-value text-purple">{{ $invitation_stats['rsvp_response_rate'] ?? 0 }}%</div>
+                    <span class="field-label">WhatsApp Invitations:</span>
+                    <div class="field-value text-green">{{ $invitation_stats['whatsapp_invitations'] ?? 0 }}</div>
                 </div>
                 <div class="field-group">
-                    <span class="field-label">Pending Responses:</span>
-                    <div class="field-value text-yellow">{{ $invitation_stats['rsvp_breakdown']['pending'] ?? 0 }}</div>
+                    <span class="field-label">Email Invitations:</span>
+                    <div class="field-value text-blue">{{ $invitation_stats['email_invitations'] ?? 0 }}</div>
                 </div>
+                @if($settings['rsvp_enabled'] == 'Yes')
+                <div class="field-group">
+                    <span class="field-label">RSVP Responses:</span>
+                    <div class="field-value text-purple">{{ $invitation_stats['rsvp_responses'] ?? 0 }}</div>
+                </div>
+                @endif
             </div>
         </div>
 
         <!-- Check-in Statistics -->
+        @if($settings['checkin_enabled'] == 'Yes')
         <div class="card">
             <div class="card-header">
                 <h3>Check-in Statistics</h3>
@@ -324,6 +332,7 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
 
     <!-- Engagement Metrics -->
@@ -337,20 +346,30 @@
                     <div class="stat-number text-green">{{ $engagement_metrics['overall_engagement_rate'] ?? 0 }}%</div>
                     <div class="stat-label">Overall Engagement</div>
                 </div>
+                @if($settings['rsvp_enabled'] == 'Yes')
                 <div class="stat-item">
                     <div class="stat-number text-blue">{{ $engagement_metrics['rsvp_engagement_rate'] ?? 0 }}%</div>
                     <div class="stat-label">RSVP Engagement</div>
                 </div>
+                @endif
+                @if($settings['checkin_enabled'] == 'Yes')
                 <div class="stat-item">
                     <div class="stat-number text-purple">{{ $engagement_metrics['checkin_engagement_rate'] ?? 0 }}%</div>
                     <div class="stat-label">Check-in Engagement</div>
                 </div>
+                @endif
+                @if($settings['rsvp_enabled'] == 'Yes' && $settings['checkin_enabled'] == 'Yes')
+                <div class="stat-item">
+                    <div class="stat-number text-orange">{{ $engagement_metrics['rsvp_yes_and_checkin_rate'] ?? 0 }}%</div>
+                    <div class="stat-label">RSVP Yes + Check-in</div>
+                </div>
+                @endif
             </div>
         </div>
     </div>
 
     <!-- Scanner Usage -->
-    @if(!empty($scanner_usage))
+    @if($settings['checkin_enabled'] == 'Yes' && !empty($scanner_usage))
     <div class="card">
         <div class="card-header">
             <h3>Scanner Usage</h3>
@@ -391,10 +410,14 @@
                     <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        @if($settings['rsvp_enabled'] == 'Yes')
                         <th>RSVP Status</th>
                         <th>RSVP Date</th>
+                        @endif
+                        @if($settings['checkin_enabled'] == 'Yes')
                         <th>Check-in Time</th>
                         <th>Check-in Method</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
@@ -402,10 +425,14 @@
                     <tr>
                         <td>{{ $guest['name'] }}</td>
                         <td>{{ $guest['email'] }}</td>
+                        @if($settings['rsvp_enabled'] == 'Yes')
                         <td>{{ $guest['rsvp_status'] ?? 'N/A' }}</td>
                         <td>{{ $guest['rsvp_date'] ?? 'N/A' }}</td>
+                        @endif
+                        @if($settings['checkin_enabled'] == 'Yes')
                         <td>{{ $guest['checkin_time'] ?? 'Not checked in' }}</td>
                         <td>{{ $guest['checkin_method'] }}</td>
+                        @endif
                     </tr>
                     @endforeach
                 </tbody>
@@ -421,3 +448,4 @@
     </div>
 </body>
 </html>
+

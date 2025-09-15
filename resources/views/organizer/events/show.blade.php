@@ -68,7 +68,7 @@
     </div>
 
     <!-- Event Statistics -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-{{ $event->rsvp_enabled && $event->qr_checkin_enabled ? '4' : ($event->rsvp_enabled || $event->qr_checkin_enabled ? '3' : '2') }} gap-6 mb-8">
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
                 <div class="p-2 rounded-lg" style="background: var(--primary-100);">
@@ -83,6 +83,7 @@
             </div>
         </div>
         
+        @if($event->rsvp_enabled)
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
                 <div class="p-2 rounded-lg" style="background: var(--green-100);">
@@ -96,7 +97,9 @@
                 </div>
             </div>
         </div>
+        @endif
         
+        @if($event->qr_checkin_enabled)
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
                 <div class="p-2 rounded-lg" style="background: var(--yellow-100);">
@@ -110,6 +113,7 @@
                 </div>
             </div>
         </div>
+        @endif
         
         <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
             <div class="flex items-center">
@@ -127,9 +131,9 @@
     </div>
 
     <!-- Event Details -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+    <div class="grid grid-cols-1 {{ $event->rsvp_enabled || $event->qr_checkin_enabled ? 'lg:grid-cols-3' : 'lg:grid-cols-1' }} gap-8 mb-8">
         <!-- Main Event Details -->
-        <div class="lg:col-span-2">
+        <div class="{{ $event->rsvp_enabled || $event->qr_checkin_enabled ? 'lg:col-span-2' : 'lg:col-span-1' }}">
             <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
                 <h2 class="text-xl font-semibold mb-4" style="color: var(--text-primary);">Event Details</h2>
                 
@@ -183,19 +187,19 @@
                                 @endif
                             </div>
                             
+                            @if($event->rsvp_enabled)
                             <div>
                                 <span class="text-sm font-medium" style="color: var(--text-secondary);">RSVP:</span>
-                                <span class="text-sm" style="color: var(--text-primary);">
-                                    {{ $event->rsvp_enabled ? 'Enabled' : 'Disabled' }}
-                                </span>
+                                <span class="text-sm" style="color: var(--text-primary);">Enabled</span>
                             </div>
+                            @endif
                             
+                            @if($event->qr_checkin_enabled)
                             <div>
                                 <span class="text-sm font-medium" style="color: var(--text-secondary);">QR Check-in:</span>
-                                <span class="text-sm" style="color: var(--text-primary);">
-                                    {{ $event->qr_checkin_enabled ? 'Enabled' : 'Disabled' }}
-                                </span>
+                                <span class="text-sm" style="color: var(--text-primary);">Enabled</span>
                             </div>
+                            @endif
                             
                             <div>
                                 <span class="text-sm font-medium" style="color: var(--text-secondary);">Platforms:</span>
@@ -223,9 +227,11 @@
             </div>
         </div>
         
+        @if($event->rsvp_enabled || $event->qr_checkin_enabled)
         <!-- RSVP & Attendance Summary -->
         <div>
             <div class="rounded-lg shadow-sm border p-6" style="background: var(--bg-primary); border-color: var(--border-primary);">
+                @if($event->rsvp_enabled)
                 <h2 class="text-xl font-semibold mb-4" style="color: var(--text-primary);">RSVP Summary</h2>
                 
                 <div class="space-y-4">
@@ -269,16 +275,20 @@
                         </div>
                     </div>
                 </div>
+                @endif
                 
-                <div class="mt-6 pt-6 border-t" style="border-color: var(--border-primary);">
+                @if($event->qr_checkin_enabled)
+                <div class="{{ $event->rsvp_enabled ? 'mt-6 pt-6 border-t' : '' }}" style="{{ $event->rsvp_enabled ? 'border-color: var(--border-primary);' : '' }}">
                     <h3 class="font-medium mb-3" style="color: var(--text-primary);">Attendance</h3>
                     <div class="flex justify-between items-center">
                         <span class="text-sm" style="color: var(--text-secondary);">Checked In</span>
                         <span class="text-sm font-medium" style="color: var(--text-primary);">{{ $stats['attendance_stats']['checked_in'] }} / {{ $stats['total_guests'] }}</span>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
+        @endif
     </div>
 
 
@@ -334,6 +344,9 @@
                             </svg>
                         </button>
                     </div>
+                </div>
+                <div id="search-results-count" class="text-sm" style="color: var(--text-secondary);">
+                    <!-- Results count will be displayed here -->
                 </div>
             </div>
         </div>
@@ -395,9 +408,13 @@
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Guest</th>
                             <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Contact</th>
+                            @if($event->rsvp_enabled)
                             <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">RSVP Status</th>
+                            @endif
+                            @if($event->qr_checkin_enabled)
                             <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Attendance</th>
                             <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Check-in Time</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody class="divide-y" style="border-color: var(--border-primary);">
@@ -445,6 +462,7 @@
                                     @endif
                                 </div>
                             </td>
+                            @if($event->rsvp_enabled)
                             <td class="px-4 py-4 whitespace-nowrap rsvp-status-cell">
                                 @switch($rsvpStatus)
                                     @case('yes')
@@ -474,6 +492,8 @@
                                 <div class="text-xs mt-1 rsvp-note" style="color: var(--text-secondary); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: none;"></div>
                                 @endif
                             </td>
+                            @endif
+                            @if($event->qr_checkin_enabled)
                             <td class="px-4 py-4 whitespace-nowrap">
                                 @if($eventGuest->checked_in)
                                     <span class="badge badge-success">Checked In</span>
@@ -493,6 +513,7 @@
                                     -
                                 @endif
                             </td>
+                            @endif
                         </tr>
                         @endforeach
                     </tbody>
@@ -732,6 +753,7 @@
                     $invitationService = new \App\Services\InvitationStatusService();
                     $invitationStats = $invitationService->getInvitationStats($event);
                     $invitations = $invitationService->getAllInvitations($event);
+                    $removedGuestInvitations = $invitationService->getRemovedGuestInvitationsGrouped($event);
                     
                     // Debug output
                     \Log::info('Invitation Stats Debug', [
@@ -852,6 +874,96 @@
                     @else
                         <p class="text-sm" style="color: var(--text-secondary);">No invitations sent yet</p>
                     @endif
+                </div>
+                @endif
+                
+                <!-- Removed Guests Section -->
+                @if($removedGuestInvitations->isNotEmpty())
+                <div class="mt-8">
+                    <h4 class="text-md font-medium mb-3 text-red-600" style="color: var(--text-primary);">
+                        Removed Guests
+                        <span class="text-sm font-normal" style="color: var(--text-secondary);">({{ $removedGuestInvitations->flatten()->count() }} invitations)</span>
+                    </h4>
+                    
+                    @foreach($removedGuestInvitations as $channel => $channelInvitations)
+                    <div class="mb-6">
+                        <h5 class="text-sm font-medium mb-3" style="color: var(--text-primary);">
+                            {{ ucfirst($channel) }} Invitations 
+                            <span class="text-xs font-normal" style="color: var(--text-secondary);">({{ $channelInvitations->count() }})</span>
+                        </h5>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y" style="border-color: var(--border-primary);">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Guest Name & Platform</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Status</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Sent At</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style="color: var(--text-secondary);">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y" style="border-color: var(--border-primary);">
+                                    @foreach($channelInvitations as $invitation)
+                                    <tr class="hover:bg-gray-50 opacity-60" data-invitation-id="{{ $invitation->id }}">
+                                        <td class="px-4 py-4 whitespace-nowrap">
+                                            <div>
+                                                <div class="flex items-center gap-2">
+                                                    <div class="text-sm font-medium line-through text-gray-500" style="color: var(--text-primary);">
+                                                        {{ $invitation->guest->name ?? 'Unknown Guest' }}
+                                                    </div>
+                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                        Removed from Event
+                                                    </span>
+                                                </div>
+                                                <div class="text-xs" style="color: var(--text-secondary);">
+                                                    {{ ucfirst($invitation->channel) }}
+                                                    @if($invitation->channel === 'email')
+                                                        • {{ $invitation->guest->email ?? 'No email' }}
+                                                    @elseif($invitation->channel === 'whatsapp')
+                                                        • {{ $invitation->guest->phone ?? 'No phone' }}
+                                                    @endif
+                                                </div>
+                                                @if($invitation->removal_reason)
+                                                <div class="text-xs mt-1" style="color: var(--text-secondary);">
+                                                    Reason: {{ $invitation->removal_reason }}
+                                                </div>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap">
+                                            <span class="badge badge-danger invitation-status">
+                                                Guest Removed
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap text-sm invitation-sent-at" style="color: var(--text-primary);">
+                                            @if($invitation->sent_at)
+                                                <div>{{ $invitation->sent_at->setTimezone($userTimezone)->format('M j, Y g:i A') }}</div>
+                                                <div class="text-xs text-red-600">Removed: {{ $invitation->removed_at ? $invitation->removed_at->setTimezone($userTimezone)->format('M j, Y g:i A') : 'Unknown' }}</div>
+                                            @else
+                                                <div class="text-xs text-red-600">Removed: {{ $invitation->removed_at ? $invitation->removed_at->setTimezone($userTimezone)->format('M j, Y g:i A') : 'Unknown' }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap text-sm" style="color: var(--text-secondary);">
+                                            <div class="text-xs">
+                                                <strong>Guest Status:</strong> Removed from event
+                                            </div>
+                                            @if($invitation->removal_reason)
+                                                <div class="text-xs mt-1">
+                                                    <strong>Reason:</strong> {{ $invitation->removal_reason }}
+                                                </div>
+                                            @endif
+                                            @if($invitation->token)
+                                                <div class="text-xs mt-1">
+                                                    <strong>Token:</strong> {{ Str::limit($invitation->token, 20) }}
+                                                </div>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    @endforeach
                 </div>
                 @endif
             </div>
@@ -975,7 +1087,6 @@
                     </button>
                 </div>
 
-@if($event->rsvp_enabled)
 <style>
 .template-grid {
     display: grid;
@@ -1037,58 +1148,109 @@
 }
 </style>
 <script>
+
+
 document.addEventListener('DOMContentLoaded', function() {
-    const eventId = {{ $event->id }};
+    // Declare variables in function scope so they're accessible throughout
+    const eventId = @json($event->id);
+    const rsvpEnabled = @json($event->rsvp_enabled);
     let refreshInterval;
     
-    // Tab functionality
-    const guestsTab = document.getElementById('guests-tab');
-    const notificationsTab = document.getElementById('notifications-tab');
-    const invitationsTab = document.getElementById('invitations-tab');
-    const guestsContent = document.getElementById('guests-content');
-    const notificationsContent = document.getElementById('notifications-content');
-    const invitationsContent = document.getElementById('invitations-content');
-    
-    function switchTab(activeTab, activeContent, inactiveTabs, inactiveContents) {
-        // Update tab buttons
-        activeTab.classList.add('active');
-        activeTab.style.borderColor = 'var(--primary-600)';
-        activeTab.style.color = 'var(--primary-600)';
+    try {
+        // Tab functionality
+        const guestsTab = document.getElementById('guests-tab');
+        const notificationsTab = document.getElementById('notifications-tab');
+        const invitationsTab = document.getElementById('invitations-tab');
+        const guestsContent = document.getElementById('guests-content');
+        const notificationsContent = document.getElementById('notifications-content');
+        const invitationsContent = document.getElementById('invitations-content');
         
-        // Update inactive tabs
-        inactiveTabs.forEach(tab => {
-            tab.classList.remove('active');
-            tab.style.borderColor = 'transparent';
-            tab.style.color = 'var(--text-secondary)';
-        });
+        // Simple tab switching function
+        function switchTab(activeTab, activeContent, inactiveTabs, inactiveContents) {
+            try {
+                // Update tab buttons
+                activeTab.classList.add('active');
+                activeTab.style.borderColor = 'var(--primary-600)';
+                activeTab.style.color = 'var(--primary-600)';
+                
+                // Update inactive tabs
+                inactiveTabs.forEach(tab => {
+                    tab.classList.remove('active');
+                    tab.style.borderColor = 'transparent';
+                    tab.style.color = 'var(--text-secondary)';
+                });
+                
+                // Update content
+                activeContent.classList.remove('hidden');
+                inactiveContents.forEach(content => {
+                    content.classList.add('hidden');
+                });
+            } catch (error) {
+                console.error('Error switching tabs:', error);
+            }
+        }
         
-        // Update content
-        activeContent.classList.remove('hidden');
-        inactiveContents.forEach(content => {
-            content.classList.add('hidden');
-        });
+        // Add event listeners
+        if (guestsTab) {
+            guestsTab.addEventListener('click', () => {
+                switchTab(guestsTab, guestsContent, [notificationsTab, invitationsTab], [notificationsContent, invitationsContent]);
+            });
+        }
+        
+        if (notificationsTab) {
+            notificationsTab.addEventListener('click', () => {
+                switchTab(notificationsTab, notificationsContent, [guestsTab, invitationsTab], [guestsContent, invitationsContent]);
+            });
+        }
+        
+        if (invitationsTab) {
+            invitationsTab.addEventListener('click', () => {
+                switchTab(invitationsTab, invitationsContent, [guestsTab, notificationsTab], [guestsContent, notificationsContent]);
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error in basic initialization:', error);
     }
     
-    guestsTab.addEventListener('click', () => {
-        switchTab(guestsTab, guestsContent, [notificationsTab, invitationsTab], [notificationsContent, invitationsContent]);
-    });
+    // Move the original switchTab function outside for now
+    function switchTabOriginal(activeTab, activeContent, inactiveTabs, inactiveContents) {
+        try {
+            // Update tab buttons
+            activeTab.classList.add('active');
+            activeTab.style.borderColor = 'var(--primary-600)';
+            activeTab.style.color = 'var(--primary-600)';
+            
+            // Update inactive tabs
+            inactiveTabs.forEach(tab => {
+                tab.classList.remove('active');
+                tab.style.borderColor = 'transparent';
+                tab.style.color = 'var(--text-secondary)';
+            });
+            
+            // Update content
+            activeContent.classList.remove('hidden');
+            inactiveContents.forEach(content => {
+                content.classList.add('hidden');
+            });
+        } catch (error) {
+            console.error('Error switching tabs:', error);
+        }
+    }
     
-    notificationsTab.addEventListener('click', () => {
-        switchTab(notificationsTab, notificationsContent, [guestsTab, invitationsTab], [guestsContent, invitationsContent]);
-        
-        // Auto-refresh notification statuses when notifications tab is clicked
-        refreshNotificationStatuses();
-    });
+    // Old event listener removed - now handled in try-catch block above
     
-    invitationsTab.addEventListener('click', () => {
-        switchTab(invitationsTab, invitationsContent, [guestsTab, notificationsTab], [guestsContent, notificationsContent]);
-        
-        // Auto-refresh invitation statuses when invitations tab is clicked
-        refreshInvitationStatuses();
-    });
+    // Old event listener removed - now handled in try-catch block above
+    
+    // Old event listener removed - now handled in try-catch block above
 
     // Function to update RSVP statuses in the table and summary
     function updateRsvpStatuses() {
+        // Only run if RSVP is enabled
+        if (!rsvpEnabled) {
+            return;
+        }
+        
         // Update detailed RSVP statuses
         fetch(`/organizer/events/${eventId}/rsvp/details`, {
             credentials: 'same-origin',
@@ -1215,8 +1377,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Set up auto-refresh every 30 seconds
-    refreshInterval = setInterval(updateRsvpStatuses, 30000);
+    // Set up auto-refresh every 30 seconds (only if RSVP is enabled)
+    if (rsvpEnabled) {
+        refreshInterval = setInterval(updateRsvpStatuses, 30000);
+    }
 
     // Clean up interval on page unload
     window.addEventListener('beforeunload', () => {
@@ -1251,6 +1415,9 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.add('hidden');
             filterGuests('');
         });
+        
+        // Initialize search state
+        filterGuests('');
     }
     
     function filterGuests(searchTerm) {
@@ -1259,8 +1426,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         guestRows.forEach(row => {
             const guestName = row.querySelector('td:first-child a')?.textContent?.toLowerCase() || '';
-            const guestEmail = row.querySelector('td:nth-child(2) div:first-child')?.textContent?.toLowerCase() || '';
-            const guestPhone = row.querySelector('td:nth-child(2) div:last-child')?.textContent?.toLowerCase() || '';
+            
+            // Find the email/phone cell - it's always the second column (index 1)
+            const emailPhoneCell = row.querySelector('td:nth-child(2)');
+            const guestEmail = emailPhoneCell?.querySelector('div:first-child')?.textContent?.toLowerCase() || '';
+            const guestPhone = emailPhoneCell?.querySelector('div:last-child')?.textContent?.toLowerCase() || '';
             
             const matches = !searchTerm || 
                 guestName.includes(searchTerm) || 
@@ -1277,7 +1447,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update results count
         if (searchResultsCount) {
-            searchResultsCount.textContent = visibleCount;
+            if (searchTerm) {
+                searchResultsCount.textContent = `${visibleCount} result${visibleCount !== 1 ? 's' : ''} found`;
+            } else {
+                searchResultsCount.textContent = '';
+            }
         }
         
         // Show/hide "no results" message
@@ -1358,7 +1532,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateNotificationStatusesInUI(data);
                 
                 // Log the update details
-                console.log(`Updated ${data.updated_count} notifications, Skipped ${data.missing_external_id} with missing IDs`);
             } else {
                 if (typeof showNotification === 'function') {
                     showNotification(data.message || 'Failed to update notification statuses', 'error');
@@ -1497,7 +1670,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (readCount) readCount.textContent = stats.read;
                     if (failedCount) failedCount.textContent = stats.failed;
                     
-                    console.log('Notification stats updated successfully');
                 } else {
                     console.error('Failed to update notification stats:', data.message);
                 }
@@ -1523,7 +1695,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     // Update the notifications list
                     updateNotificationsList(data.notifications);
-                    console.log('Notifications list updated successfully');
                 } else {
                     console.error('Failed to update notifications list:', data.message);
                 }
@@ -1641,7 +1812,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update notification counts
     function updateNotificationCounts() {
         // This is handled by updateNotificationStats()
-        console.log('Notification counts updated via stats refresh');
     }
     
     // Function to update invitation statistics
@@ -1657,7 +1827,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (readCount) readCount.textContent = stats.read;
         if (failedCount) failedCount.textContent = stats.failed;
         
-        console.log('Invitation stats updated successfully');
     }
     
     // Function to update individual invitation statuses
@@ -1686,7 +1855,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        console.log('Individual invitation statuses updated successfully');
     }
     
     // Function to create invitation status badge
@@ -1774,17 +1942,12 @@ function markEventAsComplete(eventId) {
 
 // Notification Modal Functions
 function openSendNotificationModal() {
-    console.log('Opening notification modal...');
     showModal('send-notification-modal');
 }
 
 function closeSendNotificationModal() {
-    console.log('Closing notification modal...');
     hideModal('send-notification-modal');
 }
-
-
-
 
 
 function toggleNotificationDetails() {
@@ -1844,7 +2007,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendBtn = document.getElementById('send-notification-btn');
     if (sendBtn) {
         sendBtn.addEventListener('click', function(e) {
-            console.log('Send notification button clicked!');
         });
     }
     
@@ -1973,6 +2135,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-@endif
 
 @endsection 

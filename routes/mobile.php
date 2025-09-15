@@ -35,6 +35,7 @@ Route::prefix('scanner')->name('mobile.scanner.')->group(function () {
     Route::get('/{token}/scan-stats', [ScannerController::class, 'getScanStats'])->name('scan-stats');
     Route::get('/{token}/performance', [ScannerController::class, 'getPerformanceData'])->name('performance');
     Route::get('/{token}/analytics', [ScannerController::class, 'getAnalytics'])->name('analytics');
+    Route::get('/{token}/chart-data', [ScannerController::class, 'getChartData'])->name('chart-data');
 Route::post('/{token}/detect-timezone', [ScannerController::class, 'detectTimezone'])->name('detect-timezone');
     Route::get('/{token}/recent-activity', [ScannerController::class, 'getRecentActivity'])->name('recent-activity');
     Route::get('/{token}/profiles', [ScannerController::class, 'getProfiles'])->name('api-profiles');

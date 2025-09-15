@@ -637,6 +637,7 @@
 @push('scripts')
 <script>
 const scannerToken = '{{ $scanner->token }}';
+const scannerTimezone = '{{ $scanner->getTimezone() }}';
 let qrScanner = null;
 let isScanning = false;
 let flashlightOn = false;
@@ -677,13 +678,14 @@ function formatTimeToLocal(timestamp) {
         // Parse the timestamp (assuming it's in Y-m-d H:i:s format from server)
         const date = new Date(timestamp);
         
-        // Format to local timezone
+        // Format to scanner's timezone instead of browser's local timezone
         return date.toLocaleString('en-US', {
             month: 'short',
             day: 'numeric',
             hour: 'numeric',
             minute: '2-digit',
-            hour12: true
+            hour12: true,
+            timeZone: scannerTimezone
         });
     } catch (error) {
         return timestamp; // Fallback to original timestamp

@@ -431,7 +431,8 @@ class Event extends Model
     {
         return $this->scanners()->create([
             'name' => $name,
-            'is_active' => true
+            'is_active' => true,
+            'timezone' => $this->user->timezone ?? 'UTC'
         ]);
     }
 

@@ -99,7 +99,7 @@
                         <div>
                             <h4 class="font-semibold text-gray-900">{{ $checkIn->name }}</h4>
                             <p class="text-sm text-gray-600" data-timestamp="{{ $checkIn->checked_in_at->toISOString() }}" data-format="local">
-                                {{ $checkIn->checked_in_at->format('M j, g:i A') }}
+                                {{ $checkIn->checked_in_at->setTimezone($organizerTimezone)->format('M j, g:i A') }}
                             </p>
                         </div>
                     </div>
@@ -169,19 +169,19 @@
             </div>
         </div>
 
-        <!-- Performance Chart -->
-        <div>
-            <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-medium text-gray-700">Check-ins Performance</h4>
-                <div class="flex space-x-2">
-                    <button onclick="switchChartView('hourly')" id="hourlyBtn" class="text-xs px-3 py-2 rounded-lg bg-primary-100 text-primary-700 font-medium transition-all duration-300 hover:bg-primary-200">Last 12h</button>
-                    <button onclick="switchChartView('daily')" id="dailyBtn" class="text-xs px-3 py-2 rounded-lg bg-gray-100 text-gray-600 font-medium transition-all duration-300 hover:bg-gray-200">Week</button>
-                </div>
-            </div>
-            <div class="relative h-64">
-                <canvas id="performanceChart" width="400" height="256"></canvas>
+        <!-- Check-ins Chart -->
+        <div class="mt-6">
+            <h4 class="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                <svg class="w-4 h-4 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Check-ins Last 12 Hours
+            </h4>
+            <div class="bg-white rounded-lg p-4 border border-gray-200">
+                <canvas id="checkinsChart" width="400" height="200"></canvas>
             </div>
         </div>
+
     </div>
 
     <!-- Enhanced Scanner Settings -->
@@ -551,11 +551,11 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const scannerToken = '{{ $scanner->token }}';
+const organizerTimezone = '{{ $organizerTimezone }}';
 let currentOffset = {{ $recentCheckIns->count() }};
-let performanceChart = null;
-let currentChartView = 'hourly';
 
 document.addEventListener('DOMContentLoaded', function() {
     // Setup setting toggles
@@ -568,7 +568,9 @@ document.addEventListener('DOMContentLoaded', function() {
     convertTimestampsToLocal();
     
     loadAnalytics();
-    initializePerformanceChart();
+    
+    // Initialize chart
+    initializeChart();
 });
 
 function setupToggleEvents() {
@@ -659,25 +661,26 @@ function convertTimestampsToLocal() {
                     
                     element.textContent = relativeTime;
                 } else if (element.hasAttribute('data-format') && element.getAttribute('data-format') === 'local') {
-                    // Format as local time with proper timezone
+                    // Format as organizer's timezone
                     const localTime = date.toLocaleString('en-US', {
                         month: 'short',
                         day: 'numeric',
                         hour: 'numeric',
                         minute: '2-digit',
                         hour12: true,
-                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        timeZone: organizerTimezone
                     });
                     
                     element.textContent = localTime;
                 } else {
-                    // Default local time formatting
+                    // Default organizer timezone formatting
                     const localTime = date.toLocaleString('en-US', {
                         month: 'short',
                         day: 'numeric',
                         hour: 'numeric',
                         minute: '2-digit',
-                        hour12: true
+                        hour12: true,
+                        timeZone: organizerTimezone
                     });
                     
                     element.textContent = localTime;
@@ -770,14 +773,15 @@ function loadMoreCheckIns() {
                 const checkInElement = document.createElement('div');
                 checkInElement.className = 'flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-[1.02]';
                 
-                // Convert timestamp to local time
+                // Convert timestamp to organizer's timezone
                 const checkInDate = new Date(checkIn.checked_in_at);
                 const localTime = checkInDate.toLocaleString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     hour: 'numeric',
                     minute: '2-digit',
-                    hour12: true
+                    hour12: true,
+                    timeZone: organizerTimezone
                 });
                 
                 // Calculate relative time
@@ -987,7 +991,7 @@ function updateAnalyticsDisplay(analytics) {
     document.getElementById('todayCheckins').textContent = analytics.today_checkins;
     document.getElementById('peakHour').textContent = analytics.peak_hour;
     
-    // Update last used time with proper timezone conversion
+    // Update last used time with organizer's timezone conversion
     if (analytics.last_used) {
         try {
             const lastUsedDate = new Date(analytics.last_used);
@@ -996,7 +1000,8 @@ function updateAnalyticsDisplay(analytics) {
                 day: 'numeric',
                 hour: 'numeric',
                 minute: '2-digit',
-                hour12: true
+                hour12: true,
+                timeZone: organizerTimezone
             });
             document.getElementById('lastUsedDisplay').textContent = localTime;
         } catch (error) {
@@ -1007,31 +1012,27 @@ function updateAnalyticsDisplay(analytics) {
         document.getElementById('lastUsedDisplay').textContent = 'Never';
     }
     
-    // Update performance chart
-    if (performanceChart) {
-        updatePerformanceChart(analytics);
-    }
 }
 
-function initializePerformanceChart() {
-    const ctx = document.getElementById('performanceChart').getContext('2d');
+// Chart functionality
+let checkinsChart = null;
+
+function initializeChart() {
+    const ctx = document.getElementById('checkinsChart').getContext('2d');
     
-    performanceChart = new Chart(ctx, {
+    // Initialize with empty data
+    checkinsChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: [],
             datasets: [{
                 label: 'Check-ins',
                 data: [],
-                borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                borderColor: '#8b2bfa',
+                backgroundColor: 'rgba(139, 43, 250, 0.1)',
                 borderWidth: 2,
                 fill: true,
-                tension: 0.3,
-                pointBackgroundColor: 'rgb(59, 130, 246)',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 4
+                tension: 0.4
             }]
         },
         options: {
@@ -1040,68 +1041,62 @@ function initializePerformanceChart() {
             plugins: {
                 legend: {
                     display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    cornerRadius: 6,
-                    displayColors: false
                 }
             },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
-                    ticks: {
-                        stepSize: 1,
-                        color: '#6b7280'
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
                     }
                 },
-                x: {
-                    grid: {
-                        display: false
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Check-ins'
                     },
+                    beginAtZero: true,
                     ticks: {
-                        color: '#6b7280',
-                        maxTicksLimit: 6
+                        stepSize: 1
                     }
                 }
             }
         }
     });
+    
+    // Load chart data
+    loadChartData();
 }
 
-function updatePerformanceChart(analytics) {
-            if (currentChartView === 'hourly') {
-            performanceChart.data.labels = analytics.hourly_labels;
-            performanceChart.data.datasets[0].data = analytics.hourly_data;
-            performanceChart.data.datasets[0].label = 'Check-ins (Last 12h)';
-        } else {
-            performanceChart.data.labels = analytics.daily_labels;
-            performanceChart.data.datasets[0].data = analytics.daily_data;
-            performanceChart.data.datasets[0].label = 'Check-ins This Week';
-        }
-    
-    performanceChart.update('none');
+function loadChartData() {
+    fetch(`/scanner/${scannerToken}/chart-data`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.chartData) {
+                updateChart(data.chartData);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading chart data:', error);
+        });
 }
 
-function switchChartView(view) {
-    currentChartView = view;
+function updateChart(chartData) {
+    if (!checkinsChart) return;
     
-    // Update button styles
-    document.getElementById('hourlyBtn').className = view === 'hourly' 
-        ? 'text-xs px-2 py-1 rounded bg-blue-100 text-blue-700' 
-        : 'text-xs px-2 py-1 rounded bg-gray-100 text-gray-600';
+    // Validate chart data
+    if (!chartData.labels || !chartData.data || !Array.isArray(chartData.labels) || !Array.isArray(chartData.data)) {
+        return;
+    }
     
-    document.getElementById('dailyBtn').className = view === 'daily' 
-        ? 'text-xs px-2 py-1 rounded bg-blue-100 text-blue-700' 
-        : 'text-xs px-2 py-1 rounded bg-gray-100 text-gray-600';
-    
-    // Reload analytics to get the correct view
-    loadAnalytics();
+    // Use the pre-formatted labels from the backend (already in scanner timezone)
+    checkinsChart.data.labels = chartData.labels;
+    checkinsChart.data.datasets[0].data = chartData.data;
+    checkinsChart.update();
 }
+
+
+
 </script>
 @endpush

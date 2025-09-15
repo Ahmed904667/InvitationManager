@@ -37,7 +37,7 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <div class="text-2xl font-bold text-primary">{{ $stats['overview']['total_events'] ?? 0 }}</div>
+                                <div class="text-2xl font-bold text-primary">{{ number_format($stats['overview']['total_events'] ?? 0) }}</div>
                                 <div class="text-sm text-secondary">Total Events</div>
                             </div>
                         </div>
@@ -54,7 +54,7 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <div class="text-2xl font-bold text-green-600">{{ $stats['overview']['active_events'] ?? 0 }}</div>
+                                <div class="text-2xl font-bold text-green-600">{{ number_format($stats['overview']['active_events'] ?? 0) }}</div>
                                 <div class="text-sm text-secondary">Active Events</div>
                             </div>
                         </div>
@@ -71,7 +71,7 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <div class="text-2xl font-bold text-blue-600">{{ count($stats['completed_events'] ?? []) }}</div>
+                                <div class="text-2xl font-bold text-blue-600">{{ number_format(count($stats['completed_events'] ?? [])) }}</div>
                                 <div class="text-sm text-secondary">Completed Events</div>
                             </div>
                         </div>
@@ -88,7 +88,7 @@
                                 </svg>
                             </div>
                             <div class="ml-4">
-                                <div class="text-2xl font-bold text-purple-600">{{ $stats['overview']['total_guest_lists'] ?? 0 }}</div>
+                                <div class="text-2xl font-bold text-purple-600">{{ number_format($stats['overview']['total_guest_lists'] ?? 0) }}</div>
                                 <div class="text-sm text-secondary">Guest Lists</div>
                             </div>
                         </div>
@@ -97,53 +97,119 @@
             </div>
         </div>
 
-        <!-- Guest List Health Overview -->
+        <!-- Invitation Statistics -->
         <div class="mb-8">
-            <h2 class="text-2xl font-bold text-primary mb-6">Guest List Health Overview</h2>
+            <h2 class="text-2xl font-bold text-primary mb-6">Invitation Statistics</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Total Invitations Sent -->
+                <div class="card">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-2xl font-bold text-blue-600">{{ number_format($stats['overview']['total_invitations_sent'] ?? 0) }}</div>
+                                <div class="text-sm text-secondary">Invitations Sent</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Rate -->
+                <div class="card">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-2xl font-bold text-green-600">{{ $stats['invitation_metrics']['delivery_rate'] ?? 0 }}%</div>
+                                <div class="text-sm text-secondary">Delivery Rate</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WhatsApp Invitations -->
+                <div class="card">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-2xl font-bold text-green-600">{{ number_format($stats['invitation_metrics']['whatsapp_invitations'] ?? 0) }}</div>
+                                <div class="text-sm text-secondary">WhatsApp Invitations</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email Invitations -->
+                <div class="card">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-2xl font-bold text-blue-600">{{ number_format($stats['invitation_metrics']['email_invitations'] ?? 0) }}</div>
+                                <div class="text-sm text-secondary">Email Invitations</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Engagement Overview -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-primary mb-6">Guest Engagement Overview</h2>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Health Distribution -->
+                <!-- RSVP Yes + Check-in -->
                 <div class="card">
                     <div class="px-4 py-5 sm:p-6">
-                        <h3 class="text-lg font-medium text-primary mb-4">Health Distribution</h3>
-                        <div class="space-y-3">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-secondary">Excellent</span>
-                                <span class="text-sm font-medium text-green-600">{{ $stats['guest_list_health']['excellent'] ?? 0 }}</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-secondary">Good</span>
-                                <span class="text-sm font-medium text-blue-600">{{ $stats['guest_list_health']['good'] ?? 0 }}</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-secondary">Needs Attention</span>
-                                <span class="text-sm font-medium text-yellow-600">{{ $stats['guest_list_health']['needs_attention'] ?? 0 }}</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-secondary">Critical</span>
-                                <span class="text-sm font-medium text-red-600">{{ $stats['guest_list_health']['critical'] ?? 0 }}</span>
-                            </div>
+                        <h3 class="text-lg font-medium text-primary mb-4">RSVP Yes + Check-in</h3>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-primary mb-2">{{ $stats['guest_engagement']['overall_engagement_rate'] ?? 0 }}%</div>
+                            <div class="text-sm text-secondary">RSVP Yes who actually attended</div>
+                            @if(($stats['guest_engagement']['overall_engagement_rate'] ?? 0) == 0)
+                                <div class="text-xs text-gray-400 mt-1">Only events with both RSVP and QR check-in enabled</div>
+                            @endif
                         </div>
                     </div>
                 </div>
 
-                <!-- Average Health Score -->
+                <!-- RSVP Engagement -->
                 <div class="card">
                     <div class="px-4 py-5 sm:p-6">
-                        <h3 class="text-lg font-medium text-primary mb-4">Average Health Score</h3>
+                        <h3 class="text-lg font-medium text-primary mb-4">RSVP Engagement</h3>
                         <div class="text-center">
-                            <div class="text-3xl font-bold text-primary mb-2">{{ $stats['guest_list_health']['average_score'] ?? 0 }}/100</div>
-                            <div class="text-sm text-secondary">Overall Health</div>
+                            <div class="text-3xl font-bold text-blue-600 mb-2">{{ $stats['guest_engagement']['rsvp_engagement_rate'] ?? 0 }}%</div>
+                            <div class="text-sm text-secondary">Response Rate</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Total Guests -->
+                <!-- Check-in Engagement -->
                 <div class="card">
                     <div class="px-4 py-5 sm:p-6">
-                        <h3 class="text-lg font-medium text-primary mb-4">Total Guests</h3>
+                        <h3 class="text-lg font-medium text-primary mb-4">Check-in Engagement</h3>
                         <div class="text-center">
-                            <div class="text-3xl font-bold text-primary mb-2">{{ $stats['guest_list_health']['total_guests'] ?? 0 }}</div>
-                            <div class="text-sm text-secondary">Across All Lists</div>
+                            <div class="text-3xl font-bold text-green-600 mb-2">{{ $stats['guest_engagement']['checkin_engagement_rate'] ?? 0 }}%</div>
+                            <div class="text-sm text-secondary">Attendance Rate</div>
+                            @if(($stats['guest_engagement']['checkin_engagement_rate'] ?? 0) == 0)
+                                <div class="text-xs text-gray-400 mt-1">Only events with QR check-in enabled</div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -163,6 +229,7 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guests</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RSVP</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-ins</th>
                                 </tr>
                             </thead>
@@ -177,12 +244,29 @@
                                             {{ ucfirst($event['status']) }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">{{ $event['total_guests'] }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">{{ $event['checked_in_guests'] }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">{{ number_format($event['total_guests']) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">
+                                        @if($event['rsvp_enabled'])
+                                            {{ number_format($event['rsvp_responses']) }}
+                                        @else
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                Disabled
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">
+                                        @if($event['qr_checkin_enabled'])
+                                            {{ number_format($event['checked_in_guests']) }}
+                                        @else
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                Disabled
+                                            </span>
+                                        @endif
+                                    </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-4 text-center text-sm text-secondary">No recent events found</td>
+                                    <td colspan="6" class="px-6 py-4 text-center text-sm text-secondary">No recent events found</td>
                                 </tr>
                                 @endforelse
                             </tbody>
@@ -195,11 +279,26 @@
         <!-- Check-in Analytics -->
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-primary mb-6">Check-in Analytics</h2>
+            @if(($stats['checkin_analytics']['total_guests'] ?? 0) == 0)
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-blue-700">Check-in analytics only include events with QR check-in enabled.</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Check-in Summary -->
                 <div class="card">
                     <div class="px-4 py-5 sm:p-6">
                         <h3 class="text-lg font-medium text-primary mb-4">Check-in Summary</h3>
+                        <p class="text-xs text-gray-500 mb-4">Includes guests from events with RSVP or QR check-in enabled</p>
                         <div class="space-y-4">
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-secondary">Total Guests:</span>
@@ -221,6 +320,7 @@
                 <div class="card">
                     <div class="px-4 py-5 sm:p-6">
                         <h3 class="text-lg font-medium text-primary mb-4">Check-ins by Event</h3>
+                        <p class="text-xs text-gray-500 mb-4">Only shows events with QR check-in enabled</p>
                         <div class="space-y-3 max-h-48 overflow-y-auto">
                             @forelse($stats['checkin_analytics']['checkins_by_event'] ?? [] as $event)
                             <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
@@ -344,28 +444,30 @@
                 <div class="card mb-6">
                     <div class="px-4 py-5 sm:p-6">
                         <h3 class="text-xl font-bold text-primary mb-4">Event Overview</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="event-overview-stats">
                             <div class="text-center">
                                 <div class="text-2xl font-bold text-primary" id="event-total-guests">-</div>
                                 <div class="text-sm text-secondary">Total Guests</div>
                             </div>
-                            <div class="text-center">
+                            <!-- Check-in stats - only show if check-in is enabled -->
+                            <div class="text-center" id="event-checked-in-container">
                                 <div class="text-2xl font-bold text-green-600" id="event-checked-in">-</div>
                                 <div class="text-sm text-secondary">Checked In</div>
                             </div>
-                            <div class="text-center">
+                            <div class="text-center" id="event-checkin-rate-container">
                                 <div class="text-2xl font-bold text-blue-600" id="event-checkin-rate">-</div>
                                 <div class="text-sm text-secondary">Check-in Rate</div>
                             </div>
-                            <div class="text-center">
+                            <!-- RSVP stats - only show if RSVP is enabled -->
+                            <div class="text-center" id="event-rsvp-yes-container">
                                 <div class="text-2xl font-bold text-purple-600" id="event-rsvp-yes">-</div>
                                 <div class="text-sm text-secondary">RSVP Yes</div>
                             </div>
-                            <div class="text-center">
+                            <div class="text-center" id="event-rsvp-maybe-container">
                                 <div class="text-2xl font-bold text-yellow-600" id="event-rsvp-maybe">-</div>
                                 <div class="text-sm text-secondary">RSVP Maybe</div>
                             </div>
-                            <div class="text-center">
+                            <div class="text-center" id="event-rsvp-no-container">
                                 <div class="text-2xl font-bold text-red-600" id="event-rsvp-no">-</div>
                                 <div class="text-sm text-secondary">RSVP No</div>
                             </div>
@@ -409,7 +511,7 @@
                     </div>
 
                     <!-- Check-in Statistics -->
-                    <div class="card">
+                    <div class="card" id="checkin-stats-container">
                         <div class="px-4 py-5 sm:p-6">
                             <h3 class="text-lg font-medium text-primary mb-4">Check-in Statistics</h3>
                             <div class="space-y-3">
@@ -438,16 +540,23 @@
                 <div class="card mb-6">
                     <div class="px-4 py-5 sm:p-6">
                         <h3 class="text-lg font-medium text-primary mb-4">Guest Engagement Metrics</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="engagement-metrics-container">
                             <div class="text-center">
                                 <div class="text-2xl font-bold text-green-600" id="engagement-overall">-</div>
                                 <div class="text-sm text-secondary">Overall Engagement</div>
                             </div>
-                            <div class="text-center">
+                            <!-- RSVP Yes + Check-in - only show if both features are enabled -->
+                            <div class="text-center" id="engagement-rsvp-yes-checkin-container">
+                                <div class="text-2xl font-bold text-orange-600" id="engagement-rsvp-yes-checkin">-</div>
+                                <div class="text-sm text-secondary">RSVP Yes + Check-in</div>
+                            </div>
+                            <!-- RSVP Engagement - only show if RSVP is enabled -->
+                            <div class="text-center" id="engagement-rsvp-container">
                                 <div class="text-2xl font-bold text-blue-600" id="engagement-rsvp">-</div>
                                 <div class="text-sm text-secondary">RSVP Engagement</div>
                             </div>
-                            <div class="text-center">
+                            <!-- Check-in Engagement - only show if check-in is enabled -->
+                            <div class="text-center" id="engagement-checkin-container">
                                 <div class="text-2xl font-bold text-purple-600" id="engagement-checkin">-</div>
                                 <div class="text-sm text-secondary">Check-in Engagement</div>
                             </div>
@@ -504,15 +613,17 @@
                     <div class="px-4 py-5 sm:p-6">
                         <h3 class="text-lg font-medium text-primary mb-4">Guest List Details</h3>
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200" id="guest-list-table">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guest Name</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RSVP Status</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RSVP Date</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Method</th>
+                                        <!-- RSVP columns - only show if RSVP is enabled -->
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" id="rsvp-status-header">RSVP Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" id="rsvp-date-header">RSVP Date</th>
+                                        <!-- Check-in columns - only show if check-in is enabled -->
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" id="checkin-time-header">Check-in Time</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" id="checkin-method-header">Check-in Method</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200" id="guest-list-tbody">
@@ -676,11 +787,21 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Overview stats
             document.getElementById('event-total-guests').textContent = eventData.total_guests || 0;
-            document.getElementById('event-checked-in').textContent = eventData.checked_in_guests || 0;
-            document.getElementById('event-checkin-rate').textContent = (eventData.checkin_rate || 0) + '%';
-            document.getElementById('event-rsvp-yes').textContent = eventData.rsvp_yes || 0;
-            document.getElementById('event-rsvp-maybe').textContent = eventData.rsvp_maybe || 0;
-            document.getElementById('event-rsvp-no').textContent = eventData.rsvp_no || 0;
+            
+            // Show/hide sections based on feature flags
+            toggleSectionsBasedOnFeatures(eventData);
+            
+            // Update stats based on enabled features
+            if (eventData.checkin_enabled) {
+                document.getElementById('event-checked-in').textContent = eventData.checked_in_guests || 0;
+                document.getElementById('event-checkin-rate').textContent = (eventData.checkin_rate || 0) + '%';
+            }
+            
+            if (eventData.rsvp_enabled) {
+                document.getElementById('event-rsvp-yes').textContent = eventData.rsvp_yes || 0;
+                document.getElementById('event-rsvp-maybe').textContent = eventData.rsvp_maybe || 0;
+                document.getElementById('event-rsvp-no').textContent = eventData.rsvp_no || 0;
+            }
             
             // Update detailed statistics
             updateDetailedStatistics(eventData);
@@ -693,6 +814,110 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error updating event overview:', error);
             alert('Error updating event overview. Please try again.');
+        }
+    }
+    
+    function toggleSectionsBasedOnFeatures(eventData) {
+        // Toggle RSVP-related sections
+        const rsvpSections = [
+            'event-rsvp-yes-container',
+            'event-rsvp-maybe-container', 
+            'event-rsvp-no-container',
+            'engagement-rsvp-container',
+            'rsvp-status-header',
+            'rsvp-date-header'
+        ];
+        
+        // Toggle RSVP Yes + Check-in section (only show if both features are enabled)
+        const rsvpYesCheckinContainer = document.getElementById('engagement-rsvp-yes-checkin-container');
+        if (rsvpYesCheckinContainer) {
+            rsvpYesCheckinContainer.style.display = (eventData.rsvp_enabled && eventData.checkin_enabled) ? 'block' : 'none';
+        }
+        
+        rsvpSections.forEach(sectionId => {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.style.display = eventData.rsvp_enabled ? 'block' : 'none';
+            }
+        });
+        
+        // Toggle Check-in related sections
+        const checkinSections = [
+            'event-checked-in-container',
+            'event-checkin-rate-container',
+            'checkin-stats-container',
+            'engagement-checkin-container',
+            'checkin-time-header',
+            'checkin-method-header',
+            'scanner-usage-container'
+        ];
+        
+        checkinSections.forEach(sectionId => {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.style.display = eventData.checkin_enabled ? 'block' : 'none';
+            }
+        });
+        
+        // Update table column visibility
+        updateTableColumnVisibility(eventData);
+        
+        // Adjust grid layout based on visible sections
+        const overviewStats = document.getElementById('event-overview-stats');
+        const engagementMetrics = document.getElementById('engagement-metrics-container');
+        
+        if (overviewStats) {
+            const visibleStats = Array.from(overviewStats.children).filter(child => 
+                child.style.display !== 'none' && !child.id.includes('container')
+            ).length;
+            
+            // Adjust grid columns based on visible stats
+            if (visibleStats <= 2) {
+                overviewStats.className = 'grid grid-cols-1 md:grid-cols-2 gap-6';
+            } else if (visibleStats <= 4) {
+                overviewStats.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+            } else {
+                overviewStats.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+            }
+        }
+        
+        if (engagementMetrics) {
+            const visibleMetrics = Array.from(engagementMetrics.children).filter(child => 
+                child.style.display !== 'none' && !child.id.includes('container')
+            ).length;
+            
+            // Adjust grid columns based on visible metrics
+            if (visibleMetrics <= 2) {
+                engagementMetrics.className = 'grid grid-cols-1 md:grid-cols-2 gap-6';
+            } else if (visibleMetrics <= 3) {
+                engagementMetrics.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+            } else {
+                engagementMetrics.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6';
+            }
+        }
+    }
+    
+    function updateTableColumnVisibility(eventData) {
+        // Show/hide RSVP columns
+        const rsvpStatusHeader = document.getElementById('rsvp-status-header');
+        const rsvpDateHeader = document.getElementById('rsvp-date-header');
+        
+        if (rsvpStatusHeader) {
+            rsvpStatusHeader.style.display = eventData.rsvp_enabled ? 'table-cell' : 'none';
+        }
+        if (rsvpDateHeader) {
+            rsvpDateHeader.style.display = eventData.rsvp_enabled ? 'table-cell' : 'none';
+        }
+        
+        // Show/hide Check-in columns
+        const checkinTimeHeader = document.getElementById('checkin-time-header');
+        const checkinMethodHeader = document.getElementById('checkin-method-header');
+        
+        if (checkinTimeHeader) {
+            checkinTimeHeader.style.display = eventData.checkin_enabled ? 'table-cell' : 'none';
+        }
+        if (checkinMethodHeader) {
+            checkinMethodHeader.style.display = eventData.checkin_enabled ? 'table-cell' : 'none';
         }
     }
     
@@ -804,25 +1029,74 @@ document.addEventListener('DOMContentLoaded', function() {
         if (eventData.guests && eventData.guests.length > 0) {
             eventData.guests.forEach(guest => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
+                
+                // Check if guest RSVP'd Yes but didn't check in (highlight in red)
+                const shouldHighlight = eventData.rsvp_enabled && eventData.checkin_enabled && 
+                                      guest.rsvp_status === 'yes' && !guest.checked_in;
+                
+                if (shouldHighlight) {
+                    row.classList.add('bg-red-50', 'border-l-4', 'border-red-400');
+                }
+                
+                // Calculate colspan based on visible columns
+                let colspan = 2; // Name and Email are always visible
+                if (eventData.rsvp_enabled) colspan += 2; // RSVP Status and Date
+                if (eventData.checkin_enabled) colspan += 2; // Check-in Time and Method
+                
+                let rowHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">${guest.name || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">${guest.email || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                            ${guest.rsvp_status === 'yes' ? 'bg-green-100 text-green-800' : 
-                              (guest.rsvp_status === 'maybe' ? 'bg-yellow-100 text-yellow-800' : 
-                               (guest.rsvp_status === 'no' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'))}">
-                            ${guest.rsvp_status ? guest.rsvp_status.toUpperCase() : 'NO RESPONSE'}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">${guest.rsvp_date || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">${guest.checkin_time || 'Not checked in'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">${guest.checkin_method || 'N/A'}</td>
                 `;
+                
+                // Add RSVP columns if RSVP is enabled
+                if (eventData.rsvp_enabled) {
+                    rowHTML += `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                ${guest.rsvp_status === 'yes' ? 'bg-green-100 text-green-800' : 
+                                  (guest.rsvp_status === 'maybe' ? 'bg-yellow-100 text-yellow-800' : 
+                                   (guest.rsvp_status === 'no' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'))}">
+                                ${guest.rsvp_status ? guest.rsvp_status.toUpperCase() : 'NO RESPONSE'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">${guest.rsvp_date || 'N/A'}</td>
+                    `;
+                } else {
+                    // Add hidden RSVP columns to maintain table structure
+                    rowHTML += `
+                        <td class="px-6 py-4 whitespace-nowrap" style="display: none;">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                NO RESPONSE
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary" style="display: none;">N/A</td>
+                    `;
+                }
+                
+                // Add Check-in columns if check-in is enabled
+                if (eventData.checkin_enabled) {
+                    rowHTML += `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">${guest.checkin_time || 'Not checked in'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">${guest.checkin_method}</td>
+                    `;
+                } else {
+                    // Add hidden Check-in columns to maintain table structure
+                    rowHTML += `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary" style="display: none;">Not checked in</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary" style="display: none;">N/A</td>
+                    `;
+                }
+                
+                row.innerHTML = rowHTML;
                 tbody.appendChild(row);
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-sm text-secondary">No guest data available</td></tr>';
+            // Calculate colspan for empty state
+            let emptyColspan = 2; // Name and Email are always visible
+            if (eventData.rsvp_enabled) emptyColspan += 2; // RSVP Status and Date
+            if (eventData.checkin_enabled) emptyColspan += 2; // Check-in Time and Method
+            
+            tbody.innerHTML = `<tr><td colspan="${emptyColspan}" class="px-6 py-4 text-center text-sm text-secondary">No guest data available</td></tr>`;
         }
     }
     
@@ -838,8 +1112,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('inv-pending').textContent = eventData.invitation_stats.rsvp_breakdown?.pending || 0;
             }
             
-            // Check-in statistics
-            if (eventData.checkin_stats) {
+            // Check-in statistics - only update if check-in is enabled
+            if (eventData.checkin_enabled && eventData.checkin_stats) {
                 document.getElementById('checkin-first').textContent = eventData.checkin_stats.first_checkin ? 
                     new Date(eventData.checkin_stats.first_checkin).toLocaleString() : 'No check-ins';
                 document.getElementById('checkin-last').textContent = eventData.checkin_stats.last_checkin ? 
@@ -856,8 +1130,21 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             if (eventData.engagement_metrics) {
                 document.getElementById('engagement-overall').textContent = (eventData.engagement_metrics.overall_engagement_rate || 0) + '%';
-                document.getElementById('engagement-rsvp').textContent = (eventData.engagement_metrics.rsvp_engagement_rate || 0) + '%';
-                document.getElementById('engagement-checkin').textContent = (eventData.engagement_metrics.checkin_engagement_rate || 0) + '%';
+                
+                // Only update RSVP Yes + Check-in if both features are enabled
+                if (eventData.rsvp_enabled && eventData.checkin_enabled) {
+                    document.getElementById('engagement-rsvp-yes-checkin').textContent = (eventData.engagement_metrics.rsvp_yes_and_checkin_rate || 0) + '%';
+                }
+                
+                // Only update RSVP engagement if RSVP is enabled
+                if (eventData.rsvp_enabled) {
+                    document.getElementById('engagement-rsvp').textContent = (eventData.engagement_metrics.rsvp_engagement_rate || 0) + '%';
+                }
+                
+                // Only update check-in engagement if check-in is enabled
+                if (eventData.checkin_enabled) {
+                    document.getElementById('engagement-checkin').textContent = (eventData.engagement_metrics.checkin_engagement_rate || 0) + '%';
+                }
             }
         } catch (error) {
             console.error('Error updating engagement metrics:', error);
@@ -868,6 +1155,12 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const tbody = document.getElementById('scanner-usage-tbody');
             const container = document.getElementById('scanner-usage-container');
+            
+            // Only show scanner usage if check-in is enabled
+            if (!eventData.checkin_enabled) {
+                container.classList.add('hidden');
+                return;
+            }
             
             if (!eventData.checkin_stats?.scanner_usage || eventData.checkin_stats.scanner_usage.length === 0) {
                 container.classList.add('hidden');

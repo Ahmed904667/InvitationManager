@@ -45,6 +45,34 @@
                             </div>
                         @endif
                         
+                        <!-- Organizer Contact Information -->
+                        @if($event->user)
+                        <div class="bg-blue-50 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-800 mb-3 flex items-center">
+                                <i class="fas fa-user-circle text-blue-500 mr-2"></i>
+                                Contact the Organizer
+                            </h4>
+                            <div class="space-y-2">
+                                @if($event->user->email)
+                                <div class="flex items-center text-sm">
+                                    <i class="fas fa-envelope text-gray-400 w-4 mr-3"></i>
+                                    <a href="mailto:{{ $event->user->email }}" class="text-blue-600 hover:text-blue-800 transition-colors">
+                                        {{ $event->user->email }}
+                                    </a>
+                                </div>
+                                @endif
+                                @if($event->user->phone)
+                                <div class="flex items-center text-sm">
+                                    <i class="fas fa-phone text-gray-400 w-4 mr-3"></i>
+                                    <a href="tel:{{ $event->user->phone }}" class="text-blue-600 hover:text-blue-800 transition-colors">
+                                        {{ $event->user->phone }}
+                                    </a>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+                        @endif
+                        
                         <div class="text-xs text-gray-500">
                             Canceled on {{ \Carbon\Carbon::parse($event->cancelled_at)->format('M j, Y \a\t g:i A') }}
                         </div>

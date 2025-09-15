@@ -167,6 +167,7 @@ Route::get('/events/{event}/notifications/stats', [\App\Organizer\Controllers\Ev
     Route::post('/events/{event}/update-sent/save-message', [\App\Organizer\Controllers\EventController::class, 'saveGuestMessage'])->name('events.update-sent.save-message');
     Route::post('/events/{event}/update-sent/notify-guests', [\App\Organizer\Controllers\EventController::class, 'notifyGuestsOfUpdates'])->name('events.update-sent.notify-guests');
     Route::post('/events/{event}/update-sent/send-new-invitations', [\App\Organizer\Controllers\EventController::class, 'sendNewGuestInvitations'])->name('events.update-sent.send-new-invitations');
+    Route::put('/events/{event}/update-sent/settings', [\App\Organizer\Controllers\EventController::class, 'updateSentEventSettings'])->name('events.update-sent.settings');
     Route::get('/events/{event}/individual-messages', [\App\Organizer\Controllers\EventController::class, 'getIndividualMessages'])->name('events.individual-messages');
     
     // -------------------- Scheduled Messages --------------------

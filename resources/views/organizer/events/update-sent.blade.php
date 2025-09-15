@@ -5,15 +5,30 @@
 @section('content')
 <div class="container mx-auto px-4 py-8">
     {{-- Page Header --}}
-    <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-primary mb-2">
+    <div class="flex items-center justify-between mb-8">
+        <!-- Back Button - Left -->
+        <a href="{{ route('organizer.events.show', $event) }}" class="inline-flex items-center text-primary-600 hover:text-primary-800 text-sm font-medium">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+            </svg>
+            Back to Event
+        </a>
+        
+        <!-- Title - Center -->
+        <h1 class="text-4xl font-bold text-primary">
             Update Sent Event
         </h1>
+        
+        <!-- Spacer for balance -->
+        <div class="w-24"></div>
+    </div>
+
+    <div class="text-center mb-8">
         <p class="text-lg text-secondary">
             Manage your event and guests after invitations have been sent
         </p>
         <div class="mt-4">
-            <span class="badge badge-sent text-white px-4 py-2 rounded-full">
+            <span class="badge badge-sent text-primary px-4 py-2 rounded-full">
                 <i class="fas fa-paper-plane mr-2"></i>Invitations Sent
             </span>
         </div>
@@ -72,6 +87,9 @@
                     </button>
                     <button onclick="showTab('guest-management')" id="tab-guest-management" class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                         <i class="fas fa-users mr-2"></i>Guest Management
+                    </button>
+                    <button onclick="showTab('event-settings')" id="tab-event-settings" class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                        <i class="fas fa-cog mr-2"></i>Event Settings
                     </button>
                 </nav>
             </div>
@@ -476,9 +494,72 @@
                     </div>
                 </div>
             </div>
+            {{-- Event Settings Tab --}}
+            <div id="tab-content-event-settings" class="tab-content hidden">
+                <form action="{{ route('organizer.events.update-sent.settings', $event) }}" method="POST" class="space-y-6">
+                    @csrf
+                    @method('PUT')
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{-- QR Code Settings --}}
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-primary mb-4">
+                                <i class="fas fa-qrcode text-primary-500 mr-2"></i>QR Code Check-in
+                            </h3>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-700">Enable QR Code Check-in</label>
+                                    <p class="text-xs text-gray-500 mt-1">Allow guests to check in using QR codes at the event</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="qr_checkin_enabled" value="1" 
+                                           {{ old('qr_checkin_enabled', $event->qr_checkin_enabled) ? 'checked' : '' }}
+                                           class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                                </label>
+                            </div>
+                        </div>
 
+                        {{-- RSVP Settings --}}
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-primary mb-4">
+                                <i class="fas fa-reply text-primary-500 mr-2"></i>RSVP
+                            </h3>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-700">Enable RSVP</label>
+                                    <p class="text-xs text-gray-500 mt-1">Allow guests to respond to invitations with RSVP</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="rsvp_enabled" value="1" 
+                                           {{ old('rsvp_enabled', $event->rsvp_enabled) ? 'checked' : '' }}
+                                           class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
 
+                    {{-- Update Notification Checkbox --}}
+                    <div class="border-t pt-6">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="send_update_notification" name="send_update_notification" class="form-checkbox h-5 w-5 text-primary-600" value="1">
+                            <label for="send_update_notification" class="form-label text-lg">
+                                <i class="fas fa-bell text-primary-500 mr-2"></i>Send update notification to all guests
+                            </label>
+                        </div>
+                        <p class="text-secondary text-sm mt-2 ml-8">
+                            Check this box if you want to notify all guests about the changes made to the event settings.
+                        </p>
+                    </div>
 
+                    <div class="flex justify-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save mr-2"></i>Update Event Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -1095,6 +1176,7 @@ function showNotification(message, type = 'info') {
 // Handle form submissions
 document.addEventListener('DOMContentLoaded', function() {
     showTab('basic-info');
+    
     
     // Handle send invitations form submission
     const sendInvitationsForm = document.getElementById('send-invitations-form');

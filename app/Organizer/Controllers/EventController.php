@@ -5674,4 +5674,126 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
         }
     }
 
+    /**
+     * Update event settings for sent events
+     */
+    public function updateSentEventSettings(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+        
+        if (!in_array($event->status, ['sent', 'running'])) {
+            return back()->with('error', 'This feature is only available for sent or running events.');
+        }
+
+        // Log the incoming request data for debugging
+        Log::info('Event settings update request received', [
+            'event_id' => $event->id,
+            'user_id' => Auth::id(),
+            'request_data' => $request->all(),
+        ]);
+
+        $validated = $request->validate([
+            'qr_checkin_enabled' => 'nullable|boolean',
+            'rsvp_enabled' => 'nullable|boolean',
+            'send_update_notification' => 'nullable|boolean',
+        ]);
+
+        // Log the validated data for debugging
+        Log::info('Event settings update validation completed', [
+            'event_id' => $event->id,
+            'user_id' => Auth::id(),
+            'validated_data' => $validated,
+        ]);
+
+        // Store original values for comparison
+        $originalEvent = $event->toArray();
+        
+        // Update the event settings
+        $event->update([
+            'qr_checkin_enabled' => $request->has('qr_checkin_enabled'),
+            'rsvp_enabled' => $request->has('rsvp_enabled'),
+        ]);
+
+        // Detect changes and notify guests if needed
+        $changes = $this->detectSettingsChanges($originalEvent, $event->fresh()->toArray());
+        
+        if (!empty($changes)) {
+            // Log the changes for potential notification
+            Log::info('Event settings updated with changes', [
+                'event_id' => $event->id,
+                'changes' => $changes,
+                'user_id' => Auth::id()
+            ]);
+            
+            // Send notifications if checkbox is checked
+            if ($request->has('send_update_notification') && $request->boolean('send_update_notification')) {
+                try {
+                    // Create a message describing the changes
+                    $changeMessages = [];
+                    foreach ($changes as $field => $change) {
+                        $oldValue = $this->formatChangeValue($field, $change['old']);
+                        $newValue = $this->formatChangeValue($field, $change['new']);
+                        $changeMessages[] = ucfirst(str_replace('_', ' ', $field)) . ': ' . $oldValue . ' → ' . $newValue;
+                    }
+                    $customMessage = "Event Settings Update for {$event->name}:\n\n" . implode("\n", $changeMessages) . "\n\nPlease check your invitation for the latest information.";
+                    
+                    // Send notifications via both email and WhatsApp
+                    $this->sendEventUpdateNotifications($event, ['email', 'whatsapp'], $customMessage);
+                    
+                    Log::info('Event settings update notifications sent', [
+                        'event_id' => $event->id,
+                        'changes' => $changes,
+                        'user_id' => Auth::id()
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to send event settings update notifications', [
+                        'event_id' => $event->id,
+                        'error' => $e->getMessage(),
+                        'user_id' => Auth::id()
+                    ]);
+                }
+            }
+        }
+
+        // Prepare success message
+        $successMessage = 'Event settings updated successfully!';
+        if (!empty($changes) && $request->has('send_update_notification') && $request->boolean('send_update_notification')) {
+            $successMessage .= ' Update notifications have been sent to all guests.';
+        }
+
+        // Return JSON response for AJAX requests
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMessage,
+                'changes' => $changes
+            ]);
+        }
+
+        return redirect()->back()->with('success', $successMessage);
+    }
+
+    /**
+     * Detect changes in event settings
+     */
+    private function detectSettingsChanges(array $original, array $updated)
+    {
+        $changes = [];
+        $settingsFields = ['qr_checkin_enabled', 'rsvp_enabled'];
+        
+        foreach ($settingsFields as $field) {
+            $oldValue = (bool) ($original[$field] ?? false);
+            $newValue = (bool) ($updated[$field] ?? false);
+            
+            if ($oldValue !== $newValue) {
+                $changes[$field] = [
+                    'old' => $oldValue ? 'Enabled' : 'Disabled',
+                    'new' => $newValue ? 'Enabled' : 'Disabled'
+                ];
+            }
+        }
+        
+        return $changes;
+    }
+
 } 

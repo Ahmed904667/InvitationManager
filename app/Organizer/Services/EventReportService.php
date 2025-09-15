@@ -94,8 +94,8 @@ class EventReportService
                 ->count(),
             
             // Feature flags
-            'checkin_enabled' => $event->qr_checkin_enabled ?? true,
-            'rsvp_enabled' => $event->rsvp_enabled ?? true,
+            'checkin_enabled' => $event->qr_checkin_enabled ?? false,
+            'rsvp_enabled' => $event->rsvp_enabled ?? false,
             
             // Charts data
             'checkin_data' => $checkinData,
@@ -115,27 +115,40 @@ class EventReportService
      */
     private function getCheckinTimeDistribution($event): array
     {
+        $user = Auth::user();
+        $userTimezone = $user->timezone ?? 'UTC';
+        
         $checkins = $event->eventGuests()
             ->where('checked_in', true)
             ->whereNotNull('checked_in_at')
             ->get();
         
-        $timeSlots = [
-            '9 AM' => 0, '10 AM' => 0, '11 AM' => 0, '12 PM' => 0,
-            '1 PM' => 0, '2 PM' => 0, '3 PM' => 0, '4 PM' => 0, '5 PM' => 0
-        ];
+        // Create time slots based on event start time
+        $eventStartHour = $event->start_date ? $event->start_date->setTimezone($userTimezone)->hour : 9;
+        $timeSlots = [];
+        
+        // Generate time slots from 2 hours before event start to 4 hours after
+        for ($i = -2; $i <= 4; $i++) {
+            $hour = $eventStartHour + $i;
+            if ($hour < 0) $hour += 24;
+            if ($hour >= 24) $hour -= 24;
+            
+            $timeLabel = $this->formatHourToTimeLabel($hour);
+            $timeSlots[$timeLabel] = 0;
+        }
         
         foreach ($checkins as $checkin) {
-            $hour = $checkin->checked_in_at->hour;
-            if ($hour >= 9 && $hour < 10) $timeSlots['9 AM']++;
-            elseif ($hour >= 10 && $hour < 11) $timeSlots['10 AM']++;
-            elseif ($hour >= 11 && $hour < 12) $timeSlots['11 AM']++;
-            elseif ($hour >= 12 && $hour < 13) $timeSlots['12 PM']++;
-            elseif ($hour >= 13 && $hour < 14) $timeSlots['1 PM']++;
-            elseif ($hour >= 14 && $hour < 15) $timeSlots['2 PM']++;
-            elseif ($hour >= 15 && $hour < 16) $timeSlots['3 PM']++;
-            elseif ($hour >= 16 && $hour < 17) $timeSlots['4 PM']++;
-            elseif ($hour >= 17 && $hour < 18) $timeSlots['5 PM']++;
+            $checkinTime = $checkin->checked_in_at->setTimezone($userTimezone);
+            $hour = $checkinTime->hour;
+            
+            // Find the appropriate time slot
+            foreach ($timeSlots as $label => $count) {
+                $slotHour = $this->parseTimeLabelToHour($label);
+                if ($hour == $slotHour) {
+                    $timeSlots[$label]++;
+                    break;
+                }
+            }
         }
         
         return [
@@ -143,33 +156,88 @@ class EventReportService
             'time_data' => array_values($timeSlots),
         ];
     }
+    
+    /**
+     * Format hour to time label (e.g., 9 -> "9 AM", 13 -> "1 PM")
+     */
+    private function formatHourToTimeLabel($hour): string
+    {
+        if ($hour == 0) return '12 AM';
+        if ($hour < 12) return $hour . ' AM';
+        if ($hour == 12) return '12 PM';
+        return ($hour - 12) . ' PM';
+    }
+    
+    /**
+     * Parse time label to hour (e.g., "9 AM" -> 9, "1 PM" -> 13)
+     */
+    private function parseTimeLabelToHour($label): int
+    {
+        $parts = explode(' ', $label);
+        $hour = (int) $parts[0];
+        $period = $parts[1];
+        
+        if ($period == 'AM') {
+            if ($hour == 12) return 0;
+            return $hour;
+        } else { // PM
+            if ($hour == 12) return 12;
+            return $hour + 12;
+        }
+    }
 
     /**
      * Get RSVP time distribution for an event
      */
     private function getRSVPTimeDistribution($event): array
     {
-        $invitations = $event->invitations()
+        $user = Auth::user();
+        $userTimezone = $user->timezone ?? 'UTC';
+        
+        // Get unique guests who have RSVP'd (not total invitations)
+        $rsvpGuests = $event->invitations()
             ->whereNotNull('rsvp_status')
             ->where('rsvp_status', '!=', 'none')
             ->whereNotNull('rsvp_at')
-            ->get();
+            ->distinct('guest_id')
+            ->get(['guest_id', 'rsvp_at']);
         
         $timeCategories = [
             'Same Day' => 0, '1 Day' => 0, '2 Days' => 0, '3 Days' => 0,
             '1 Week' => 0, '2 Weeks' => 0, '1 Month+' => 0
         ];
         
-        foreach ($invitations as $invitation) {
-            $daysDiff = $event->start_date->diffInDays($invitation->rsvp_at);
+        // Keep event start date in UTC for calculation
+        $eventStartDate = $event->start_date ? $event->start_date->utc() : null;
+        
+        if (!$eventStartDate) {
+            return [
+                'time_labels' => array_keys($timeCategories),
+                'time_data' => array_values($timeCategories),
+            ];
+        }
+        
+        foreach ($rsvpGuests as $rsvpGuest) {
+            // Keep RSVP date in UTC for calculation
+            $rsvpDate = $rsvpGuest->rsvp_at->utc();
             
-            if ($daysDiff == 0) $timeCategories['Same Day']++;
-            elseif ($daysDiff == 1) $timeCategories['1 Day']++;
-            elseif ($daysDiff == 2) $timeCategories['2 Days']++;
-            elseif ($daysDiff == 3) $timeCategories['3 Days']++;
-            elseif ($daysDiff <= 7) $timeCategories['1 Week']++;
-            elseif ($daysDiff <= 14) $timeCategories['2 Weeks']++;
-            else $timeCategories['1 Month+']++;
+            // Calculate the difference in days from event start date in UTC
+            // This gives us the actual time difference regardless of timezone
+            $daysDiff = $eventStartDate->diffInDays($rsvpDate, false);
+            
+            // Categorize based on how many days before the event they RSVP'd
+            if ($daysDiff <= 0) {
+                // RSVP was on or after event start date
+                $timeCategories['Same Day']++;
+            } else {
+                // RSVP was before event start date
+                if ($daysDiff == 1) $timeCategories['1 Day']++;
+                elseif ($daysDiff == 2) $timeCategories['2 Days']++;
+                elseif ($daysDiff == 3) $timeCategories['3 Days']++;
+                elseif ($daysDiff <= 7) $timeCategories['1 Week']++;
+                elseif ($daysDiff <= 14) $timeCategories['2 Weeks']++;
+                else $timeCategories['1 Month+']++;
+            }
         }
         
         return [
@@ -183,6 +251,9 @@ class EventReportService
      */
     private function getDetailedGuestList($event): array
     {
+        $user = Auth::user();
+        $userTimezone = $user->timezone ?? 'UTC';
+        
         $eventGuests = $event->eventGuests()
             ->where('status', EventGuest::STATUS_ACTIVE)
             ->with(['guest'])
@@ -196,13 +267,27 @@ class EventReportService
             // Find the invitation for this guest
             $invitation = $invitations->get($eventGuest->guest_id);
             
+            // Format dates in user timezone
+            $rsvpDate = null;
+            if ($invitation && $invitation->rsvp_at) {
+                $rsvpDate = $invitation->rsvp_at->setTimezone($userTimezone)->format('M j, Y g:i A');
+            }
+            
+            $checkinTime = null;
+            $checkinMethod = 'Not checked in';
+            if ($eventGuest->checked_in && $eventGuest->checked_in_at) {
+                $checkinTime = $eventGuest->checked_in_at->setTimezone($userTimezone)->format('M j, Y g:i A');
+                $checkinMethod = $eventGuest->scanner_name ?? 'Manual';
+            }
+            
             $guests[] = [
                 'name' => $eventGuest->guest ? $eventGuest->guest->name : 'N/A',
                 'email' => $eventGuest->guest ? $eventGuest->guest->email : 'N/A',
                 'rsvp_status' => $invitation ? $invitation->rsvp_status : null,
-                'rsvp_date' => $invitation && $invitation->rsvp_at ? $invitation->rsvp_at->format('M j, Y g:i A') : null,
-                'checkin_time' => $eventGuest->checked_in_at ? $eventGuest->checked_in_at->format('M j, Y g:i A') : null,
-                'checkin_method' => $eventGuest->scanner_name ?? 'Manual',
+                'rsvp_date' => $rsvpDate,
+                'checkin_time' => $checkinTime,
+                'checkin_method' => $checkinMethod,
+                'checked_in' => $eventGuest->checked_in,
             ];
         }
         
@@ -288,6 +373,11 @@ class EventReportService
             'pending' => $totalUniqueGuests - $uniqueGuestsWithRSVP,
         ];
         
+        // Count invitations by channel
+        $channelBreakdown = $invitations->groupBy('channel')->map->count()->toArray();
+        $whatsappInvitations = $channelBreakdown['whatsapp'] ?? 0;
+        $emailInvitations = $channelBreakdown['email'] ?? 0;
+        
         return [
             'total_invitations' => $invitations->count(),
             'total_unique_guests_invited' => $totalUniqueGuests,
@@ -298,7 +388,10 @@ class EventReportService
             'delivery_rate' => $invitations->count() > 0 ? round(($invitations->where('status', 'sent')->count() / $invitations->count()) * 100, 1) : 0,
             'rsvp_response_rate' => $totalUniqueGuests > 0 ? round(($uniqueGuestsWithRSVP / $totalUniqueGuests) * 100, 1) : 0,
             'rsvp_breakdown' => $rsvpBreakdown,
-            'channel_breakdown' => $invitations->groupBy('channel')->map->count()->toArray(),
+            'channel_breakdown' => $channelBreakdown,
+            'whatsapp_invitations' => $whatsappInvitations,
+            'email_invitations' => $emailInvitations,
+            'rsvp_responses' => $uniqueGuestsWithRSVP,
         ];
     }
 
@@ -327,16 +420,91 @@ class EventReportService
     private function getEventEngagementMetrics($event): array
     {
         $totalGuests = $event->eventGuests()->where('status', EventGuest::STATUS_ACTIVE)->count();
-        $rsvpResponses = $event->invitations()->whereNotNull('rsvp_status')->where('rsvp_status', '!=', 'none')->count();
-        $checkins = $event->eventGuests()->where('checked_in', true)->count();
+        
+        // Initialize engagement metrics
+        $rsvpResponses = 0;
+        $checkins = 0;
+        $rsvpEngagementRate = 0;
+        $checkinEngagementRate = 0;
+        $overallEngagementRate = 0;
+        
+        // Calculate RSVP engagement only if RSVP is enabled
+        if ($event->rsvp_enabled) {
+            $rsvpResponses = $event->invitations()
+                ->whereNotNull('rsvp_status')
+                ->where('rsvp_status', '!=', 'none')
+                ->distinct('guest_id')
+                ->count('guest_id');
+            
+            $rsvpEngagementRate = $totalGuests > 0 ? round(($rsvpResponses / $totalGuests) * 100, 1) : 0;
+        }
+        
+        // Calculate check-in engagement only if check-in is enabled
+        if ($event->qr_checkin_enabled) {
+            $checkins = $event->eventGuests()->where('checked_in', true)->count();
+            $checkinEngagementRate = $totalGuests > 0 ? round(($checkins / $totalGuests) * 100, 1) : 0;
+        }
+        
+        // Calculate RSVP Yes + Check-in engagement (only if both features are enabled)
+        $rsvpYesAndCheckin = 0;
+        $rsvpYesAndCheckinRate = 0;
+        
+        if ($event->rsvp_enabled && $event->qr_checkin_enabled) {
+            // Get guests who RSVP'd "Yes"
+            $rsvpYesGuestIds = $event->invitations()
+                ->where('rsvp_status', 'yes')
+                ->distinct('guest_id')
+                ->pluck('guest_id')
+                ->toArray();
+            
+            // Get guests who checked in
+            $checkedInGuestIds = $event->eventGuests()
+                ->where('checked_in', true)
+                ->pluck('guest_id')
+                ->toArray();
+            
+            // Find intersection: guests who both RSVP'd "Yes" AND checked in
+            $rsvpYesAndCheckinIds = array_intersect($rsvpYesGuestIds, $checkedInGuestIds);
+            $rsvpYesAndCheckin = count($rsvpYesAndCheckinIds);
+            
+            // Calculate rate based on total guests who RSVP'd "Yes"
+            $rsvpYesAndCheckinRate = count($rsvpYesGuestIds) > 0 ? 
+                round(($rsvpYesAndCheckin / count($rsvpYesGuestIds)) * 100, 1) : 0;
+        }
+        
+        // Calculate overall engagement: unique guests who either RSVP'd OR checked in
+        $engagedGuestIds = [];
+        
+        if ($event->rsvp_enabled) {
+            $rsvpGuestIds = $event->invitations()
+                ->whereNotNull('rsvp_status')
+                ->where('rsvp_status', '!=', 'none')
+                ->distinct('guest_id')
+                ->pluck('guest_id')
+                ->toArray();
+            $engagedGuestIds = array_merge($engagedGuestIds, $rsvpGuestIds);
+        }
+        
+        if ($event->qr_checkin_enabled) {
+            $checkedInGuestIds = $event->eventGuests()
+                ->where('checked_in', true)
+                ->pluck('guest_id')
+                ->toArray();
+            $engagedGuestIds = array_merge($engagedGuestIds, $checkedInGuestIds);
+        }
+        
+        $uniqueEngagedGuests = count(array_unique($engagedGuestIds));
+        $overallEngagementRate = $totalGuests > 0 ? round(($uniqueEngagedGuests / $totalGuests) * 100, 1) : 0;
         
         return [
             'total_guests' => $totalGuests,
             'rsvp_engagement' => $rsvpResponses,
             'checkin_engagement' => $checkins,
-            'overall_engagement_rate' => $totalGuests > 0 ? round((($rsvpResponses + $checkins) / ($totalGuests * 2)) * 100, 1) : 0,
-            'rsvp_engagement_rate' => $totalGuests > 0 ? round(($rsvpResponses / $totalGuests) * 100, 1) : 0,
-            'checkin_engagement_rate' => $totalGuests > 0 ? round(($checkins / $totalGuests) * 100, 1) : 0,
+            'overall_engagement_rate' => $overallEngagementRate,
+            'rsvp_engagement_rate' => $rsvpEngagementRate,
+            'checkin_engagement_rate' => $checkinEngagementRate,
+            'rsvp_yes_and_checkin' => $rsvpYesAndCheckin,
+            'rsvp_yes_and_checkin_rate' => $rsvpYesAndCheckinRate,
         ];
     }
 

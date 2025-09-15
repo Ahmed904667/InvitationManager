@@ -9,7 +9,7 @@
             <div>
                 <h1 class="text-3xl font-bold text-gray-900 mb-2">Notification Status</h1>
                 <p class="text-gray-600">{{ $event->name }}</p>
-                <a href="{{ route('organizer.events.show', $event) }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                <a href="{{ route('organizer.events.show', $event) }}" class="text-primary-600 hover:text-primary-800 text-sm">
                     ← Back to Event
                 </a>
             </div>

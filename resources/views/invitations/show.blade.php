@@ -158,10 +158,8 @@
             </div>
         @endif
 
-        <!-- QR and Calendar Cards - Show only for "yes" or "maybe" RSVPs -->
-        @if($currentRsvp === 'yes' || $currentRsvp === 'maybe')
-            <!-- QR Check-in Card -->
-            @if($event->qr_checkin_enabled)
+        <!-- QR Check-in Card - Show when QR check-in is enabled and (RSVP disabled OR user RSVP'd yes/maybe) -->
+        @if($event->qr_checkin_enabled && (!$rsvpEnabled || $currentRsvp === 'yes' || $currentRsvp === 'maybe'))
             <div class="bg-white/80 backdrop-blur-sm p-8 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300 text-center">
                 <div class="flex items-center justify-center mb-6">
                     <div class="p-3 bg-indigo-100 rounded-2xl mr-4">
@@ -192,7 +190,8 @@
             </div>
             @endif
 
-            <!-- Calendar Card -->
+        <!-- Calendar Card - Show when RSVP is disabled OR (RSVP enabled and user has responded "yes" or "maybe") -->
+        @if(!$rsvpEnabled || ($rsvpEnabled && ($currentRsvp === 'yes' || $currentRsvp === 'maybe')))
             <div class="bg-white/80 backdrop-blur-sm p-8 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <div class="flex items-center mb-6">
                     <div class="p-3 bg-green-100 rounded-2xl mr-4">
@@ -417,6 +416,7 @@
             @endif
         </div>
 
+        @if($rsvpEnabled)
             <div class="bg-white/80 backdrop-blur-sm p-8 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <div class="flex items-center mb-6">
                     <div class="p-3 bg-purple-100 rounded-2xl mr-4">
@@ -430,21 +430,6 @@
                     </div>
                 </div>
 
-            @if(!$rsvpEnabled)
-                    <div class="p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-sm">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-blue-800 font-medium">RSVP is not required for this event.</p>
-                                <p class="text-blue-700 text-sm mt-1">Just show up and enjoy!</p>
-                            </div>
-                        </div>
-                </div>
-            @else
                 @if((isset($isPreview) && $isPreview))
                     <!-- Preview Mode - RSVP Form Disabled -->
                     <div class="p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-sm">
@@ -624,8 +609,8 @@
                     </div>
                 </form>
                 @endif
-            @endif
         </div>
+        @endif
 
         <!-- Old QR and Calendar sections removed - now moved to top between About Event and Location -->
 

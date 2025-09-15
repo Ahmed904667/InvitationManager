@@ -125,7 +125,7 @@ Route::get('/invite/{token}', function(string $token) {
         $invitation = \App\Shared\Models\Invitation::findOrFail($invitationId);
         
         // For preview mode, we don't check expiration status
-        $event = \App\Shared\Models\Event::findOrFail($invitation->event_id);
+        $event = \App\Shared\Models\Event::with('user')->findOrFail($invitation->event_id);
         $guest = \App\Shared\Models\Guest::findOrFail($invitation->guest_id);
 
         // Get existing reminders for this invitation (for preview mode)
@@ -152,7 +152,7 @@ Route::get('/invite/{token}', function(string $token) {
         abort(404, 'Invitation not found');
     }
     
-    $event = \App\Shared\Models\Event::find($invitation->event_id);
+    $event = \App\Shared\Models\Event::with('user')->find($invitation->event_id);
     
     if (!$event) {
         abort(404, 'Event not found');

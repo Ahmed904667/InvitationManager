@@ -21,8 +21,10 @@ class OrganizerService
     {
         $user = Auth::user();
         
-        // Get all events for this user
-        $events = $user->events()->with(['invitations', 'eventGuests'])->get();
+        // Get all events for this user with necessary relationships
+        $events = $user->events()
+            ->with(['invitations', 'eventGuests', 'guestLists'])
+            ->get();
         
         $stats = [
             'overview' => $this->getOverviewStats($user, $events),
@@ -35,7 +37,53 @@ class OrganizerService
             'recent_activity' => $this->getRecentActivity($user),
         ];
         
+        // Validate data consistency
+        $stats = $this->validateDataConsistency($stats);
+        
         return $stats;
+    }
+
+    /**
+     * Validate data consistency across all statistics
+     */
+    private function validateDataConsistency(array $stats): array
+    {
+        // Ensure all numeric values are properly formatted
+        $stats['overview'] = $this->sanitizeNumericValues($stats['overview']);
+        $stats['invitation_metrics'] = $this->sanitizeNumericValues($stats['invitation_metrics']);
+        $stats['checkin_analytics'] = $this->sanitizeNumericValues($stats['checkin_analytics']);
+        $stats['guest_engagement'] = $this->sanitizeNumericValues($stats['guest_engagement']);
+        
+        // Validate that percentages don't exceed 100%
+        if (isset($stats['overview']['overall_checkin_rate']) && $stats['overview']['overall_checkin_rate'] > 100) {
+            $stats['overview']['overall_checkin_rate'] = 100;
+        }
+        
+        if (isset($stats['invitation_metrics']['delivery_rate']) && $stats['invitation_metrics']['delivery_rate'] > 100) {
+            $stats['invitation_metrics']['delivery_rate'] = 100;
+        }
+        
+        if (isset($stats['invitation_metrics']['response_rate']) && $stats['invitation_metrics']['response_rate'] > 100) {
+            $stats['invitation_metrics']['response_rate'] = 100;
+        }
+        
+        return $stats;
+    }
+
+    /**
+     * Sanitize numeric values to ensure they're valid numbers
+     */
+    private function sanitizeNumericValues(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_numeric($value)) {
+                $data[$key] = (float) $value;
+            } elseif (is_array($value)) {
+                $data[$key] = $this->sanitizeNumericValues($value);
+            }
+        }
+        
+        return $data;
     }
 
     /**
@@ -45,20 +93,30 @@ class OrganizerService
     {
         $totalEvents = $events->count();
         $totalGuestLists = $user->guestLists()->count();
-        $totalGuests = $user->guestLists()->withCount('guests')->get()->sum('guests_count');
+        
+        // Calculate total guests across all events (using EventGuest to be consistent with check-ins)
+        $totalGuests = $events->sum(function($event) {
+            return $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count();
+        });
         
         // Calculate total invitations sent
         $totalInvitationsSent = $events->sum(function($event) {
             return $event->invitations()->where('status', 'sent')->count();
         });
         
-        // Calculate total check-ins across all events
-        $totalCheckins = $events->sum(function($event) {
+        // Calculate total check-ins across all events (only for events with QR check-in enabled)
+        $totalCheckins = $events->where('qr_checkin_enabled', true)->sum(function($event) {
             return $event->eventGuests()->where('checked_in', true)->count();
         });
         
-        // Calculate overall check-in rate
-        $overallCheckinRate = $totalGuests > 0 ? round(($totalCheckins / $totalGuests) * 100, 1) : 0;
+        // Calculate overall check-in rate (only for events with QR check-in enabled)
+        $checkinEnabledGuests = $events->where('qr_checkin_enabled', true)->sum(function($event) {
+            return $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count();
+        });
+        $overallCheckinRate = $checkinEnabledGuests > 0 ? round(($totalCheckins / $checkinEnabledGuests) * 100, 1) : 0;
+        
+        // Count active events (running, scheduled, but not completed, draft, or cancelled)
+        $activeEvents = $events->whereNotIn('status', ['completed', 'draft', 'cancelled'])->count();
         
         return [
             'total_events' => $totalEvents,
@@ -67,7 +125,7 @@ class OrganizerService
             'total_invitations_sent' => $totalInvitationsSent,
             'total_checkins' => $totalCheckins,
             'overall_checkin_rate' => $overallCheckinRate,
-            'active_events' => $events->where('status', 'active')->count(),
+            'active_events' => $activeEvents,
             'completed_events' => $events->where('status', 'completed')->count(),
         ];
     }
@@ -78,22 +136,46 @@ class OrganizerService
     private function getEventPerformanceStats($events): array
     {
         $performanceData = [];
+        $user = Auth::user();
+        $userTimezone = $user->timezone ?? 'UTC';
         
         foreach ($events as $event) {
             $totalGuests = $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count();
-            $checkedInGuests = $event->eventGuests()->where('checked_in', true)->count();
-            $checkinRate = $totalGuests > 0 ? round(($checkedInGuests / $totalGuests) * 100, 1) : 0;
+            
+            // Only calculate check-in data if QR check-in is enabled
+            $checkedInGuests = 0;
+            $checkinRate = 0;
+            if ($event->qr_checkin_enabled) {
+                $checkedInGuests = $event->eventGuests()->where('checked_in', true)->count();
+                $checkinRate = $totalGuests > 0 ? round(($checkedInGuests / $totalGuests) * 100, 1) : 0;
+            }
+            
+            // Only calculate RSVP data if RSVP is enabled
+            $rsvpResponses = 0;
+            if ($event->rsvp_enabled) {
+                // Count unique guests who have responded (not total invitations)
+                $rsvpResponses = $event->invitations()
+                    ->whereNotNull('rsvp_status')
+                    ->where('rsvp_status', '!=', \App\Shared\Models\Invitation::RSVP_NONE)
+                    ->distinct('guest_id')
+                    ->count('guest_id');
+            }
+            
+            // Convert start_date to user's timezone
+            $startDate = $event->start_date ? $event->start_date->setTimezone($userTimezone) : null;
             
             $performanceData[] = [
                 'event_id' => $event->id,
                 'event_name' => $event->name,
-                'start_date' => $event->start_date,
+                'start_date' => $startDate,
                 'status' => $event->status,
                 'total_guests' => $totalGuests,
                 'checked_in_guests' => $checkedInGuests,
                 'checkin_rate' => $checkinRate,
+                'qr_checkin_enabled' => $event->qr_checkin_enabled,
+                'rsvp_enabled' => $event->rsvp_enabled,
                 'invitations_sent' => $event->invitations()->where('status', 'sent')->count(),
-                'rsvp_responses' => $event->invitations()->whereNotNull('rsvp_status')->where('rsvp_status', '!=', 'none')->count(),
+                'rsvp_responses' => $rsvpResponses,
             ];
         }
         
@@ -114,27 +196,50 @@ class OrganizerService
         $sentInvitations = 0;
         $failedInvitations = 0;
         $expiredInvitations = 0;
+        $whatsappInvitations = 0;
+        $emailInvitations = 0;
         $rsvpResponses = 0;
         $rsvpYes = 0;
         $rsvpNo = 0;
         $rsvpMaybe = 0;
         
         foreach ($events as $event) {
-            $invitations = $event->invitations();
+            // Use fresh relationship queries for each count
+            $totalInvitations += $event->invitations()->count();
+            $sentInvitations += $event->invitations()->where('status', \App\Shared\Models\Invitation::STATUS_SENT)->count();
+            $failedInvitations += $event->invitations()->where('status', \App\Shared\Models\Invitation::STATUS_FAILED)->count();
+            $expiredInvitations += $event->invitations()->where('status', \App\Shared\Models\Invitation::STATUS_EXPIRED)->count();
             
-            $totalInvitations += $invitations->count();
-            $sentInvitations += $invitations->where('status', 'sent')->count();
-            $failedInvitations += $invitations->where('status', 'failed')->count();
-            $expiredInvitations += $invitations->where('status', 'expired')->count();
+            // Count invitations by channel (with flexible matching)
+            $whatsappCount = $event->invitations()->where('status', \App\Shared\Models\Invitation::STATUS_SENT)->where(function($query) {
+                $query->where('channel', 'whatsapp')
+                      ->orWhere('channel', 'WhatsApp')
+                      ->orWhere('channel', 'whatsapp_business')
+                      ->orWhere('channel', 'WHATSAPP');
+            })->count();
             
-            $rsvpResponses += $invitations->whereNotNull('rsvp_status')->where('rsvp_status', '!=', 'none')->count();
-            $rsvpYes += $invitations->where('rsvp_status', 'yes')->count();
-            $rsvpNo += $invitations->where('rsvp_status', 'no')->count();
-            $rsvpMaybe += $invitations->where('rsvp_status', 'maybe')->count();
+            $emailCount = $event->invitations()->where('status', \App\Shared\Models\Invitation::STATUS_SENT)->where(function($query) {
+                $query->where('channel', 'email')
+                      ->orWhere('channel', 'Email')
+                      ->orWhere('channel', 'EMAIL')
+                      ->orWhere('channel', 'email_smtp');
+            })->count();
+            
+            
+            $whatsappInvitations += $whatsappCount;
+            $emailInvitations += $emailCount;
+            
+            // Only count RSVP responses if RSVP is enabled for this event
+            if ($event->rsvp_enabled) {
+                // Count unique guests who have responded (not total invitations)
+                $rsvpResponses += $event->invitations()->whereNotNull('rsvp_status')->where('rsvp_status', '!=', \App\Shared\Models\Invitation::RSVP_NONE)->distinct('guest_id')->count('guest_id');
+                $rsvpYes += $event->invitations()->where('rsvp_status', \App\Shared\Models\Invitation::RSVP_YES)->distinct('guest_id')->count('guest_id');
+                $rsvpNo += $event->invitations()->where('rsvp_status', \App\Shared\Models\Invitation::RSVP_NO)->distinct('guest_id')->count('guest_id');
+                $rsvpMaybe += $event->invitations()->where('rsvp_status', \App\Shared\Models\Invitation::RSVP_MAYBE)->distinct('guest_id')->count('guest_id');
+            }
         }
         
         $deliveryRate = $totalInvitations > 0 ? round(($sentInvitations / $totalInvitations) * 100, 1) : 0;
-        $responseRate = $sentInvitations > 0 ? round(($rsvpResponses / $sentInvitations) * 100, 1) : 0;
         
         return [
             'total_invitations' => $totalInvitations,
@@ -142,11 +247,12 @@ class OrganizerService
             'failed_invitations' => $failedInvitations,
             'expired_invitations' => $expiredInvitations,
             'delivery_rate' => $deliveryRate,
+            'whatsapp_invitations' => $whatsappInvitations,
+            'email_invitations' => $emailInvitations,
             'rsvp_responses' => $rsvpResponses,
             'rsvp_yes' => $rsvpYes,
             'rsvp_no' => $rsvpNo,
             'rsvp_maybe' => $rsvpMaybe,
-            'response_rate' => $responseRate,
         ];
     }
 
@@ -161,11 +267,22 @@ class OrganizerService
         $checkinTrends = [];
         
         foreach ($events as $event) {
+            // For summary: include guests from events with either QR check-in OR RSVP enabled
+            // For individual event data: only include events with QR check-in enabled
             $eventGuests = $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE);
             $eventTotalGuests = $eventGuests->count();
-            $eventCheckins = $eventGuests->where('checked_in', true)->count();
             
-            $totalGuests += $eventTotalGuests;
+            // Always add to total guests if event has RSVP or QR check-in enabled
+            if ($event->rsvp_enabled || $event->qr_checkin_enabled) {
+                $totalGuests += $eventTotalGuests;
+            }
+            
+            // Only process check-in data for events with QR check-in enabled
+            if (!$event->qr_checkin_enabled) {
+                continue;
+            }
+            
+            $eventCheckins = $eventGuests->where('checked_in', true)->count();
             $totalCheckins += $eventCheckins;
             
             if ($eventTotalGuests > 0) {
@@ -209,38 +326,95 @@ class OrganizerService
     private function getGuestEngagementStats($events): array
     {
         $totalGuests = 0;
-        $engagedGuests = 0;
         $rsvpEngagement = 0;
         $checkinEngagement = 0;
+        $rsvpYesAndCheckin = 0;
+        $rsvpEnabledEvents = 0;
+        $checkinEnabledEvents = 0;
+        $bothEnabledEvents = 0;
+        $rsvpYesCount = 0;
         
         foreach ($events as $event) {
             $eventGuests = $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE);
             $eventTotalGuests = $eventGuests->count();
-            $eventCheckins = $eventGuests->where('checked_in', true)->count();
             
             $totalGuests += $eventTotalGuests;
-            $checkinEngagement += $eventCheckins;
             
-            // Count RSVP responses
-            $rsvpResponses = $event->invitations()
-                ->whereNotNull('rsvp_status')
-                ->where('rsvp_status', '!=', 'none')
-                ->count();
+            // Count RSVP responses only if RSVP is enabled for this event
+            if ($event->rsvp_enabled) {
+                $rsvpEnabledEvents++;
+                // Count unique guests who have responded (not total invitations)
+                $rsvpResponses = $event->invitations()
+                    ->whereNotNull('rsvp_status')
+                    ->where('rsvp_status', '!=', \App\Shared\Models\Invitation::RSVP_NONE)
+                    ->distinct('guest_id')
+                    ->count('guest_id');
+                
+                $rsvpEngagement += $rsvpResponses;
+            }
             
-            $rsvpEngagement += $rsvpResponses;
+            // Count check-ins only if QR check-in is enabled for this event
+            if ($event->qr_checkin_enabled) {
+                $checkinEnabledEvents++;
+                $eventCheckins = $eventGuests->where('checked_in', true)->count();
+                $checkinEngagement += $eventCheckins;
+            }
+            
+            // Calculate RSVP Yes + Check-in for events with both features enabled
+            if ($event->rsvp_enabled && $event->qr_checkin_enabled) {
+                $bothEnabledEvents++;
+                
+                // Get guests who RSVP'd "Yes"
+                $rsvpYesGuestIds = $event->invitations()
+                    ->where('rsvp_status', \App\Shared\Models\Invitation::RSVP_YES)
+                    ->distinct('guest_id')
+                    ->pluck('guest_id')
+                    ->toArray();
+                
+                $rsvpYesCount += count($rsvpYesGuestIds);
+                
+                // Get guests who checked in
+                $checkedInGuestIds = $eventGuests->where('checked_in', true)->pluck('guest_id')->toArray();
+                
+                // Find intersection: guests who both RSVP'd "Yes" AND checked in
+                $rsvpYesAndCheckinIds = array_intersect($rsvpYesGuestIds, $checkedInGuestIds);
+                $rsvpYesAndCheckin += count($rsvpYesAndCheckinIds);
+            }
         }
         
-        $engagementRate = $totalGuests > 0 ? round((($rsvpEngagement + $checkinEngagement) / ($totalGuests * 2)) * 100, 1) : 0;
-        $rsvpRate = $totalGuests > 0 ? round(($rsvpEngagement / $totalGuests) * 100, 1) : 0;
-        $checkinRate = $totalGuests > 0 ? round(($checkinEngagement / $totalGuests) * 100, 1) : 0;
+        // Calculate RSVP Yes + Check-in rate (for events with both features enabled)
+        $rsvpYesAndCheckinRate = 0;
+        if ($bothEnabledEvents > 0 && $rsvpYesCount > 0) {
+            $rsvpYesAndCheckinRate = round(($rsvpYesAndCheckin / $rsvpYesCount) * 100, 1);
+        }
+        
+        // Calculate RSVP engagement rate only for events with RSVP enabled
+        $rsvpEngagementRate = 0;
+        if ($rsvpEnabledEvents > 0) {
+            $rsvpEnabledGuests = $events->where('rsvp_enabled', true)->sum(function($event) {
+                return $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count();
+            });
+            $rsvpEngagementRate = $rsvpEnabledGuests > 0 ? round(($rsvpEngagement / $rsvpEnabledGuests) * 100, 1) : 0;
+        }
+        
+        // Calculate check-in engagement rate only for events with QR check-in enabled
+        $checkinEngagementRate = 0;
+        if ($checkinEnabledEvents > 0) {
+            $checkinEnabledGuests = $events->where('qr_checkin_enabled', true)->sum(function($event) {
+                return $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count();
+            });
+            $checkinEngagementRate = $checkinEnabledGuests > 0 ? round(($checkinEngagement / $checkinEnabledGuests) * 100, 1) : 0;
+        }
         
         return [
             'total_guests' => $totalGuests,
-            'engagement_rate' => $engagementRate,
-            'rsvp_rate' => $rsvpRate,
-            'checkin_rate' => $checkinRate,
+            'overall_engagement_rate' => $rsvpYesAndCheckinRate, // Changed to RSVP Yes + Check-in rate
+            'rsvp_engagement_rate' => $rsvpEngagementRate,
+            'checkin_engagement_rate' => $checkinEngagementRate,
             'rsvp_engagement' => $rsvpEngagement,
             'checkin_engagement' => $checkinEngagement,
+            'rsvp_yes_and_checkin' => $rsvpYesAndCheckin,
+            'rsvp_yes_count' => $rsvpYesCount,
         ];
     }
 
@@ -249,15 +423,17 @@ class OrganizerService
      */
     private function getRecentActivity($user): array
     {
+        $userTimezone = $user->timezone ?? 'UTC';
+        
         $recentEvents = $user->events()
             ->latest('start_date')
             ->take(5)
             ->get()
-            ->map(function($event) {
+            ->map(function($event) use ($userTimezone) {
                 return [
                     'id' => $event->id,
                     'name' => $event->name,
-                    'start_date' => $event->start_date,
+                    'start_date' => $event->start_date ? $event->start_date->setTimezone($userTimezone) : null,
                     'status' => $event->status,
                 ];
             });
@@ -266,11 +442,11 @@ class OrganizerService
             ->latest('created_at')
             ->take(5)
             ->get()
-            ->map(function($guestList) {
+            ->map(function($guestList) use ($userTimezone) {
                 return [
                     'id' => $guestList->id,
                     'name' => $guestList->name,
-                    'created_at' => $guestList->created_at,
+                    'created_at' => $guestList->created_at ? $guestList->created_at->setTimezone($userTimezone) : null,
                 ];
             });
         
@@ -286,22 +462,52 @@ class OrganizerService
     private function getCompletedEventsForReports($events): array
     {
         $completedEvents = [];
+        $user = Auth::user();
+        $userTimezone = $user->timezone ?? 'UTC';
+        
         foreach ($events as $event) {
             // Check both status and dates to ensure we catch all completed events
             if ($event->status === 'completed' || $event->isCompleted()) {
+                // Convert dates to user's timezone
+                $startDate = $event->start_date ? $event->start_date->setTimezone($userTimezone) : null;
+                $endDate = $event->end_date ? $event->end_date->setTimezone($userTimezone) : null;
+                
+                $totalGuests = $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count();
+                
+                // Only calculate check-in data if QR check-in is enabled
+                $checkedInGuests = 0;
+                $checkinRate = 0;
+                if ($event->qr_checkin_enabled) {
+                    $checkedInGuests = $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->where('checked_in', true)->count();
+                    $checkinRate = $totalGuests > 0 ? round(($checkedInGuests / $totalGuests) * 100, 1) : 0;
+                }
+                
+                // Only calculate RSVP data if RSVP is enabled
+                $rsvpResponses = 0;
+                $rsvpYes = 0;
+                $rsvpNo = 0;
+                $rsvpMaybe = 0;
+                if ($event->rsvp_enabled) {
+                    // Count unique guests who have responded (not total invitations)
+                    $rsvpResponses = $event->invitations()->whereNotNull('rsvp_status')->where('rsvp_status', '!=', \App\Shared\Models\Invitation::RSVP_NONE)->distinct('guest_id')->count('guest_id');
+                    $rsvpYes = $event->invitations()->where('rsvp_status', \App\Shared\Models\Invitation::RSVP_YES)->distinct('guest_id')->count('guest_id');
+                    $rsvpNo = $event->invitations()->where('rsvp_status', \App\Shared\Models\Invitation::RSVP_NO)->distinct('guest_id')->count('guest_id');
+                    $rsvpMaybe = $event->invitations()->where('rsvp_status', \App\Shared\Models\Invitation::RSVP_MAYBE)->distinct('guest_id')->count('guest_id');
+                }
+                
                 $completedEvents[] = [
                     'id' => $event->id,
                     'name' => $event->name,
-                    'start_date' => $event->start_date,
-                    'end_date' => $event->end_date,
-                    'total_guests' => $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count(),
-                    'checked_in_guests' => $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->where('checked_in', true)->count(),
-                    'checkin_rate' => $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count() > 0 ? round(($event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->where('checked_in', true)->count() / $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count()) * 100, 1) : 0,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'total_guests' => $totalGuests,
+                    'checked_in_guests' => $checkedInGuests,
+                    'checkin_rate' => $checkinRate,
                     'invitations_sent' => $event->invitations()->where('status', 'sent')->count(),
-                    'rsvp_responses' => $event->invitations()->whereNotNull('rsvp_status')->where('rsvp_status', '!=', 'none')->count(),
-                    'rsvp_yes' => $event->invitations()->where('rsvp_status', 'yes')->count(),
-                    'rsvp_no' => $event->invitations()->where('rsvp_status', 'no')->count(),
-                    'rsvp_maybe' => $event->invitations()->where('rsvp_status', 'maybe')->count(),
+                    'rsvp_responses' => $rsvpResponses,
+                    'rsvp_yes' => $rsvpYes,
+                    'rsvp_no' => $rsvpNo,
+                    'rsvp_maybe' => $rsvpMaybe,
                 ];
             }
         }

@@ -20,8 +20,9 @@ class InvitationStatusService
             'failed' => $event->invitations()->whereIn('status', ['failed', 'undelivered', 'canceled', 'bounced'])->count(),
         ];
         
-        // For scheduled/sent events, replace queued count with virtual queued invitations
-        if (in_array($event->status, ['scheduled', 'sent'])) {
+        // For scheduled events, show virtual queued invitations
+        // For sent events, only show virtual queued if there are actual queued invitations
+        if ($event->status === 'scheduled' || ($event->status === 'sent' && $actualStats['queued'] > 0)) {
             $virtualQueuedCount = $this->getVirtualQueuedCount($event);
             $actualStats['queued'] = $virtualQueuedCount; // Replace instead of adding
         }
@@ -34,22 +35,39 @@ class InvitationStatusService
      */
     public function getAllInvitations(Event $event): \Illuminate\Support\Collection
     {
-        // Get actual invitations from database
+        // Get removed guest IDs to exclude them from regular invitations
+        $removedGuestIds = $event->eventGuests()
+            ->where('status', EventGuest::STATUS_REMOVED)
+            ->pluck('guest_id')
+            ->toArray();
+        
+        // Get actual invitations from database, excluding removed guests
         $actualInvitations = $event->invitations()
             ->with(['guest'])
+            ->whereNotIn('guest_id', $removedGuestIds)
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy('channel');
+            ->get();
         
-        // For scheduled/sent events, create virtual "queued" invitations for event guests
+        // For scheduled events, create virtual "queued" invitations for event guests
+        // For sent events, only create virtual invitations if there are actual queued invitations
         $virtualInvitations = collect();
-        if (in_array($event->status, ['scheduled', 'sent'])) {
+        $hasActualQueued = $event->invitations()->whereIn('status', ['queued', 'sending', 'pending'])->exists();
+        
+        if ($event->status === 'scheduled' || ($event->status === 'sent' && $hasActualQueued)) {
             $virtualInvitations = $this->createVirtualInvitations($event);
         }
         
-        // Merge actual and virtual invitations
-        $allInvitations = $actualInvitations->flatten()->concat($virtualInvitations);
+        // Merge only active and virtual invitations, group by channel
+        $allInvitations = $actualInvitations->concat($virtualInvitations);
         return $allInvitations->groupBy('channel');
+    }
+    
+    /**
+     * Get removed guest invitations separately
+     */
+    public function getRemovedGuestInvitationsGrouped(Event $event): \Illuminate\Support\Collection
+    {
+        return $this->getRemovedGuestInvitations($event)->groupBy('channel');
     }
     
     /**
@@ -97,6 +115,40 @@ class InvitationStatusService
         }
         
         return $virtualInvitations;
+    }
+    
+    /**
+     * Get invitations for removed guests
+     */
+    private function getRemovedGuestInvitations(Event $event): \Illuminate\Support\Collection
+    {
+        $removedInvitations = collect();
+        
+        // Get removed event guests
+        $removedEventGuests = $event->eventGuests()
+            ->where('status', EventGuest::STATUS_REMOVED)
+            ->with('guest')
+            ->get();
+        
+        foreach ($removedEventGuests as $eventGuest) {
+            $guest = $eventGuest->guest;
+            if ($guest) {
+                // Get actual invitations for this guest
+                $guestInvitations = $event->invitations()
+                    ->where('guest_id', $guest->id)
+                    ->get();
+                
+                // Mark each invitation as from a removed guest
+                foreach ($guestInvitations as $invitation) {
+                    $invitation->is_removed_guest = true;
+                    $invitation->removed_at = $eventGuest->removed_at;
+                    $invitation->removal_reason = $eventGuest->removal_reason;
+                    $removedInvitations->push($invitation);
+                }
+            }
+        }
+        
+        return $removedInvitations;
     }
     
     /**
