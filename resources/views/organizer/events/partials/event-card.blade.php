@@ -59,7 +59,8 @@
             <p class="text-lg font-bold text-primary">
                 @if($isCompleted)
                     @php
-                        $attendedCount = $event->invitations->where('rsvp_status', 'yes')->count();
+                        // Count actual check-ins, not RSVP responses
+                        $attendedCount = $event->eventGuests()->where('checked_in', true)->count();
                     @endphp
                     {{ $attendedCount }}
                 @else

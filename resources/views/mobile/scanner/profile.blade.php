@@ -991,23 +991,9 @@ function updateAnalyticsDisplay(analytics) {
     document.getElementById('todayCheckins').textContent = analytics.today_checkins;
     document.getElementById('peakHour').textContent = analytics.peak_hour;
     
-    // Update last used time with organizer's timezone conversion
+    // Update last used time (already formatted from backend)
     if (analytics.last_used) {
-        try {
-            const lastUsedDate = new Date(analytics.last_used);
-            const localTime = lastUsedDate.toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true,
-                timeZone: organizerTimezone
-            });
-            document.getElementById('lastUsedDisplay').textContent = localTime;
-        } catch (error) {
-            console.error('Error converting last used time:', error);
-            document.getElementById('lastUsedDisplay').textContent = analytics.last_used;
-        }
+        document.getElementById('lastUsedDisplay').textContent = analytics.last_used;
     } else {
         document.getElementById('lastUsedDisplay').textContent = 'Never';
     }

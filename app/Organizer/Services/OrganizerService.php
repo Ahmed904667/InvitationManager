@@ -94,10 +94,8 @@ class OrganizerService
         $totalEvents = $events->count();
         $totalGuestLists = $user->guestLists()->count();
         
-        // Calculate total guests across all events (using EventGuest to be consistent with check-ins)
-        $totalGuests = $events->sum(function($event) {
-            return $event->eventGuests()->where('status', \App\EventGuest::STATUS_ACTIVE)->count();
-        });
+        // Calculate total guests across all guest lists (not events)
+        $totalGuests = $user->guestLists()->withCount('guests')->get()->sum('guests_count');
         
         // Calculate total invitations sent
         $totalInvitationsSent = $events->sum(function($event) {

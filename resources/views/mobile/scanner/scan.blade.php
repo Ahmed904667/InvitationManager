@@ -637,7 +637,7 @@
 @push('scripts')
 <script>
 const scannerToken = '{{ $scanner->token }}';
-const scannerTimezone = '{{ $scanner->getTimezone() }}';
+const scannerTimezone = '{{ $organizerTimezone }}';
 let qrScanner = null;
 let isScanning = false;
 let flashlightOn = false;

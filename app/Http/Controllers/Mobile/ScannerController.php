@@ -100,8 +100,9 @@ class ScannerController extends Controller
         }
         
         $event = $scanner->event;
+        $organizerTimezone = $scanner->event->user->timezone ?? 'UTC';
         
-        return view('mobile.scanner.scan', compact('scanner', 'event'));
+        return view('mobile.scanner.scan', compact('scanner', 'event', 'organizerTimezone'));
     }
 
     /**
@@ -116,6 +117,7 @@ class ScannerController extends Controller
         }
         
         $event = $scanner->event;
+        $organizerTimezone = $scanner->event->user->timezone ?? 'UTC';
         $search = $request->get('search', '');
         
         // Get all guests for this event with their check-in status from event_guest table
@@ -174,7 +176,7 @@ class ScannerController extends Controller
             $groupedGuests['All Guests'] = $guests;
         }
         
-        return view('mobile.scanner.guests', compact('scanner', 'event', 'groupedGuests', 'search', 'showGroups'));
+        return view('mobile.scanner.guests', compact('scanner', 'event', 'groupedGuests', 'search', 'showGroups', 'organizerTimezone'));
     }
 
     /**
@@ -187,6 +189,9 @@ class ScannerController extends Controller
         if (!$scanner) {
             return response()->json(['error' => 'Scanner not found'], 404);
         }
+        
+        // Update scanner's last used timestamp
+        $scanner->update(['last_used_at' => now()]);
         
         $request->validate([
             'qr_data' => 'required|string'
@@ -265,7 +270,7 @@ class ScannerController extends Controller
             ->first();
         
         $isCheckedIn = $eventGuest ? $eventGuest->isCheckedIn() : false;
-        $checkedInAt = $eventGuest && $eventGuest->checked_in_at ? $eventGuest->checked_in_at->format('Y-m-d H:i:s') : null;
+        $checkedInAt = $eventGuest && $eventGuest->checked_in_at ? $eventGuest->checked_in_at->toISOString() : null;
         $scannerName = $eventGuest ? $eventGuest->scanner_name : null;
         
         return response()->json([
@@ -292,6 +297,9 @@ class ScannerController extends Controller
         if (!$scanner) {
             return response()->json(['error' => 'Scanner not found'], 404);
         }
+        
+        // Update scanner's last used timestamp
+        $scanner->update(['last_used_at' => now()]);
         
         $request->validate([
             'guest_id' => 'required|exists:guests,id',
@@ -328,7 +336,7 @@ class ScannerController extends Controller
                 'message' => 'Guest checked in successfully',
                 'guest' => [
                     'name' => $guest->name,
-                    'checked_in_at' => $scanner->toScannerTimezone($eventGuest->checked_in_at)->format('Y-m-d H:i:s'),
+                    'checked_in_at' => $eventGuest->checked_in_at->toISOString(),
                     'scanner_name' => $eventGuest->scanner_name
                 ]
             ]);
@@ -351,12 +359,14 @@ class ScannerController extends Controller
             abort(404, 'Scanner not found or inactive');
         }
         
+        $organizerTimezone = $scanner->event->user->timezone ?? 'UTC';
+        
         $stats = [
             'total_checkins' => \App\EventGuest::where('scanned_by_scanner_id', $scanner->id)
                 ->where('checked_in', true)
                 ->count(),
             'scanner_name' => $scanner->name,
-            'last_used' => $scanner->last_used_at ? $scanner->toScannerTimezone($scanner->last_used_at)->toISOString() : null,
+            'last_used' => $scanner->last_used_at ? $scanner->last_used_at->setTimezone($organizerTimezone)->format('M j, g:i A') : null,
             'event_name' => $scanner->event->name
         ];
         
@@ -366,8 +376,6 @@ class ScannerController extends Controller
             ->orderBy('checked_in_at', 'desc')
             ->limit(10)
             ->get();
-        
-        $organizerTimezone = $scanner->event->user->timezone ?? 'UTC';
         
         return view('mobile.scanner.profile', compact('scanner', 'stats', 'recentCheckIns', 'organizerTimezone'));
     }
@@ -898,6 +906,9 @@ class ScannerController extends Controller
             return response()->json(['error' => 'Scanner not found'], 404);
         }
         
+        // Update scanner's last used timestamp
+        $scanner->update(['last_used_at' => now()]);
+        
         // Get organizer's timezone instead of scanner's timezone
         $organizerTimezone = $scanner->event->user->timezone ?? 'UTC';
         $currentTime = now()->setTimezone($organizerTimezone);
@@ -933,6 +944,7 @@ class ScannerController extends Controller
                 'total_checkins' => $totalCheckins,
                 'today_checkins' => $recentCheckins,
                 'peak_hour' => $peakHour,
+                'last_used' => $scanner->last_used_at ? $scanner->last_used_at->setTimezone($organizerTimezone)->format('M j, g:i A') : null,
                 'organizer_timezone' => $organizerTimezone
             ]
         ]);

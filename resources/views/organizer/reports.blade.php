@@ -221,9 +221,9 @@
             <h2 class="text-2xl font-bold text-primary mb-6">Recent Events</h2>
             <div class="card">
                 <div class="px-4 py-5 sm:p-6">
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto max-h-96 overflow-y-auto">
                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                            <thead class="bg-gray-50 sticky top-0 z-10">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
