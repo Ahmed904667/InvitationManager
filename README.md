@@ -1,61 +1,151 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Guest Manager Laravel - System Evaluation
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
 
-## About Laravel
+This README provides quick setup instructions for the Guest Manager Laravel system. The system is a comprehensive event guest management platform with automated features, multi-role access, and real-time notifications.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## ⚡ Quick Start (5 minutes)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 1. Prerequisites Check
+Ensure you have:
+- **PHP 8.2+** with required extensions
+- **Composer** installed
+- **Node.js 18+** and **npm**
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-## Learning Laravel
+### 2. Install
+```bash
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+# Install dependencies
+composer install
+npm install
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 3. Environment Setup
+```bash
+# Copy environment file
+cp .env.example .env
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# Generate application key
+php artisan key:generate
+```
 
-## Laravel Sponsors
+### 4. Database Setup
+```bash
+# Create SQLite database (default)
+touch database/database.sqlite
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Run migrations and seed data
+php artisan migrate --seed
+```
 
-### Premium Partners
+### 5. Build and Run
+```bash
+# Build frontend assets
+npm run build
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# Start the application
+php artisan serve
+```
 
-## Contributing
+**Access the system at:** `http://localhost:8000`
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🔑 Test Accounts
 
-## Code of Conduct
+The system comes with pre-seeded test accounts:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-## Security Vulnerabilities
+### Organizer Account
+- **URL:** `http://localhost:8000/organizer`
+- **Email:** `organizer@example.com`
+- **Password:** `password`
+- **Access:** Create events, manage guest lists, send invitations
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4. Automated Features Test
+```bash
+# Start the automated system (in a separate terminal)
+./start-automated-worker.sh
+```
+
+This enables:
+- **Scheduled message processing**
+- **Event auto-completion**
+- **Real-time notifications**
+
+
+## 🔧 Configuration Notes
+
+### Environment Variables
+The system works out-of-the-box with SQLite, but for full SMS functionality:
+
+```env
+# Add to .env file
+TWILIO_SID=your-twilio-sid
+TWILIO_AUTH_TOKEN=your-twilio-token
+TWILIO_PHONE_NUMBER=+1234567890
+
+# For email functionality
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+```
+
+### Database
+- **Default:** SQLite (`database/database.sqlite`)
+- **Alternative:** MySQL/PostgreSQL (update `.env` file)
+
+## 📁 Project Structure
+
+```
+app/
+├── Organizer/          # Event management features
+├── Jobs/              # Background job processing
+├── Services/          # Business logic
+└── Shared/Models/     # Database models
+
+resources/
+├── views/             # Blade templates
+├── css/               # Tailwind CSS
+└── js/                # JavaScript components
+
+database/
+├── migrations/        # Database schema
+└── seeders/          # Test data
+```
+
+## 🚀 Advanced Testing
+
+### Test Automated System
+```bash
+# Start all automated processes
+composer run dev
+```
+
+This runs:
+- Laravel development server
+- Queue worker for background jobs
+- Vite dev server for frontend
+- Log monitoring
+
+### Test Queue Processing
+```bash
+# Process queued jobs manually
+php artisan queue:work --once
+
+# View queue status
+php artisan queue:monitor
+```
+
+### Test Database Operations
+```bash
+# Reset database with fresh data
+php artisan migrate:fresh --seed
+
+# View database content
+php artisan tinker
+# Then: User::all(), Event::all(), etc.
+```
+

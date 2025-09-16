@@ -19,5 +19,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Seed admin, organizer, and scanner users
+        $this->call(AdminUserSeeder::class);
     }
 }
