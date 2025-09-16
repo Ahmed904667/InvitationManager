@@ -608,40 +608,7 @@
             @endif
         </div>
 
-        <!-- Old QR and Calendar sections removed - now moved to top between About Event and Location -->
-
-        @if($rsvpEnabled && $currentRsvp === 'none' && $event->qr_checkin_enabled)
-                <div id="qr-preview" class="bg-white/80 backdrop-blur-sm p-8 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300 text-center hidden">
-                    <div class="flex items-center justify-center mb-6">
-                        <div class="p-3 bg-indigo-100 rounded-2xl mr-4">
-                            <svg class="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM13 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V4zM9 4a1 1 0 000 2v1a1 1 0 001 1h1a1 1 0 100-2V6a1 1 0 00-1-1H9zM9 13a1 1 0 100 2h1a1 1 0 001 1v1a1 1 0 102 0v-1a1 1 0 001-1h1a1 1 0 100-2h-1a1 1 0 00-1-1v-1a1 1 0 10-2 0v1a1 1 0 00-1 1H9z" clip-rule="evenodd"></path>
-                            </svg>
-                        </div>
-                        <h2 class="text-2xl font-bold text-gray-900">QR Check-in Preview</h2>
-                    </div>
-                @php
-                    $qrData = trim($inviteUrl ?? '');
-                        $qrPrimary = $qrData !== '' ? ('https://chart.googleapis.com/chart?cht=qr&chld=L|0&chs=280x280&chl=' . rawurlencode($qrData)) : '';
-                        $qrFallback = $qrData !== '' ? ('https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' . rawurlencode($qrData)) : '';
-                @endphp
-                @if($qrData !== '')
-                        <div class="inline-block p-6 bg-white rounded-2xl shadow-lg border-4 border-indigo-100 mb-6">
-                            <img src="{{ $qrPrimary }}" alt="QR Code" class="mx-auto rounded-xl" onerror="this.onerror=null;this.src='{{ $qrFallback }}';">
-                        </div>
-                @else
-                        <div class="p-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 mb-6">
-                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM13 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V4z" clip-rule="evenodd"></path>
-                            </svg>
-                            <p class="text-gray-500 font-medium">QR code not available</p>
-                        </div>
-                    @endif
-                    <p class="text-gray-600 text-lg leading-relaxed">Show this QR code at the entrance for quick check-in.</p>
-                </div>
-                @endif
-        </div>
-
+       
         <!-- Reminder Modal -->
         <div id="reminderModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4" onclick="closeReminderModal()">
             <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">

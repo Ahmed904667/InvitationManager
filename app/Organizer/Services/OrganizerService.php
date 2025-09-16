@@ -668,6 +668,11 @@ class OrganizerService
 
     public function deleteGuestList(GuestList $guestList): void
     {
+        // Convert all guests to standalone before deleting the list
+        // This preserves all event data (EventGuest records, check-ins, RSVPs, etc.)
+        $guestList->guests()->update(['guest_list_id' => null]);
+        
+        // Now safely delete the guest list
         $guestList->delete();
     }
 

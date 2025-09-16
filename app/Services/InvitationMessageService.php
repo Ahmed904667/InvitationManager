@@ -21,14 +21,14 @@ class InvitationMessageService
     /**
      * Generate invitation message using AI with fallback
      */
-    public function generateInvitationMessage(string $contact, string $name, string $eventType): array
+    public function generateInvitationMessage(string $contact, string $name, string $eventType, ?string $invitationUrl = null): array
     {
         // Generate AI prompt based on contact method
         $contactMethod = $this->detectContactMethod($contact);
         if ($contactMethod === 'whatsapp') {
-            $prompt = $this->generateWhatsAppPrompt($contact, $name, $eventType);
+            $prompt = $this->generateWhatsAppPrompt($contact, $name, $eventType, $invitationUrl);
         } else {
-            $prompt = $this->generatePrompt($contact, $name, $eventType);
+            $prompt = $this->generatePrompt($contact, $name, $eventType, $invitationUrl);
         }
 
         // Try OpenAI first
@@ -168,46 +168,50 @@ class InvitationMessageService
     /**
      * Generate AI prompt
      */
-    private function generatePrompt(string $contact, string $name, string $eventType): string
+    private function generatePrompt(string $contact, string $name, string $eventType, ?string $invitationUrl = null): string
     {
         return <<<EOT
 Please generate a **complete email invitation** with subject line and personalized content based on the event type, detected language, cultural context, and appropriate tone.
 
 CONTACT: {$contact}
-NAME: {$name}
+NAME: {$name} (This is the RECEIVER's name - the person receiving the invitation)
 EVENT TYPE: {$eventType}
+INVITATION URL: {$invitationUrl}
 
 ---
 
 ### INSTRUCTIONS (IMPORTANT):
 1. **NEVER use placeholders or brackets** (like [Number], [Inviter's Name], [Venue], etc.) in the output. 
 If you detect a placeholder or missing info, always fill it with a realistic, culturally-appropriate dummy value. Never output brackets or the word 'placeholder'.
-2. **Detect language** from the event type or name:
+2. **Personalize for the receiver**: Address {$name} directly as the person receiving this invitation. Make it feel like a personal invitation written specifically for them.
+3. **Detect language** from the event type or name:
    - If the event type or name is in English, respond in English.
    - If the text is in another language (e.g., Arabic, French), generate the response in that language.
-3. **Cultural adaptation (be specific):**
+4. **Cultural adaptation (be specific):**
    - For Middle Eastern events, use Arabic names, venues, and customs (e.g., Al Bustan Palace, Muscat; Omar & Layla; Arabic cuisine references).
    - For Western events, use Western names, venues, and customs (e.g., The Grand Ballroom, New York; Emily & John; Western cuisine references).
    - For other regions, adapt names, venues, and customs to fit the detected culture and country code.
-4. **Adapt tone** to both the **event type** and **regional/cultural context**:
+5. **Adapt tone** to both the **event type** and **regional/cultural context**:
    - Example: a birthday in the Middle East should sound warm and family-oriented; a business meeting in Japan should be formal and respectful.
-5. **Generate realistic dummy data** for missing details:
+6. **Generate realistic dummy data** for missing details:
    - **Date:** Use a realistic future date (next 2-4 weeks)
    - **Time:** Use appropriate time for the event type (e.g., 7:00 PM for parties, 9:00 AM for business meetings)
    - **Location:** Create realistic venue names based on event type and culture
    - **Dress code:** Add appropriate dress code if relevant
-   - **RSVP details:** Include realistic contact information
-6. **Use emojis if appropriate** to enhance tone and clarity, but only when culturally acceptable.
-7. **Use one language** - no translations.
-8. **Do not include sender name prefixes** like "Inviter:" or "From:" in the message.
-9. **Format as complete email** with subject line and body.
-10. **Include all essential invitation elements**:
+   - **RSVP details:** Include URL for RSVP response (not contact number)
+7. **Use emojis if appropriate** to enhance tone and clarity, but only when culturally acceptable.
+8. **Use one language** - no translations.
+9. **Do not include sender name prefixes** like "Inviter:" or "From:" in the message.
+10. **Format as complete email** with subject line and body.
+11. **Make it personal and engaging** - avoid generic messages. Write as if you know {$name} personally and are excited to have them attend.
+12. **Include all essential invitation elements**:
     - Compelling subject line
-    - Warm greeting
+    - Warm, personal greeting using {$name}
     - Event details (date, time, location)
     - What to expect
-    - RSVP information
+    - RSVP information with URL (use the INVITATION URL provided above for RSVP)
     - Warm closing
+13. **RSVP Instructions**: When mentioning RSVP, use the exact INVITATION URL provided above. Tell them they can respond through that specific URL, NOT by contacting a specific phone number.
 
 ---
 
@@ -222,7 +226,7 @@ EOT;
     /**
      * Generate WhatsApp AI prompt
      */
-    private function generateWhatsAppPrompt(string $contact, string $name, string $eventType): string
+    private function generateWhatsAppPrompt(string $contact, string $name, string $eventType, ?string $invitationUrl = null): string
     {
         return <<<EOT
 Please generate a **complete WhatsApp invitation message** with a friendly, natural tone,
@@ -231,39 +235,43 @@ Please generate a **complete WhatsApp invitation message** with a friendly, natu
  detected language, cultural context, and appropriate tone.
 
 CONTACT: {$contact}
-NAME: {$name}
+NAME: {$name} (This is the RECEIVER's name - the person receiving the invitation)
 EVENT TYPE: {$eventType}
+INVITATION URL: {$invitationUrl}
 
 ---
 
 ### INSTRUCTIONS (IMPORTANT):
 1. **NEVER use placeholders or brackets** (like [Number], [Inviter's Name], [Venue], etc.) in the output.
  If you detect a placeholder or missing info, always fill it with a realistic, culturally-appropriate dummy value. Never output brackets or the word 'placeholder'.
-2. **Detect language** from the event type or name:
+2. **Personalize for the receiver**: Address {$name} directly as the person receiving this invitation. Make it feel like a personal invitation written specifically for them.
+3. **Detect language** from the event type or name:
    - If the event type or name is in English, respond in English.
    - If the text is in another language (e.g., Arabic, French), generate the response in that language.
-3. **Cultural adaptation (be specific):**
+4. **Cultural adaptation (be specific):**
    - For Middle Eastern events, use Arabic names, venues, and customs (e.g., Al Bustan Palace, Muscat; Omar & Layla; Arabic cuisine references).
    - For Western events, use Western names, venues, and customs (e.g., The Grand Ballroom, New York; Emily & John; Western cuisine references).
    - For other regions, adapt names, venues, and customs to fit the detected culture and country code.
-4. **Adapt tone** to both the **event type** and **regional/cultural context**:
+5. **Adapt tone** to both the **event type** and **regional/cultural context**:
    - Example: a birthday in the Middle East should sound warm and family-oriented; a business meeting in Japan should be formal and respectful.
-5. **Generate realistic dummy data** for missing details:
+6. **Generate realistic dummy data** for missing details:
    - **Date:** Use a realistic future date (next 2-4 weeks)
    - **Time:** Use appropriate time for the event type (e.g., 7:00 PM for parties, 9:00 AM for business meetings)
    - **Location:** Create realistic venue names based on event type and culture
    - **Dress code:** Add appropriate dress code if relevant
-   - **RSVP details:** Include realistic contact information
-6. **Use emojis if appropriate** to enhance tone and clarity, but only when culturally acceptable.
-7. **Use one language** - no translations.
-8. **Do not include sender name prefixes** like "Inviter:" or "From:" in the message.
-9. **Format as a WhatsApp message**: no subject line, use line breaks, keep it concise and friendly, and use sender/receiver roles if it makes sense.
-10. **Include all essential invitation elements**:
-    - Warm greeting
+   - **RSVP details:** Include URL for RSVP response (not contact number)
+7. **Use emojis if appropriate** to enhance tone and clarity, but only when culturally acceptable.
+8. **Use one language** - no translations.
+9. **Do not include sender name prefixes** like "Inviter:" or "From:" in the message.
+10. **Format as a WhatsApp message**: no subject line, use line breaks, keep it concise and friendly, and use sender/receiver roles if it makes sense.
+11. **Make it personal and engaging** - avoid generic messages. Write as if you know {$name} personally and are excited to have them attend.
+12. **Include all essential invitation elements**:
+    - Warm, personal greeting using {$name}
     - Event details (date, time, location)
     - What to expect
-    - RSVP information
+    - RSVP information with URL (use the INVITATION URL provided above for RSVP)
     - Warm closing
+13. **RSVP Instructions**: When mentioning RSVP, use the exact INVITATION URL provided above. Tell them they can respond through that specific URL, NOT by contacting a specific phone number.
 
 ---
 

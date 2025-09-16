@@ -67,35 +67,46 @@ class TrialController extends Controller
         }
 
         try {
-            $invitationMessageService = new InvitationMessageService();
-            $result = $invitationMessageService->generateInvitationMessage(
-                $request->contact,
-                $request->name,
-                $request->event_type
-            );
-
-            if (!$result['success']) {
-                return response()->json($result, 422);
-            }
-
-            // Generate sample event data using AI
+            // Generate sample event data using AI first
             $eventGenerationService = new TrialEventGenerationService();
             $sampleEventData = $eventGenerationService->generateSampleEventData(
                 $request->event_type,
                 $request->name
             );
 
+            // Create trial first to get the invitation URL
             $trial = Trial::create([
                 'contact' => $request->contact,
                 'name' => $request->name,
                 'eventType' => $request->event_type,
-                'contact_method' => $result['contact_method'],
-                'invitation_message' => $result['invitation_message'],
+                'contact_method' => 'pending', // Will be updated after message generation
+                'invitation_message' => '', // Will be updated after message generation
                 'status' => 'pending',
                 'ip_address' => $ip,
                 'user_agent' => $request->userAgent(),
                 'sample_event_data' => $sampleEventData,
                 'invite_token' => Str::random(32)
+            ]);
+
+            // Now generate the invitation message with the actual URL
+            $invitationMessageService = new InvitationMessageService();
+            $result = $invitationMessageService->generateInvitationMessage(
+                $request->contact,
+                $request->name,
+                $request->event_type,
+                $trial->invite_url // Pass the generated invitation URL
+            );
+
+            if (!$result['success']) {
+                // If message generation fails, delete the trial and return error
+                $trial->delete();
+                return response()->json($result, 422);
+            }
+
+            // Update trial with the generated message
+            $trial->update([
+                'contact_method' => $result['contact_method'],
+                'invitation_message' => $result['invitation_message']
             ]);
 
             if ($result['contact_method'] === 'email') {
@@ -105,18 +116,17 @@ class TrialController extends Controller
                     $request->contact,
                     $result['invitation_message'],
                     $result['subject'] ?? null,
-                    $trial->invite_url
+                    null // URL is already included in the message by AI
                 ));
                 // Update status to message_sent after email sent
                 $trial->status = 'message_sent';
                 $trial->save();
             } else {
                 $twilioService = new TwilioService();
-                // Add invite link to WhatsApp message
-                $whatsappMessage = $result['invitation_message'] . "\n\n🔗 View your invitation: " . $trial->invite_url;
+                // Send WhatsApp message (URL is already included by AI)
                 $whatsappSent = $twilioService->sendWhatsAppMessage(
                     $request->contact,
-                    $whatsappMessage
+                    $result['invitation_message']
                 );
                 if ($whatsappSent) {
                     // Update status to message_sent after WhatsApp sent

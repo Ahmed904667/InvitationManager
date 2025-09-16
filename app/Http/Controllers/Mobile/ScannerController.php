@@ -164,7 +164,6 @@ class ScannerController extends Controller
         });
         
         // Group guests by guest group if enabled
-        $groupedGuests = [];
         $settings = $event->guestLists->first()->settings ?? [];
         $showGroups = $settings['fields']['group'] ?? false;
         
@@ -173,7 +172,7 @@ class ScannerController extends Controller
                 return $guest->guestGroup ? $guest->guestGroup->name : 'No Group';
             });
         } else {
-            $groupedGuests['All Guests'] = $guests;
+            $groupedGuests = collect(['All Guests' => $guests]);
         }
         
         return view('mobile.scanner.guests', compact('scanner', 'event', 'groupedGuests', 'search', 'showGroups', 'organizerTimezone'));
