@@ -199,16 +199,6 @@ class ScannerController extends Controller
         
         $qrData = $request->qr_data;
         
-        // Log the QR data for debugging
-        \Log::info('QR Scanner - Processing QR data', [
-            'scanner_token' => $token,
-            'event_id' => $scanner->event->id,
-            'qr_data' => $qrData,
-            'qr_data_type' => gettype($qrData),
-            'qr_data_length' => strlen($qrData),
-            'is_url' => filter_var($qrData, FILTER_VALIDATE_URL) !== false
-        ]);
-        
         // Try to find guest by QR data (could be guest ID, email, or custom QR)
         $guest = $this->findGuestByQRData($qrData, $scanner->event);
         
@@ -233,13 +223,6 @@ class ScannerController extends Controller
                 }
             }
             
-            \Log::warning('QR Scanner - Guest not found', [
-                'scanner_token' => $token,
-                'event_id' => $scanner->event->id,
-                'qr_data' => $qrData,
-                'error_message' => $errorMessage
-            ]);
-            
             return response()->json([
                 'success' => false,
                 'message' => $errorMessage,
@@ -251,14 +234,6 @@ class ScannerController extends Controller
                 ]
             ]);
         }
-        
-        \Log::info('QR Scanner - Guest found', [
-            'scanner_token' => $token,
-            'event_id' => $scanner->event->id,
-            'guest_id' => $guest->id,
-            'guest_name' => $guest->name,
-            'qr_data' => $qrData
-        ]);
         
         // Get event settings for contact display
         $eventSettings = $this->getEventContactSettings($scanner->event);

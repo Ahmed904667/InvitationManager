@@ -60,19 +60,6 @@ class RsvpController extends Controller
                 'rsvp_at' => now(),
             ]);
 
-            // Log the RSVP response
-            Log::info('📋 [RSVP] Guest responded to invitation', [
-                'event_id' => $event->id,
-                'event_name' => $event->name,
-                'guest_id' => $guest->id,
-                'guest_name' => $guest->name,
-                'guest_email' => $guest->email,
-                'previous_status' => $previousStatus,
-                'new_status' => $validated['rsvp_status'],
-                'has_note' => !empty($validated['rsvp_note']),
-                'response_time' => now()->toISOString(),
-            ]);
-
             // Send notification to organizer
             $this->sendRsvpNotificationToOrganizer($event, $guest, $validated['rsvp_status'], $validated['rsvp_note'] ?? null);
 
@@ -99,12 +86,6 @@ class RsvpController extends Controller
             return back()->with('success', $message);
 
         } catch (\Exception $e) {
-            Log::error('❌ [RSVP] Error processing RSVP response', [
-                'token' => $token,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return back()->with('error', 'Sorry, there was an error processing your RSVP. Please try again.');
         }
     }
@@ -126,11 +107,6 @@ class RsvpController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('❌ [RSVP] Error getting RSVP stats', [
-                'event_id' => $event->id,
-                'error' => $e->getMessage(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error loading RSVP statistics',
@@ -155,11 +131,6 @@ class RsvpController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('❌ [RSVP] Error getting RSVP details', [
-                'event_id' => $event->id,
-                'error' => $e->getMessage(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error loading RSVP details',
@@ -278,10 +249,6 @@ class RsvpController extends Controller
             $organizer = $event->user;
             
             if (!$organizer) {
-                Log::warning('Cannot send RSVP notification: event has no organizer', [
-                    'event_id' => $event->id,
-                    'guest_id' => $guest->id
-                ]);
                 return;
             }
 

@@ -92,31 +92,10 @@ class ChatService
     public function processMessage(string $message, array $history, array $eventData, array $guestData, array $currentMessages = []): array
     {
         try {
-            $this->logToChat('info', '🔵 [CHAT] Processing message', ['message' => $message]);
-
-            // Debug event data received
-            $this->logToChat('info', '🔵 [CHAT] Event data received', [
-                'event_data_keys' => array_keys($eventData),
-                'event_data_sample' => array_slice($eventData, 0, 10, true),
-                'has_name' => isset($eventData['name']),
-                'has_start_date' => isset($eventData['start_date']),
-                'has_location' => isset($eventData['location']),
-                'name_value' => $eventData['name'] ?? 'NOT_SET',
-                'start_date_value' => $eventData['start_date'] ?? 'NOT_SET',
-                'location_value' => $eventData['location'] ?? 'NOT_SET'
-            ]);
-
             // Check if we have basic event information
             $eventName = $this->extractEventName($eventData);
             $eventDate = $this->extractEventDate($eventData);
             
-            $this->logToChat('info', '🔵 [CHAT] Extracted event info', [
-                'event_name' => $eventName,
-                'event_date' => $eventDate,
-                'has_valid_name' => $eventName !== 'Event' && $eventName !== 'Untitled Event',
-                'has_valid_date' => $eventDate !== 'TBD' && $eventDate !== 'Not specified',
-                'using_fallback_data' => $eventData['using_fallback_data'] ?? false
-            ]);
             
             // If we're using fallback data, log a warning
             if ($eventData['using_fallback_data'] ?? false) {
@@ -129,38 +108,14 @@ class ChatService
             // Store guest data in memory for AI context
             $this->guestDataContext = $guestData;
             
-            // Debug guest data structure
-            $this->logToChat('info', '🔵 [CHAT] Guest data structure', [
-                'guest_data_keys' => array_keys($guestData),
-                'guest_data_count' => count($guestData),
-                'has_guests' => !empty($guestData)
-            ]);
             
             // Check if we have guest data
             if (empty($guestData)) {
-                $this->logToChat('warning', '❌ [CHAT] No guest data available', [
-                    'message' => $message,
-                    'event_data_keys' => array_keys($eventData),
-                    'guest_data_type' => gettype($guestData),
-                    'guest_data_value' => $guestData
-                ]);
-                
                 return [
                     'success' => false,
                     'response' => '🚫 **No Guest Lists Found**
 
-I cannot process your message because no guest lists are currently loaded. This could happen if:
-
-• You haven\'t selected any guest lists in Step 2
-• Your session data has expired
-• There was a temporary connection issue
-
-**To fix this:**
-1. Go back to **Step 2** and make sure you select at least one guest list
-2. If you already selected lists, try refreshing the page
-3. If the problem persists, start over from Step 1
-
-Once you have guest lists selected, I\'ll be able to help you generate amazing invitation messages! 🎉',
+            I cannot process your message because no guest lists are currently loaded. This could happen if:',
                     'actions' => []
                 ];
             }
@@ -174,32 +129,21 @@ Once you have guest lists selected, I\'ll be able to help you generate amazing i
                 set_time_limit(15); // 15 seconds max
                 
                 $aiAnalysis = $this->analyzeWithAI($message, $eventData, $guestData, $history);
-                $this->logToChat('info', '🔵 [CHAT] AI Analysis', $aiAnalysis);
             } catch (\Exception $aiError) {
-                $this->logToChat('error', '❌ [CHAT] AI Analysis failed', [
-                    'error' => $aiError->getMessage(),
-                    'using_fallback' => true
-                ]);
                 $aiTimeout = true;
             }
             
             // If AI analysis failed or timed out, use fallback
             if ($aiTimeout || !$aiAnalysis) {
-                $this->logToChat('info', '🔄 [CHAT] Using fallback analysis due to AI failure');
                 $aiAnalysis = $this->analyzeSimplePattern($message, $guestData);
             }
             
             // Debug: Check if AI analysis is valid
             if (!isset($aiAnalysis['type']) || $aiAnalysis['type'] === 'response_only') {
-                $this->logToChat('warning', '🔵 [CHAT] AI returned response_only or invalid type', [
-                    'analysis' => $aiAnalysis,
-                    'message' => $message
-                ]);
             }
             
             // Check if this is a multi-action request
             if (isset($aiAnalysis['multi_actions']) && is_array($aiAnalysis['multi_actions'])) {
-                $this->logToChat('info', '🔵 [CHAT] Processing multi-action request', ['actions_count' => count($aiAnalysis['multi_actions'])]);
                 $allActions = [];
                 $allResponses = [];
                 
@@ -215,10 +159,6 @@ Once you have guest lists selected, I\'ll be able to help you generate amazing i
                 // Combine all responses
                 $combinedResponse = $this->combineMultiActionResponses($allResponses);
                 
-                $this->logToChat('info', '✅ [CHAT] Multi-action success', [
-                    'total_actions' => count($allActions),
-                    'responses' => $allResponses
-                ]);
                 
                 return [
                     'success' => true,
@@ -229,10 +169,6 @@ Once you have guest lists selected, I\'ll be able to help you generate amazing i
                 // Check if this is a conversational/information request that doesn't need actions
                 $conversationalTypes = ['conversational', 'help', 'information'];
                 if (in_array($aiAnalysis['type'] ?? '', $conversationalTypes)) {
-                    $this->logToChat('info', '🔵 [CHAT] Processing conversational/information request', [
-                        'type' => $aiAnalysis['type'],
-                        'ai_response' => $aiAnalysis['response'] ?? 'No response from AI'
-                    ]);
                     
                     // Return the AI's response directly for conversational requests
                     $response = $aiAnalysis['response'] ?? $this->generateIntelligentResponse($aiAnalysis, []);
@@ -249,17 +185,11 @@ Once you have guest lists selected, I\'ll be able to help you generate amazing i
                 if ($this->isEditIntent($aiAnalysis, $message)) {
                     $actions = $this->applyEditIntent($aiAnalysis, $eventData, $guestData, $currentMessages, $message);
                 } else {
-                    $this->logToChat('info', '🔵 [CHAT] Executing action', [
-                        'intent_type' => $aiAnalysis['type'] ?? 'unknown',
-                        'intent_tone' => $aiAnalysis['tone'] ?? 'unknown'
-                    ]);
                     $actions = $this->executeAction($aiAnalysis, $eventData, $guestData, $message);
                 }
-                $this->logToChat('info', '🔵 [CHAT] Actions generated', ['actions_count' => count($actions)]);
 
                 // Check if we need to ask for missing information
                 if (!empty($actions) && isset($actions[0]['type']) && $actions[0]['type'] === 'ask_for_info') {
-                    $this->logToChat('info', '🔵 [CHAT] Asking for missing information');
                     return [
                         'success' => true,
                         'response' => $actions[0]['message'],
@@ -267,10 +197,6 @@ Once you have guest lists selected, I\'ll be able to help you generate amazing i
                     ];
                 }
 
-                $this->logToChat('info', '✅ [CHAT] Single action success', [
-                    'intent' => $aiAnalysis['type'] ?? 'unknown',
-                    'actions_count' => count($actions)
-                ]);
 
                         // Check if actions were generated
         if (empty($actions)) {
@@ -283,43 +209,13 @@ Once you have guest lists selected, I\'ll be able to help you generate amazing i
             
             // Provide a more helpful response based on the situation
             if (empty($eventData['name']) || empty($eventData['start_date'])) {
-                $response = "🚫 **Missing Event Information**
-
-I couldn't generate messages because some essential event information is missing. 
-
-**Missing Information:**
-" . (empty($eventData['name']) ? "• Event name\n" : "") . 
-(empty($eventData['start_date']) ? "• Event date and time\n" : "") . "
-
-**To fix this:**
-1. Go back to **Step 1** and ensure you've filled in the event details
-2. Make sure you have an event name and date set
-3. Return to Step 3 to try again
-
-Once you have the basic event information, I'll be able to generate personalized invitation messages! 🎉";
+                $response = "I couldn't generate messages because some essential event information is missing.";
             } else {
                 // Check if we're using fallback defaults
                 $eventName = $this->extractEventName($eventData);
                 $eventDate = $this->extractEventDate($eventData);
                 
-                if ($eventName === 'Your Event' || $eventName === 'Event' || $eventDate === 'TBD') {
-                    $response = "⚠️ **Using Default Event Information**
-
-I notice you're using default event information instead of your actual event details. 
-
-**Current Event Info:**
-• Event Name: {$eventName}
-• Event Date: {$eventDate}
-
-**To use your real event information:**
-1. Go back to **Step 1** and fill in your actual event details
-2. Enter your real event name, date, location, and description
-3. Save Step 1 and return to Step 3
-
-I can still generate messages with the current information, but they'll be more personalized with your actual event details! 🎉";
-                } else {
-                    $response = "I understand your request, but I couldn't generate any messages. This might be because I couldn't find the specified guests or groups, or there was an issue with the message generation. Please try being more specific about which guests or groups you want me to target.";
-                }
+                
             }
         } else {
                     // Generate a more intelligent response based on the action type
@@ -333,17 +229,10 @@ I can still generate messages with the current information, but they'll be more 
                 ];
             }
 
-        } catch (\Exception $e) {
-            $this->logToChat('error', '❌ [CHAT] Error', [
-                'error' => $e->getMessage(),
-                'message' => $message,
-                'trace' => $e->getTraceAsString()
-            ]);
-            
+        } catch (\Exception $e) {            
             // Try to use fallback analysis
             try {
                 $fallbackAnalysis = $this->analyzeSimplePattern($message, $guestData);
-                $this->logToChat('info', '🔄 [CHAT] Using fallback analysis', $fallbackAnalysis);
                 
                 if ($fallbackAnalysis['type'] === 'conversational' || $fallbackAnalysis['type'] === 'help') {
                     return [
@@ -353,9 +242,6 @@ I can still generate messages with the current information, but they'll be more 
                     ];
                 }
             } catch (\Exception $fallbackError) {
-                $this->logToChat('error', '❌ [CHAT] Fallback also failed', [
-                    'error' => $fallbackError->getMessage()
-                ]);
             }
             
             return [
@@ -1205,21 +1091,6 @@ I can still generate messages with the current information, but they'll be more 
                 }
             }
         }
-        
-        // Add debugging
-        $this->logToChat('🔵 [LANGUAGE] Organized guests by language', [
-            'language_groups' => array_keys($languageGroups),
-            'total_languages' => count($languageGroups),
-            'language_details' => array_map(function($group) {
-                return [
-                    'language' => $group['language'],
-                    'total_guests' => $group['total_guests'],
-                    'lists_count' => count($group['lists'])
-                ];
-            }, $languageGroups),
-            'sample_guest_languages' => array_slice(array_keys($languageGroups), 0, 3) // Show first 3 languages for debugging
-        ]);
-        
         return $languageGroups;
     }
 
@@ -1268,9 +1139,7 @@ I can still generate messages with the current information, but they'll be more 
      * Generate messages for all guests
      */
     private function generateAllGuestMessages(array $intent, array $eventData, array $guestData, string $preferredLanguage = 'en'): array
-    {
-        $this->logToChat('🔵 [CHAT] Starting bulk generation for all guests');
-        
+    {   
         // Check for missing critical information first
         $missingInfo = $this->checkMissingEventInfo($eventData);
         if (!empty($missingInfo)) {
@@ -1286,44 +1155,21 @@ I can still generate messages with the current information, but they'll be more 
         // Organize guests by language
         $languageGroups = $this->organizeGuestsByLanguage($guestData);
         
-        $this->logToChat('🔵 [CHAT] Organized guests by language', [
-            'language_groups' => array_keys($languageGroups),
-            'total_languages' => count($languageGroups)
-        ]);
-        
         $allActions = [];
         
         // Generate a message for each language group
-        foreach ($languageGroups as $language => $languageData) {
-            $this->logToChat('🔵 [CHAT] Generating messages for language', [
-                'language' => $language,
-                'total_guests' => $languageData['total_guests']
-            ]);
-            
+        foreach ($languageGroups as $language => $languageData) {            
             // Generate a general template for this language
             $generalTemplate = $this->generateGeneralTemplateForLanguage($intent, $eventData, $language);
             
             if (empty($generalTemplate) || strpos($generalTemplate, 'Please provide the missing event information') !== false) {
-                $this->logToChat('warning', 'Failed to generate general template for language, using fallback', [
-                    'language' => $language,
-                    'template' => $generalTemplate
-                ]);
-                
                 // Use fallback template instead of skipping
                 $generalTemplate = $this->getFallbackTemplate($intent);
                 
                 if (empty($generalTemplate)) {
-                    $this->logToChat('error', 'Fallback template also failed', [
-                        'language' => $language
-                    ]);
                     continue;
                 }
             }
-            
-            $this->logToChat('✅ [CHAT] Generated general template for language', [
-                'language' => $language,
-                'template_length' => strlen($generalTemplate)
-            ]);
             
             // Apply this template to all guests in this language group
             $excludeGroups = $intent['exclude_groups'] ?? [];
@@ -1333,7 +1179,6 @@ I can still generate messages with the current information, but they'll be more 
                     foreach ($listData['groups'] as $groupId => $groupData) {
                         // Skip excluded groups
                         if (in_array((string)$groupId, $excludeGroups)) {
-                            $this->logToChat('🔵 [CHAT] Skipping excluded group', ['group_id' => $groupId]);
                             continue;
                         }
                         
@@ -1381,15 +1226,9 @@ I can still generate messages with the current information, but they'll be more 
                     }
                 }
             }
-        }
-        
-        $this->logToChat('✅ [CHAT] Generated messages for all guests', ['actions_count' => count($allActions)]);
-        
+        }        
         if (empty($allActions)) {
-            $this->logToChat('⚠️ [CHAT] No actions generated for all guests - this might indicate an issue', [
-                'language_groups_count' => count($languageGroups),
-                'language_groups' => array_keys($languageGroups)
-            ]);
+            return [];
         }
         
         return $allActions;
@@ -2789,7 +2628,7 @@ I can still generate messages with the current information, but they'll be more 
         $prompt .= "11. FORMATTING: Use **bold** for emphasis and \\n for line breaks in responses\n";
         $prompt .= "12. For edit requests, set type=\\\"edit\\\", include target (all_guests|specific_guest|group_message|general_message), and provide IDs where applicable.\n";
         $prompt .= "13. Edits must modify existing text; do NOT rewrite from scratch.\n";
-        $prompt .= "14. GROUP MATCHING: When user mentions a group name, look for EXACT or PARTIAL matches in the group names above. 'malaysia' should match 'Malaysia Number', 'saudi' should match 'Saudi Number'.\n\n";
+        $prompt .= "14. GROUP MATCHING: When user mentions a group name, look for EXACT or PARTIAL matches in the group names above.\n\n";
         
         $prompt .= "Return ONLY the JSON response, no additional text.";
         

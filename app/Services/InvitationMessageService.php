@@ -180,7 +180,8 @@ EVENT TYPE: {$eventType}
 ---
 
 ### INSTRUCTIONS (IMPORTANT):
-1. **NEVER use placeholders or brackets** (like [Number], [Inviter's Name], [Venue], etc.) in the output. If you detect a placeholder or missing info, always fill it with a realistic, culturally-appropriate dummy value. Never output brackets or the word 'placeholder'.
+1. **NEVER use placeholders or brackets** (like [Number], [Inviter's Name], [Venue], etc.) in the output. 
+If you detect a placeholder or missing info, always fill it with a realistic, culturally-appropriate dummy value. Never output brackets or the word 'placeholder'.
 2. **Detect language** from the event type or name:
    - If the event type or name is in English, respond in English.
    - If the text is in another language (e.g., Arabic, French), generate the response in that language.
@@ -224,7 +225,10 @@ EOT;
     private function generateWhatsAppPrompt(string $contact, string $name, string $eventType): string
     {
         return <<<EOT
-Please generate a **complete WhatsApp invitation message** with a friendly, natural tone, using proper WhatsApp formatting (short paragraphs, emojis if appropriate, no subject line, and sender/receiver roles if relevant). Adapt the message to the event type, detected language, cultural context, and appropriate tone.
+Please generate a **complete WhatsApp invitation message** with a friendly, natural tone,
+ using proper WhatsApp formatting (short paragraphs, emojis if appropriate, 
+ no subject line, and sender/receiver roles if relevant). Adapt the message to the event type, 
+ detected language, cultural context, and appropriate tone.
 
 CONTACT: {$contact}
 NAME: {$name}
@@ -233,7 +237,8 @@ EVENT TYPE: {$eventType}
 ---
 
 ### INSTRUCTIONS (IMPORTANT):
-1. **NEVER use placeholders or brackets** (like [Number], [Inviter's Name], [Venue], etc.) in the output. If you detect a placeholder or missing info, always fill it with a realistic, culturally-appropriate dummy value. Never output brackets or the word 'placeholder'.
+1. **NEVER use placeholders or brackets** (like [Number], [Inviter's Name], [Venue], etc.) in the output.
+ If you detect a placeholder or missing info, always fill it with a realistic, culturally-appropriate dummy value. Never output brackets or the word 'placeholder'.
 2. **Detect language** from the event type or name:
    - If the event type or name is in English, respond in English.
    - If the text is in another language (e.g., Arabic, French), generate the response in that language.
