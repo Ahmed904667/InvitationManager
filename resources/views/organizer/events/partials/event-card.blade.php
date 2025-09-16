@@ -227,19 +227,35 @@
         
         @if($event->canUseScanner())
             <button class="btn-accent" onclick="generateScannerUrl({{ $event->id }})" title="Generate Scanner URL">
-            <svg class="w-6 h-6 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="2" y="2" width="8" height="8" />
-                                <path d="M6 6h.01" />
-                                <rect x="14" y="2" width="8" height="8" />
-                                <path d="M18 6h.01" />
-                                <rect x="2" y="14" width="8" height="8" />
-                                <path d="M6 18h.01" />
-                                <path d="M14 14h.01" />
-                                <path d="M18 18h.01" />
-                                <path d="M18 22h4v-4" />
-                                <path d="M14 18v4" />
-                                <path d="M22 14h-4" />
-                            </svg>
+                <svg class="w-6 h-6 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="8" height="8" />
+                    <path d="M6 6h.01" />
+                    <rect x="14" y="2" width="8" height="8" />
+                    <path d="M18 6h.01" />
+                    <rect x="2" y="14" width="8" height="8" />
+                    <path d="M6 18h.01" />
+                    <path d="M14 14h.01" />
+                    <path d="M18 18h.01" />
+                    <path d="M18 22h4v-4" />
+                    <path d="M14 18v4" />
+                    <path d="M22 14h-4" />
+                </svg>
+            </button>
+        @elseif($event->qr_checkin_enabled && !in_array($event->status, ['sent', 'scheduled', 'running']))
+            <button class="btn-secondary" disabled title="Scanner not available - Event must be sent/scheduled to use scanner">
+                <svg class="w-6 h-6 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="8" height="8" />
+                    <path d="M6 6h.01" />
+                    <rect x="14" y="2" width="8" height="8" />
+                    <path d="M18 6h.01" />
+                    <rect x="2" y="14" width="8" height="8" />
+                    <path d="M6 18h.01" />
+                    <path d="M14 14h.01" />
+                    <path d="M18 18h.01" />
+                    <path d="M18 22h4v-4" />
+                    <path d="M14 18v4" />
+                    <path d="M22 14h-4" />
+                </svg>
             </button>
         @endif
         

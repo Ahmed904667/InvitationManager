@@ -5187,26 +5187,49 @@ You don\'t have any guest lists created yet. You need to create guest lists befo
      */
     public function getScanners(Event $event)
     {
-        // Ensure the user owns this event
-        if ($event->user_id !== Auth::id()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        try {
+            // Ensure the user owns this event
+            if ($event->user_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Unauthorized',
+                    'message' => 'You do not have permission to access this event'
+                ], 403);
+            }
+
+            // Check if event can use scanner
+            if (!$event->canUseScanner()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Scanner not available',
+                    'message' => 'Scanner functionality is not available for this event. Make sure QR check-in is enabled and the event is sent/scheduled.'
+                ], 400);
+            }
+
+            $scanners = $event->activeScanners()->get()->map(function($scanner) {
+                return [
+                    'id' => $scanner->id,
+                    'name' => $scanner->name,
+                    'url' => $scanner->getScannerUrl(),
+                    'created_at' => $scanner->created_at->diffForHumans(),
+                    'last_used' => $scanner->last_used_at ? $scanner->last_used_at->diffForHumans() : 'Never',
+                    'check_ins' => $scanner->getCheckInCount()
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'scanners' => $scanners
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading scanners for event ' . $event->id . ': ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Server error',
+                'message' => 'An error occurred while loading scanners. Please try again.'
+            ], 500);
         }
-
-        $scanners = $event->activeScanners()->get()->map(function($scanner) {
-            return [
-                'id' => $scanner->id,
-                'name' => $scanner->name,
-                'url' => $scanner->getScannerUrl(),
-                'created_at' => $scanner->created_at->diffForHumans(),
-                'last_used' => $scanner->last_used_at ? $scanner->last_used_at->diffForHumans() : 'Never',
-                'check_ins' => $scanner->getCheckInCount()
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
-            'scanners' => $scanners
-        ]);
     }
 
     /**

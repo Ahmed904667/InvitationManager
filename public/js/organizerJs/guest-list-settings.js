@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += `
                 <div>
                     <label class="form-label">Phone</label>
-                    <input type="text" name="phone" class="form-input" placeholder="${defaultCountryCode} Phone number" value="${defaultCountryCode}">
+                    <input type="text" name="phone" class="form-input phone-input" placeholder="${defaultCountryCode} Phone number" value="${defaultCountryCode}">
                 </div>
             `;
         }
@@ -156,6 +156,13 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         container.innerHTML = html;
+        
+        // Add phone input restrictions
+        const phoneInput = container.querySelector('input[name="phone"]');
+        if (phoneInput) {
+            addPhoneInputRestrictions(phoneInput);
+        }
+        
         // If group select, reload groups and disable submit until loaded
         if (settings.fields.group) {
             const submitBtn = document.querySelector('#addGuestForm button[type="submit"]');
@@ -225,5 +232,68 @@ document.addEventListener('DOMContentLoaded', function() {
         window.showModal('addGuestModal');
     };
 
+    // Function to add phone input restrictions
+    window.addPhoneInputRestrictions = function(phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            // Allow only numbers, +, spaces, hyphens, and parentheses
+            let value = e.target.value;
+            let filteredValue = value.replace(/[^+0-9\s\-\(\)]/g, '');
+            
+            if (value !== filteredValue) {
+                e.target.value = filteredValue;
+                // Show a brief visual feedback
+                e.target.style.borderColor = '#ef4444';
+                setTimeout(() => {
+                    e.target.style.borderColor = '';
+                }, 1000);
+            }
+        });
+        
+        phoneInput.addEventListener('keypress', function(e) {
+            // Allow backspace, delete, arrow keys, tab
+            if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'ArrowLeft' || 
+                e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+                e.key === 'Tab') {
+                return true;
+            }
+            
+            // Allow only numbers, +, spaces, hyphens, and parentheses
+            const allowedChars = /[+0-9\s\-\(\)]/;
+            if (!allowedChars.test(e.key)) {
+                e.preventDefault();
+                // Show a brief visual feedback
+                e.target.style.borderColor = '#ef4444';
+                setTimeout(() => {
+                    e.target.style.borderColor = '';
+                }, 1000);
+                return false;
+            }
+        });
+        
+        phoneInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            const filteredText = pastedText.replace(/[^+0-9\s\-\(\)]/g, '');
+            
+            // Insert the filtered text at cursor position
+            const start = e.target.selectionStart;
+            const end = e.target.selectionEnd;
+            const currentValue = e.target.value;
+            
+            e.target.value = currentValue.substring(0, start) + filteredText + currentValue.substring(end);
+            
+            // Set cursor position after the pasted text
+            const newPosition = start + filteredText.length;
+            e.target.setSelectionRange(newPosition, newPosition);
+            
+            if (pastedText !== filteredText) {
+                // Show a brief visual feedback
+                e.target.style.borderColor = '#ef4444';
+                setTimeout(() => {
+                    e.target.style.borderColor = '';
+                }, 1000);
+            }
+        });
+    };
 
 });

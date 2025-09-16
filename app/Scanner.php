@@ -18,8 +18,8 @@ use Illuminate\Support\Str;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property string $timezone
  * @property-read \App\Shared\Models\Event $event
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Shared\Models\Guest> $scannedGuests
- * @property-read int|null $scanned_guests_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\EventGuest> $scannedEventGuests
+ * @property-read int|null $scanned_event_guests_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Scanner query()
@@ -71,9 +71,9 @@ class Scanner extends Model
         return $this->belongsTo(\App\Shared\Models\Event::class);
     }
 
-    public function scannedGuests()
+    public function scannedEventGuests()
     {
-        return $this->hasMany(\App\Shared\Models\Guest::class, 'scanned_by_scanner_id');
+        return $this->hasMany(\App\EventGuest::class, 'scanned_by_scanner_id');
     }
 
     /**
@@ -97,7 +97,7 @@ class Scanner extends Model
      */
     public function getCheckInCount(): int
     {
-        return $this->scannedGuests()->where('checked_in', true)->count();
+        return $this->scannedEventGuests()->where('checked_in', true)->count();
     }
 
     /**
@@ -132,7 +132,7 @@ class Scanner extends Model
         $currentTime = $this->getCurrentTime();
         $startTime = $currentTime->copy()->subHours($hours);
         
-        return $this->scannedGuests()
+        return $this->scannedEventGuests()
             ->whereNotNull('checked_in_at')
             ->where('checked_in_at', '>=', $startTime)
             ->get();

@@ -248,6 +248,9 @@ class OrganizerService
                 }
             }
 
+            // Recalculate health after importing guests
+            $guestList->calculateAndStoreHealth();
+
             $message = "Successfully imported {$imported} guests.";
             if (!empty($errors)) {
                 $message .= " Errors: " . implode(', ', $errors);

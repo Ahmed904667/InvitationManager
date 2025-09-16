@@ -5,7 +5,7 @@ import './theme';
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize theme manager
     if (window.themeManager) {
-        console.log('Theme manager initialized');
+        // Theme manager initialized
     }
     
     // Initialize timezone detection
@@ -35,8 +35,7 @@ function initializeTimezoneDetection() {
     // Detect browser timezone - FIXED: use timeZone not timezone
     const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     
-    console.log('🌍 Detected browser timezone:', browserTimezone);
-    console.log('🌍 Full resolved options:', Intl.DateTimeFormat().resolvedOptions());
+    // Browser timezone detected
     
     // Validate timezone before using it
     if (browserTimezone && browserTimezone !== 'undefined' && browserTimezone !== 'null') {
@@ -53,7 +52,7 @@ function initializeTimezoneDetection() {
                     mutation.addedNodes.forEach(function(node) {
                         if (node.nodeType === 1) { // Element node
                             if (node.tagName === 'FORM' || node.querySelector && node.querySelector('form')) {
-                                console.log('🌍 New form detected, adding timezone');
+                                // New form detected, adding timezone
                                 addTimezoneToForms(browserTimezone);
                             }
                         }
@@ -67,7 +66,7 @@ function initializeTimezoneDetection() {
             subtree: true
         });
     } else {
-        console.error('🌍 Invalid browser timezone detected:', browserTimezone);
+        // Invalid browser timezone detected
     }
 }
 
@@ -75,8 +74,6 @@ function initializeTimezoneDetection() {
 function addTimezoneToForms(timezone) {
     // Add timezone to all forms
     const forms = document.querySelectorAll('form');
-    console.log('🌍 Adding timezone to', forms.length, 'forms');
-    console.log('🌍 Detected timezone:', timezone);
     
     forms.forEach(form => {
         // Remove existing timezone fields first
@@ -104,9 +101,7 @@ function addTimezoneToForms(timezone) {
         browserTimezoneInput.value = timezone;
         form.appendChild(browserTimezoneInput);
         
-        console.log('🌍 Added timezone fields to form:', form.action || 'unknown');
-        console.log('🌍 Form now has timezone field:', form.querySelector('input[name="timezone"]')?.value);
-        console.log('🌍 Form now has browser_timezone field:', form.querySelector('input[name="browser_timezone"]')?.value);
+        // Timezone fields added to form
     });
 }
 
@@ -223,7 +218,6 @@ function startCamera() {
             }
         })
         .catch(function(error) {
-            console.error('Error accessing camera:', error);
             showNotification('Camera access denied. Please enable camera permissions.', 'error');
         });
 }
@@ -262,7 +256,7 @@ function performSearch(query, target) {
         displaySearchResults(data, target);
     })
     .catch(error => {
-        console.error('Search error:', error);
+        // Search error occurred
     });
 }
 
@@ -337,11 +331,11 @@ function syncOfflineData() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    console.log('Synced checkin:', checkin);
+                    // Checkin synced successfully
                 }
             })
             .catch(error => {
-                console.error('Sync error:', error);
+                // Sync error occurred
             });
         });
         

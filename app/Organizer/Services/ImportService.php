@@ -203,6 +203,9 @@ class ImportService
             }
         }
 
+        // Recalculate health after importing guests
+        $guestList->calculateAndStoreHealth();
+
         $message = "Successfully imported {$imported} guests.";
         if ($failed > 0) {
             $message .= " Failed to import {$failed} guests due to duplicates or errors.";

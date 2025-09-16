@@ -590,7 +590,7 @@ window.renderEditGuestFields = function(settings, guest) {
         html += `
             <div>
                 <label class="form-label">Phone</label>
-                <input type="text" name="phone" class="form-input" placeholder="Phone" value="${guest.phone || ''}">
+                <input type="text" name="phone" class="form-input phone-input" placeholder="Phone" value="${guest.phone || ''}">
             </div>
         `;
     }
@@ -626,6 +626,12 @@ window.renderEditGuestFields = function(settings, guest) {
     `;
     
     container.innerHTML = html;
+    
+    // Add phone input restrictions to edit form
+    const phoneInput = container.querySelector('input[name="phone"]');
+    if (phoneInput && window.addPhoneInputRestrictions) {
+        window.addPhoneInputRestrictions(phoneInput);
+    }
     
     // Debug: Check what was rendered
 

@@ -62,6 +62,7 @@ class GuestController extends Controller
                 'nullable',
                 'string',
                 'max:30',
+                'regex:/^[+0-9\s\-\(\)]+$/',
                 function ($attribute, $value, $fail) use ($guestList) {
                     if (!empty($value)) {
                         // Check if phone number already exists for another guest in the same list (excluding soft-deleted)
@@ -78,6 +79,8 @@ class GuestController extends Controller
             'group_id' => 'nullable|exists:guest_groups,id',
             'language' => 'nullable|string|max:30',
             'notes' => 'nullable|string|max:1000'
+        ], [
+            'phone.regex' => 'The phone number can only contain numbers, spaces, hyphens, parentheses, and the + symbol.'
         ]);
 
         $guest = $this->organizerService->addGuest($guestList, $validated);
@@ -125,6 +128,7 @@ class GuestController extends Controller
                 'nullable',
                 'string',
                 'max:30',
+                'regex:/^[+0-9\s\-\(\)]+$/',
                 function ($attribute, $value, $fail) use ($guest, $guestList) {
                     if (!empty($value)) {
                         // Check if phone number already exists for another guest in the same list (excluding soft-deleted)
@@ -143,6 +147,8 @@ class GuestController extends Controller
             'group_id' => 'nullable|exists:guest_groups,id',
             'language' => 'nullable|string|max:30',
             'notes' => 'nullable|string|max:1000'
+        ], [
+            'phone.regex' => 'The phone number can only contain numbers, spaces, hyphens, parentheses, and the + symbol.'
         ]);
 
         $this->organizerService->updateGuest($guest, $validated);

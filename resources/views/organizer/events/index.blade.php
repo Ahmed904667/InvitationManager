@@ -698,6 +698,13 @@ function generateScannerUrl(eventId) {
 }
 
 function showScannerModal(eventId) {
+    // Validate eventId
+    if (!eventId || isNaN(eventId)) {
+        console.error('Invalid event ID for scanner modal:', eventId);
+        alert('Invalid event ID. Please refresh the page and try again.');
+        return;
+    }
+
     // Create modal HTML
     const modalHtml = `
         <div id="scannerModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -741,10 +748,30 @@ function showScannerModal(eventId) {
 }
 
 function loadEventScanners(eventId) {
+    // Validate eventId
+    if (!eventId || isNaN(eventId)) {
+        console.error('Invalid event ID:', eventId);
+        document.getElementById('scannersList').innerHTML = `
+            <div class="text-center text-red-500 py-4">
+                <p class="text-sm">Invalid event ID</p>
+            </div>
+        `;
+        return;
+    }
+
     fetch(`/organizer/events/${eventId}/scanners`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             const scannersList = document.getElementById('scannersList');
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to load scanners');
+            }
+            
             if (data.scanners.length === 0) {
                 scannersList.innerHTML = `
                     <div class="text-center text-gray-500 py-4">
@@ -775,15 +802,26 @@ function loadEventScanners(eventId) {
         })
         .catch(error => {
             console.error('Error loading scanners:', error);
-            document.getElementById('scannersList').innerHTML = `
-                <div class="text-center text-red-500 py-4">
-                    <p class="text-sm">Error loading scanners</p>
-                </div>
-            `;
+            const scannersList = document.getElementById('scannersList');
+            if (scannersList) {
+                scannersList.innerHTML = `
+                    <div class="text-center text-red-500 py-4">
+                        <p class="text-sm">Error loading scanners</p>
+                        <p class="text-xs text-gray-500 mt-1">${error.message}</p>
+                    </div>
+                `;
+            }
         });
 }
 
 function createNewScanner(eventId) {
+    // Validate eventId
+    if (!eventId || isNaN(eventId)) {
+        console.error('Invalid event ID for creating scanner:', eventId);
+        alert('Invalid event ID. Please refresh the page and try again.');
+        return;
+    }
+
     const nameInput = document.getElementById('newScannerName');
     const name = nameInput.value.trim();
     
@@ -800,7 +838,12 @@ function createNewScanner(eventId) {
         },
         body: JSON.stringify({ name: name })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             nameInput.value = '';
@@ -811,7 +854,7 @@ function createNewScanner(eventId) {
     })
     .catch(error => {
         console.error('Error creating scanner:', error);
-        alert('Error creating scanner');
+        alert('Error creating scanner. Please try again.');
     });
 }
 

@@ -49,7 +49,7 @@
                         <input type="email" name="email" placeholder="Email" 
                                class="form-input">
                         <input type="text" name="phone" placeholder="Phone" 
-                               class="form-input">
+                               class="form-input phone-input">
                         <input type="text" name="language" placeholder="Language" 
                                class="form-input">
                         <button type="submit" 
@@ -152,7 +152,7 @@
                     <input type="email" name="email" id="edit_email" placeholder="Email" 
                            class="form-input w-full">
                     <input type="text" name="phone" id="edit_phone" placeholder="Phone" 
-                           class="form-input w-full">
+                           class="form-input phone-input w-full">
                     <input type="text" name="language" id="edit_language" placeholder="Language" 
                            class="form-input w-full">
                 </div>
@@ -181,5 +181,77 @@ function editGuest(guestId) {
 function closeEditModal() {
     document.getElementById('editModal').classList.add('hidden');
 }
+
+// Phone input restrictions function
+function addPhoneInputRestrictions(phoneInput) {
+    phoneInput.addEventListener('input', function(e) {
+        // Allow only numbers, +, spaces, hyphens, and parentheses
+        let value = e.target.value;
+        let filteredValue = value.replace(/[^+0-9\s\-\(\)]/g, '');
+        
+        if (value !== filteredValue) {
+            e.target.value = filteredValue;
+            // Show a brief visual feedback
+            e.target.style.borderColor = '#ef4444';
+            setTimeout(() => {
+                e.target.style.borderColor = '';
+            }, 1000);
+        }
+    });
+    
+    phoneInput.addEventListener('keypress', function(e) {
+        // Allow backspace, delete, arrow keys, tab
+        if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'ArrowLeft' || 
+            e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+            e.key === 'Tab') {
+            return true;
+        }
+        
+        // Allow only numbers, +, spaces, hyphens, and parentheses
+        const allowedChars = /[+0-9\s\-\(\)]/;
+        if (!allowedChars.test(e.key)) {
+            e.preventDefault();
+            // Show a brief visual feedback
+            e.target.style.borderColor = '#ef4444';
+            setTimeout(() => {
+                e.target.style.borderColor = '';
+            }, 1000);
+            return false;
+        }
+    });
+    
+    phoneInput.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        const filteredText = pastedText.replace(/[^+0-9\s\-\(\)]/g, '');
+        
+        // Insert the filtered text at cursor position
+        const start = e.target.selectionStart;
+        const end = e.target.selectionEnd;
+        const currentValue = e.target.value;
+        
+        e.target.value = currentValue.substring(0, start) + filteredText + currentValue.substring(end);
+        
+        // Set cursor position after the pasted text
+        const newPosition = start + filteredText.length;
+        e.target.setSelectionRange(newPosition, newPosition);
+        
+        if (pastedText !== filteredText) {
+            // Show a brief visual feedback
+            e.target.style.borderColor = '#ef4444';
+            setTimeout(() => {
+                e.target.style.borderColor = '';
+            }, 1000);
+        }
+    });
+}
+
+// Apply phone input restrictions when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const phoneInputs = document.querySelectorAll('.phone-input');
+    phoneInputs.forEach(function(phoneInput) {
+        addPhoneInputRestrictions(phoneInput);
+    });
+});
 </script>
 @endsection 

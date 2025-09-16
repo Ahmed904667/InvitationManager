@@ -53,7 +53,8 @@ class GuestListController extends Controller
     {
         Gate::authorize('create-guest-list');
 
-        return view('organizer.guest-lists.create');
+        // Redirect to index page with create modal parameter
+        return redirect()->route('organizer.guest-lists.index', ['create' => 'true']);
     }
 
     /**

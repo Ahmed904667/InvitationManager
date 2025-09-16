@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if we should auto-show the create modal
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('create_modal') === 'true') {
+    if (urlParams.get('create') === 'true') {
         setTimeout(() => {
             showCreateModal();
         }, 500); // Small delay to ensure page is fully loaded

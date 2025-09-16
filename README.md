@@ -77,7 +77,7 @@ This enables:
 ## 🔧 Configuration Notes
 
 ### Environment Variables
-The system works out-of-the-box with SQLite, but for full SMS functionality:
+The system works out-of-the-box with SQLite, but for full functionality:
 
 ```env
 # Add to .env file

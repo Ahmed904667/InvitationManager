@@ -984,7 +984,8 @@ class OrganizerService
             $guest = Guest::find($guestId);
             if ($guest && $guest->guest_list_id == $guestList->id) {
                 try {
-                    $this->deleteGuest($guest);
+                    // Don't use $this->deleteGuest() here to avoid multiple health calculations
+                    $guest->softDelete();
                     $successCount++;
                 } catch (\Exception $e) {
                     $failCount++;
@@ -993,6 +994,9 @@ class OrganizerService
                 $failCount++;
             }
         }
+
+        // Recalculate health once after all deletions
+        $guestList->calculateAndStoreHealth();
 
         $message = "Successfully deleted {$successCount} guest(s).";
         if ($failCount > 0) {
@@ -1011,7 +1015,13 @@ class OrganizerService
      */
     public function deleteGuest(Guest $guest): void
     {
+        $guestList = $guest->guestList;
         $guest->softDelete();
+        
+        // Recalculate health after deleting guest
+        if ($guestList) {
+            $guestList->calculateAndStoreHealth();
+        }
     }
 
     /**

@@ -269,7 +269,7 @@
                                     </div>
                                     <div>
                                         <label for="individual_guest_phone" class="form-label">Phone</label>
-                                        <input type="text" id="individual_guest_phone" name="phone" class="form-input">
+                                        <input type="text" id="individual_guest_phone" name="phone" class="form-input phone-input">
                                     </div>
                                     <button type="button" onclick="addIndividualGuestToPending()" class="btn btn-primary btn-sm">
                                         <i class="fas fa-user-plus mr-1"></i>Add Guest

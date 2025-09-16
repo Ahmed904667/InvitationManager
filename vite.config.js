@@ -17,6 +17,8 @@ export default defineConfig({
         hmr: {
             host: 'localhost',
         },
+        // Suppress Vite connection messages in console
+        logLevel: 'error',
     },
     build: {
         rollupOptions: {
