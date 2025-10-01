@@ -1,7 +1,7 @@
 ./start-automated-worker.sh
 
-php -S localhost:8000 in public
+php -S localhost:8000
 
-npm run dev in public 
+npm run dev
 
 cd public

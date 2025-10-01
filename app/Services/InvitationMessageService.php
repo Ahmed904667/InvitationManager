@@ -10,7 +10,7 @@ class InvitationMessageService
     private $openaiApiKey;
     private $openaiUrl = 'https://api.openai.com/v1/chat/completions';
     private $geminiApiKey;
-    private $geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent';
+    private $geminiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent';
 
     public function __construct()
     {

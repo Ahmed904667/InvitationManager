@@ -400,7 +400,7 @@ class OrganizerService
         $settings = $guestList->settings ?? $guestList->getDefaultSettings();
         $settings['fields'] = array_merge($settings['fields'] ?? [], $fields);
         $settings['default_country_code'] = $data['default_country_code'] ?? $settings['default_country_code'] ?? '+1';
-        $settings['default_language'] = $data['default_language'] ?? $settings['default_language'] ?? 'en';
+        $settings['default_language'] = $data['default_language'] ?? $settings['default_language'] ?? 'English';
         
         $guestList->settings = $settings;
 

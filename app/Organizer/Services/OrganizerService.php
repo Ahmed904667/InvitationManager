@@ -836,10 +836,19 @@ class OrganizerService
         
         $settings = $guestList->settings ?? $guestList->getDefaultSettings();
         $settings['fields'] = array_merge($settings['fields'] ?? [], $fields);
-        $settings['default_country_code'] = $data['default_country_code'] ?? $settings['default_country_code'] ?? '+1';
-        $settings['default_language'] = $data['default_language'] ?? $settings['default_language'] ?? 'en';
+        $settings['default_country_code'] = $data['default_country_code'] ?? $settings['default_country_code'] ?? '+60';
+        $settings['default_language'] = $data['default_language'] ?? $settings['default_language'] ?? 'English';
         
-        $guestList->update(['settings' => $settings]);
+        // Also persist name/description if provided via settings form
+        $updatePayload = ['settings' => $settings];
+        if (array_key_exists('name', $data)) {
+            $updatePayload['name'] = $data['name'] ?: $guestList->name;
+        }
+        if (array_key_exists('description', $data)) {
+            $updatePayload['description'] = $data['description'] ?? null;
+        }
+
+        $guestList->update($updatePayload);
         
         return [
             'success' => true,
@@ -936,9 +945,9 @@ class OrganizerService
         return [
             'fields' => [
                 'email' => true,
-                'phone' => false,
-                'group' => false,
-                'language' => false,
+                'phone' => true,
+                'group' => true,
+                'language' => true,
                 'notes' => true,
             ],
             'notifications' => [
@@ -946,8 +955,8 @@ class OrganizerService
                 'sms_reminders' => false,
             ],
             'defaults' => [
-                'country_code' => '+1',
-                'language' => 'en',
+                'country_code' => '+60',
+                'language' => 'English',
             ],
             'auto_archive_events' => false,
             'auto_archive_days' => 30,

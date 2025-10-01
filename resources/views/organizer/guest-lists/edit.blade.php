@@ -828,13 +828,13 @@
                                 <label class="block text-sm font-medium mb-1">Default Country Code</label>
                                 <select name="default_country_code" class="form-input">
                                     @foreach($countryCodes as $country)
-                                        <option value="{{ $country['code'] }}" @if(($guestList->settings['default_country_code'] ?? '+1') == $country['code']) selected @endif>{{ $country['display'] }}</option>
+                                        <option value="{{ $country['code'] }}" @if(($guestList->settings['default_country_code'] ?? '+60') == $country['code']) selected @endif>{{ $country['display'] }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="mt-2">
                                 <label class="block text-sm font-medium mb-1">Default Language</label>
-                                <input type="text" name="default_language" class="form-input" placeholder="e.g. en, ar, fr" value="{{ $guestList->settings['default_language'] ?? 'en' }}">
+                                <input type="text" name="default_language" class="form-input" placeholder="e.g. en, ar, fr" value="{{ $guestList->settings['default_language'] ?? 'English' }}">
                             </div>
                         </div>
                     </div>

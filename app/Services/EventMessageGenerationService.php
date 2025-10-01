@@ -69,6 +69,15 @@ class EventMessageGenerationService
     {
         $prompt = $this->buildGeneralPrompt($eventContext, $userInstructions);
         $message = $this->callAI($prompt, $preferredLanguage);
+        // Log the final general message text (for Step 3 auditing)
+        try {
+            \Log::channel('chat')->info('🟢 [STEP3 AI] General message generated', [
+                'language' => $preferredLanguage,
+                'length' => strlen($message),
+                'text' => $message
+            ]);
+        } catch (\Throwable $e) {
+        }
         
         return [
             'success' => true,
@@ -165,6 +174,18 @@ class EventMessageGenerationService
                     
                     $prompt = $this->buildGroupPrompt($eventContext, $groupName, $groupInstructions);
                     $groupTemplate = $this->callAI($prompt, $preferredLanguage);
+                    // Log the group template content
+                    try {
+                        \Log::channel('chat')->info('🟢 [STEP3 AI] Group template generated', [
+                            'list_id' => (string)$listId,
+                            'group_id' => (string)$groupId,
+                            'group_name' => $groupName,
+                            'language' => $preferredLanguage,
+                            'length' => strlen($groupTemplate),
+                            'text' => $groupTemplate
+                        ]);
+                    } catch (\Throwable $e) {
+                    }
                     
                     // Store the group template
                     $groupMessages[$key] = $groupTemplate;
@@ -179,6 +200,17 @@ class EventMessageGenerationService
                         
                         // Store individual guest message
                         $guestMessages[$guest->id] = $guestMessage;
+                        // Log each per-guest message
+                        try {
+                            \Log::channel('chat')->info('🟢 [STEP3 AI] Guest message generated', [
+                                'guest_id' => (string)$guest->id,
+                                'guest_name' => $guest->name,
+                                'language' => $guest->preferred_language ?? $preferredLanguage,
+                                'length' => strlen($guestMessage),
+                                'text' => $guestMessage
+                            ]);
+                        } catch (\Throwable $e) {
+                        }
                     }
                     
                     Log::info('🔵 [EVENT MESSAGE SERVICE] Generated messages', [
@@ -194,6 +226,16 @@ class EventMessageGenerationService
                 
                 $prompt = $this->buildGroupPrompt($eventContext, $groupName, $groupInstructions);
                 $message = $this->callAI($prompt, $preferredLanguage);
+                try {
+                    \Log::channel('chat')->info('🟢 [STEP3 AI] List-as-group template generated', [
+                        'list_id' => (string)$listId,
+                        'group_name' => $groupName,
+                        'language' => $preferredLanguage,
+                        'length' => strlen($message),
+                        'text' => $message
+                    ]);
+                } catch (\Throwable $e) {
+                }
                 
                 $groupMessages[$listId] = $message;
             }
@@ -281,6 +323,17 @@ class EventMessageGenerationService
                     $finalMessage = str_replace('{name}', $guest->name, $processedMessage);
                     
                     $perGuestMessages[$guest->id] = $finalMessage;
+                    // Log per-guest final message
+                    try {
+                        \Log::channel('chat')->info('🟢 [STEP3 AI] Per-guest message generated', [
+                            'guest_id' => (string)$guest->id,
+                            'guest_name' => $guest->name,
+                            'language' => $guestLanguage,
+                            'length' => strlen($finalMessage),
+                            'text' => $finalMessage
+                        ]);
+                    } catch (\Throwable $e) {
+                    }
                 }
             }
         }
@@ -353,6 +406,16 @@ class EventMessageGenerationService
                     $finalMessage = str_replace('{name}', $guest->name, $processedMessage);
                     
                     $perGuestMessages[$guest->id] = $finalMessage;
+                    try {
+                        \Log::channel('chat')->info('🟢 [STEP3 AI] Per-guest message generated', [
+                            'guest_id' => (string)$guest->id,
+                            'guest_name' => $guest->name,
+                            'language' => $guestLanguage,
+                            'length' => strlen($finalMessage),
+                            'text' => $finalMessage
+                        ]);
+                    } catch (\Throwable $e) {
+                    }
                 }
             }
         }
@@ -393,56 +456,43 @@ class EventMessageGenerationService
      */
     private function buildGeneralPrompt(array $eventContext, array $userInstructions): string
     {
-        $tone = $userInstructions['tone'] ?? 'professional';
-        $style = $userInstructions['style'] ?? 'friendly';
-        $additionalNotes = $userInstructions['additional_notes'] ?? '';
-        
-        // Override formality based on tone for better consistency
-        if ($tone === 'friendly' || $tone === 'casual') {
-            $eventContext['formality_level'] = 'casual';
-        } elseif ($tone === 'formal' || $tone === 'professional') {
-            $eventContext['formality_level'] = 'formal';
+        $tone = $userInstructions['tone'] ?? 'friendly';
+        $style = $userInstructions['style'] ?? 'casual';
+        $notes = $userInstructions['additional_notes'] ?? '';
+        $markAi = (bool) ($userInstructions['mark_ai'] ?? false);
+
+        $lines = [];
+        $lines[] = "Write a short invitation message for this event.";
+        $lines[] = "Event: {$eventContext['name']}";
+        $lines[] = "Date & Time: {$eventContext['start_date']}";
+        if (!empty($eventContext['venue_name'])) {
+            $lines[] = "Location: {$eventContext['venue_name']}";
         }
-        
-        return "You are an expert event invitation writer. Create a compelling invitation message for the following event:
+        if (!empty($eventContext['description'])) {
+            $lines[] = "Description: {$eventContext['description']}";
+        }
+        if (!empty($eventContext['additional_information'])) {
+            $lines[] = "Notes: {$eventContext['additional_information']}";
+        }
+        $lines[] = "Tone: {$tone}, Style: {$style}";
+        $lines[] = "Length: 2–4 sentences";
+        if ($eventContext['rsvp_enabled']) {
+            $lines[] = "Include a call to action to RSVP";
+        }
+        if ($eventContext['qr_checkin_enabled']) {
+            $lines[] = "Mention that QR check-in is available";
+        }
+        if ($notes) {
+            $lines[] = "Custom: {$notes}";
+        }
+        $lines[] = "Output must be multi-line using literal \\n separators (type a backslash then n). Do NOT insert real newlines.";
+        if ($markAi) {
+            $lines[] = "Add this disclosure line at the end: [Generated using InvaroAi].";
+        }
+        $lines[] = "Do not invent missing details. If something is not provided, omit it.";
+        $lines[] = "Use only the venue name for location (no address/city).";
 
-EVENT DETAILS:
-- Name: {$eventContext['name']}
-- Date & Time: {$eventContext['start_date']}" . 
-        ($eventContext['end_date'] ? "\n- End Time: {$eventContext['end_date']}" : "") .
-        ($eventContext['venue_name'] ? "\n- Location: {$eventContext['venue_name']}" : "") . "
-- Type: {$eventContext['event_type']}
-- Description: {$eventContext['description']}" .
-($eventContext['additional_information'] ? "\n- Additional Info: {$eventContext['additional_information']}" : "") . "
-
-FEATURES:
-- RSVP: " . ($eventContext['rsvp_enabled'] ? 'Required' : 'Not required') . "
-- QR Check-in: " . ($eventContext['qr_checkin_enabled'] ? 'Available' : 'Not available') . "
-- Platforms: " . implode(', ', $eventContext['invitation_platforms'] ?? []) . "
-
-REQUIREMENTS:
-- Tone: {$tone}
-- Style: {$style}
-- Formality: {$eventContext['formality_level']}
-- DO NOT include placeholders - use actual event details
-- Length: 2-4 sentences
-- Only include subject line if tone is formal or professional
-- Call to action for RSVP if enabled
-- Mention QR check-in if available
-        - FORMATTING: Use proper line breaks and paragraphs for readability
-        - When referencing location in the message body, use the venue name only (no address/city)
- - Use ONLY the provided event details and user instructions. Do NOT invent, assume, or add any information not explicitly provided above.
- - If a detail (like location, time, dress code, RSVP, QR) is not provided above, omit it entirely.
- - Do NOT add dress code, parking, venue specifics, or any extra context unless present in the event details or the user instructions.
-
-Additional Notes: {$additionalNotes}
-
-Generate an invitation message that matches the requested tone and style:
-- For CASUAL/FRIENDLY tone: Write a conversational message WITHOUT any subject line. Start directly with the guest's name or a greeting.
-- For FORMAL/PROFESSIONAL tone: Include a proper subject line followed by a formal message.
-- Always write complete sentences. Never end with incomplete phrases like 'Kindly.' or 'and we will.'
-- Include all necessary event information naturally in the message body.
-- FORMATTING: Use line breaks (\\n) to separate paragraphs and improve readability. For formal messages, separate the subject line from the body with a line break.";
+        return implode("\n", $lines);
     }
 
     /**
@@ -450,19 +500,14 @@ Generate an invitation message that matches the requested tone and style:
      */
     private function buildGroupPrompt(array $eventContext, string $groupName, string $groupInstructions): string
     {
-        $basePrompt = $this->buildGeneralPrompt($eventContext, []);
-        
-        return $basePrompt . "
-
-GROUP-SPECIFIC REQUIREMENTS:
-- Group: {$groupName}
-- Custom Instructions: {$groupInstructions}
-- FORMATTING: Use line breaks (\\n) to separate paragraphs and improve readability
- - Use ONLY the provided event/group details and instructions. Do NOT invent extra details.
- - If a detail is not provided, omit it.
- - When mentioning location, include the venue name only (no address/city)
-
-Tailor the message specifically for the {$groupName} group while maintaining the overall event context.";
+        $base = $this->buildGeneralPrompt($eventContext, $userInstructions);
+        $extra = [];
+        $extra[] = "Audience: {$groupName}";
+        if (!empty($groupInstructions)) {
+            $extra[] = "Custom: {$groupInstructions}";
+        }
+        $extra[] = "Tailor the message to this audience.";
+        return $base . "\n" . implode("\n", $extra);
     }
 
     /**
@@ -470,30 +515,15 @@ Tailor the message specifically for the {$groupName} group while maintaining the
      */
     private function buildPerGuestPrompt(array $eventContext, Guest $guest, string $guestInstructions): string
     {
-        $basePrompt = $this->buildGeneralPrompt($eventContext, []);
-        
-        $guestInfo = "GUEST INFORMATION:
-- Name: {$guest->name}
-- Email: {$guest->email}
-- Phone: {$guest->phone}
-- Preferred Language: " . ($guest->preferred_language ?? 'Not specified') . "
-- Notes: {$guest->notes}";
-        
-        return $basePrompt . "
-
-{$guestInfo}
-
-PERSONALIZATION REQUIREMENTS:
-- Custom Instructions: {$guestInstructions}
-- Personalize the message for {$guest->name}
-- Consider their preferred language and any special requirements
-- If user instructions include specific requests (like 'bring kids', 'bring brother'), include them naturally in the message
-- Use the guest's actual name, not placeholders
-- FORMATTING: Use line breaks (\\n) to separate paragraphs and improve readability
- - Use ONLY the provided event/guest details and instructions. Do NOT invent extra details. If a detail is missing, omit it.
- - When referencing location, include the venue name only (no address/city)
-
-Create a personalized invitation message specifically for {$guest->name}. Follow the tone and style requirements above, and incorporate any specific user instructions naturally into the message.";
+        $base = $this->buildGeneralPrompt($eventContext, $userInstructions);
+        $extra = [];
+        $extra[] = "Audience: {$guest->name}";
+        if (!empty($guestInstructions)) {
+            $extra[] = "Custom: {$guestInstructions}";
+        }
+        $extra[] = "Personalize the message to this guest.";
+        $extra[] = "Output must be multi-line using literal \\n separators (type a backslash then n). Do NOT insert real newlines.";
+        return $base . "\n" . implode("\n", $extra);
     }
 
     /**
@@ -501,9 +531,11 @@ Create a personalized invitation message specifically for {$guest->name}. Follow
      */
     private function callAI(string $prompt, ?string $preferredLanguage = null): string
     {
-        // Add language instruction if specified
+        // Add strong language instruction if specified (prepend so it's not ignored)
         if ($preferredLanguage) {
-            $prompt .= "\n\nIMPORTANT: Generate the message in {$preferredLanguage} language.";
+            $lang = trim((string) $preferredLanguage);
+            $languageInstruction = "LANGUAGE: {$lang}\nRespond ONLY in {$lang}. Do not use any other language.\nDo not explain. Output the message directly.\nBetween each logical line, output the literal characters \\\n (backslash-n), not actual newlines.\n\n";
+            $prompt = $languageInstruction . $prompt;
         }
 
         Log::info('🔵 [AI GENERATION] Starting AI call', [
@@ -524,16 +556,26 @@ Create a personalized invitation message specifically for {$guest->name}. Follow
                 $result = $this->appendGenerationSource($result, 'Gemini');
                 
                 Log::info('✅ [AI GENERATION] Gemini Success', [
-                    'model' => 'gemini-1.5-pro',
+                    'model' => 'gemini-2.0-flash-lite',
                     'generated_length' => strlen($result),
                     'generated_preview' => substr($result, 0, 100) . '...'
                 ]);
+                // Log full Gemini-generated text to chat channel for Step 3 auditing
+                try {
+                    \Log::channel('chat')->info('🟢 [STEP3 AI] Gemini generated text', [
+                        'model' => 'gemini-2.0-flash-lite',
+                        'length' => strlen($result),
+                        'text' => $result,
+                    ]);
+                } catch (\Throwable $e) {
+                    // best-effort logging only
+                }
                 return $result;
             }
         } catch (\Exception $e) {
             Log::warning('❌ [AI GENERATION] Gemini Failed', [
                 'error' => $e->getMessage(),
-                'model' => 'gemini-1.5-pro'
+                'model' => 'gemini-2.0-flash-lite'
             ]);
         }
 
@@ -657,7 +699,7 @@ Create a personalized invitation message specifically for {$guest->name}. Follow
     private function callGemini(string $prompt): string
     {
         Log::info('🔵 [GEMINI] Making API call', [
-            'model' => 'gemini-1.5-pro',
+            'model' => 'gemini-2.0-flash-lite',
             'prompt_length' => strlen($prompt),
             'max_output_tokens' => 1000,
             'temperature' => 0.7
@@ -665,7 +707,7 @@ Create a personalized invitation message specifically for {$guest->name}. Follow
 
         $response = Http::timeout(15)->withHeaders([
             'Content-Type' => 'application/json',
-        ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$this->geminiApiKey}", [
+        ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key={$this->geminiApiKey}", [
             'contents' => [
                 [
                     'parts' => [
@@ -688,14 +730,24 @@ Create a personalized invitation message specifically for {$guest->name}. Follow
             if (isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
                 $result = trim($responseData['candidates'][0]['content']['parts'][0]['text']);
                 Log::info('✅ [GEMINI] API call successful', [
-                    'model' => 'gemini-1.5-pro',
+                    'model' => 'gemini-2.0-flash-lite',
                     'response_length' => strlen($result),
-                    'response_preview' => substr($result, 0, 100) . '...'
+                    'response_preview' => substr($result, 0, 100) . '...',
+                    'generated_message' => $result
                 ]);
+                // Also capture raw parsed text in Chat channel
+                try {
+                    \Log::channel('chat')->info('🔵 [GEMINI RAW PARSED] Text', [
+                        'model' => 'gemini-2.0-flash-lite',
+                        'length' => strlen($result),
+                        'text' => $result,
+                    ]);
+                } catch (\Throwable $e) {
+                }
                 return $result;
             }
             Log::error('❌ [GEMINI] Invalid response format', [
-                'model' => 'gemini-1.5-pro',
+                'model' => 'gemini-2.0-flash-lite',
                 'response_data' => $responseData
             ]);
             throw new \Exception('Invalid response format from Gemini API');
@@ -703,7 +755,7 @@ Create a personalized invitation message specifically for {$guest->name}. Follow
 
         $errorResponse = $response->json();
         Log::error('❌ [GEMINI] API call failed', [
-            'model' => 'gemini-1.5-pro',
+            'model' => 'gemini-2.0-flash-lite',
             'status' => $response->status(),
             'error' => $errorResponse
         ]);
@@ -897,9 +949,13 @@ Create a personalized invitation message specifically for {$guest->name}. Follow
         $processedTemplate = preg_replace('/on\s+(Saturday|Sunday|Monday|Tuesday|Wednesday|Thursday|Friday),?\s+([^,]+),?\s+at\s+([^,]+),?\s+([^,]+),?\s+at\s+\3/i', 'on $1, $2 at $3', $processedTemplate);
         $processedTemplate = preg_replace('/([^,]+),?\s+at\s+([^,]+),?\s+\1,?\s+at\s+\2/i', '$1 at $2', $processedTemplate);
         
-        // Clean up extra whitespace, punctuation, and empty lines
+        // Normalize newlines (preserve line breaks!) and clean punctuation
+        $processedTemplate = str_replace(["\r\n", "\r"], "\n", $processedTemplate);
         $processedTemplate = preg_replace('/[.,\s]*[.,]\s*[.,]/', '.', $processedTemplate); // Remove duplicate punctuation
-        $processedTemplate = preg_replace('/\s+/', ' ', $processedTemplate); // Normalize spaces
+        // Collapse sequences of spaces/tabs but DO NOT collapse newlines
+        $processedTemplate = preg_replace('/[ \t]{2,}/', ' ', $processedTemplate);
+        // Collapse excessive blank lines to max 2 newlines
+        $processedTemplate = preg_replace('/\n{3,}/', "\n\n", $processedTemplate);
         $processedTemplate = preg_replace('/[.,]\s*\./', '.', $processedTemplate); // Fix double periods
         $processedTemplate = preg_replace('/\.\s*,/', '.', $processedTemplate); // Fix period comma
         $processedTemplate = preg_replace('/,\s*\./', '.', $processedTemplate); // Fix comma period

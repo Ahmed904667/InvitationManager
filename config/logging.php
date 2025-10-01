@@ -112,6 +112,12 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'chat' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/Chat.log'),
+            'level' => 'debug',
+        ],
+
         'errorlog' => [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),

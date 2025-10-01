@@ -1015,11 +1015,11 @@ class EventCreationService
                     $twilioResponse = null;
                     try {
                         if ($platform === 'email') {
-                            // Use rich email template
+                            // Send using rich Mailable template
                             \Mail::to($recipient)->send(new \App\Mail\EventInvitationMail(
                                 $event,
                                 $guest,
-                                $personalized,
+                                $personalized ?? '',
                                 $inviteUrl
                             ));
                             $sent = true;
@@ -1479,11 +1479,11 @@ class EventCreationService
                     $twilioResponse = null;
                     try {
                         if ($platform === 'email') {
-                            // Use rich email template
+                            // Send using rich Mailable template
                             \Mail::to($recipient)->send(new \App\Mail\EventInvitationMail(
                                 $event,
                                 $guest,
-                                $personalized,
+                                $personalized ?? '',
                                 $inviteUrl
                             ));
                             $sent = true;

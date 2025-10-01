@@ -60,7 +60,7 @@ class ChatService
             try {
                 $testResponse = Http::timeout(5)->withHeaders([
                     'Content-Type' => 'application/json'
-                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$this->geminiApiKey}", [
+                ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key={$this->geminiApiKey}", [
                     'contents' => [
                         ['parts' => [['text' => 'Hello, please respond with "OK"']]]
                     ],
@@ -293,7 +293,7 @@ class ChatService
             try {
                 $response = Http::timeout(10)->withHeaders([
                     'Content-Type' => 'application/json'
-                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$this->geminiApiKey}", [
+                ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key={$this->geminiApiKey}", [
                     'contents' => [
                         ['parts' => [['text' => $prompt]]]
                     ],
@@ -661,7 +661,7 @@ class ChatService
             
             $response = Http::timeout(15)->withHeaders([
                 'Content-Type' => 'application/json'
-            ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$this->geminiApiKey}", [
+            ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key={$this->geminiApiKey}", [
                 'contents' => [
                     ['parts' => [['text' => $prompt]]]
                 ],
@@ -843,6 +843,12 @@ class ChatService
     private function generateAllGuestMessagesForLanguageGroup(array $intent, array $eventData, array $languageData, string $language): array
     {
         $actions = [];
+        // Trace entry for per-language generation
+        $this->logToChat('info', '🔵 [LANGUAGE] Enter generateAllGuestMessagesForLanguageGroup', [
+            'language' => $language,
+            'lists' => array_keys($languageData['lists'] ?? []),
+            'total_guests' => $languageData['total_guests'] ?? null,
+        ]);
 
         // Generate a general template for this language
         $generalTemplate = $this->generateGeneralTemplateForLanguage($intent, $eventData, $language);
@@ -858,6 +864,15 @@ class ChatService
             'language' => $language,
             'template_length' => strlen($generalTemplate)
         ]);
+        // Log full template for auditing
+        try {
+            \Log::channel('chat')->info('🟢 [STEP3 AI] General template (per-language)', [
+                'language' => $language,
+                'length' => strlen($generalTemplate),
+                'text' => $generalTemplate,
+            ]);
+        } catch (\Throwable $e) {
+        }
 
         // Apply this template to all guests in this language group
         foreach ($languageData['lists'] as $listId => $listData) {
@@ -916,7 +931,9 @@ class ChatService
         $userInstructions = [
             'tone' => $intent['tone'],
             'style' => $intent['tone'] === 'friendly' ? 'casual' : 'professional',
-            'additional_notes' => $instructions
+            'additional_notes' => $instructions,
+            // Pass transparency preference from Step 3
+            'mark_ai' => (bool) ($eventData['ai_generated'] ?? false)
         ];
 
         $result = $this->eventMessageGenerationService->generateMessages(
@@ -1018,13 +1035,14 @@ class ChatService
                 foreach ($listData['groups'] as $groupId => $groupData) {
                     if (isset($groupData['guests'])) {
                         foreach ($groupData['guests'] as $guest) {
-                            // Handle both object and array guest structures
+                            // Handle both object and array guest structures; do not hardcode language
                             $language = null;
                             if (is_object($guest)) {
-                                $language = $guest->language ?? 'en';
+                                $language = $guest->preferred_language ?? $guest->language ?? 'en';
                             } else {
-                                $language = $guest['language'] ?? 'en';
+                                $language = $guest['preferred_language'] ?? $guest['language'] ?? 'en';
                             }
+                            $language = trim((string) $language);
                             
                             if (!isset($languageGroups[$language])) {
                                 $languageGroups[$language] = [
@@ -1062,13 +1080,14 @@ class ChatService
             // Process ungrouped guests
             if (isset($listData['ungrouped_guests'])) {
                 foreach ($listData['ungrouped_guests'] as $guest) {
-                    // Handle both object and array guest structures
+                    // Handle both object and array guest structures; do not hardcode language
                     $language = null;
                     if (is_object($guest)) {
-                        $language = $guest->language ?? 'en';
+                        $language = $guest->preferred_language ?? $guest->language ?? 'en';
                     } else {
-                        $language = $guest['language'] ?? 'en';
+                        $language = $guest['preferred_language'] ?? $guest['language'] ?? 'en';
                     }
+                    $language = trim((string) $language);
                     
                     if (!isset($languageGroups[$language])) {
                         $languageGroups[$language] = [
@@ -2082,7 +2101,7 @@ class ChatService
             
             $response = Http::timeout(15)->withHeaders([
                 'Content-Type' => 'application/json'
-            ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$this->geminiApiKey}", [
+            ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key={$this->geminiApiKey}", [
                 'contents' => [
                     ['parts' => [['text' => $prompt]]]
                 ],
@@ -2219,7 +2238,7 @@ class ChatService
         $prompt .= "• Make it feel personal and inviting\n";
         $prompt .= "• Include RSVP and QR code information naturally\n";
         $prompt .= "\nOUTPUT FORMAT (IMPORTANT):\n";
-        $prompt .= "• OUTPUT MUST BE MULTI-LINE with explicit newline characters (\\n)\n";
+        $prompt .= "• OUTPUT MUST BE MULTI-LINE using literal \\n characters (type a backslash then n). Do NOT insert real newlines.\n";
         $prompt .= "• Break the message into short lines: greeting, invite line, details line(s), closing\n";
         $prompt .= "• Do NOT return as a single paragraph. Ensure visible line breaks in plain text\n";
         
@@ -2253,7 +2272,9 @@ class ChatService
         $prompt .= "• Never mention food, activities, games unless specifically provided\n";
         $prompt .= "• Write complete, engaging sentences\n";
         $prompt .= "• Make the message feel personal and inviting\n";
-        
+        $prompt .= "• Make sure the invite message always is in the language of the guest which is ({$languageName})\n";
+        $prompt .= "• make sure the message MUST BE MULTI-LINE with explicit newline characters (\\n). For new line DO NOT add spaces or new lines in the message\n";
+
         $prompt .= "\nGenerate a compelling invitation message with explicit line breaks (\\n) between lines:";
         
         return $prompt;
@@ -3498,7 +3519,7 @@ class ChatService
         $prompt .= "• At the end: mention the link below is for RSVP and QR code (if enabled)\n\n";
         
         $prompt .= "OUTPUT FORMAT (IMPORTANT):\n";
-        $prompt .= "• OUTPUT MUST BE MULTI-LINE with explicit newline characters (\\n)\n";
+        $prompt .= "• OUTPUT MUST BE MULTI-LINE using literal \\n characters (type a backslash then n). Do NOT insert real newlines.\n";
         $prompt .= "• Break the message into short lines: greeting, invite line, details line(s), closing\n";
         $prompt .= "• Do NOT return as a single paragraph. Ensure visible line breaks in plain text\n\n";
         
@@ -3515,7 +3536,7 @@ class ChatService
         try {
             $response = Http::timeout(15)->withHeaders([
                 'Content-Type' => 'application/json'
-            ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$this->geminiApiKey}", [
+            ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key={$this->geminiApiKey}", [
                 'contents' => [
                     ['parts' => [['text' => $prompt]]]
                 ],

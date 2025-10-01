@@ -83,11 +83,16 @@ class GuestList extends Model
                 'email' => true,
                 'phone' => false,
                 'group' => false,
+                'language' => true,
                 'notes' => false
             ],
             'notifications' => [
                 'email_reminders' => false,
                 'sms_reminders' => false
+            ],
+            'defaults' => [
+                'country_code' => '+60',
+                'language' => 'English',
             ]
         ];
     }

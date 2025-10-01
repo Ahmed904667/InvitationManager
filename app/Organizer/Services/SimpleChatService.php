@@ -220,7 +220,7 @@ class SimpleChatService
             
             $response = Http::timeout(15)->withHeaders([
                 'Content-Type' => 'application/json'
-            ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$this->geminiApiKey}", [
+            ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key={$this->geminiApiKey}", [
                 'contents' => [
                     ['parts' => [['text' => $prompt]]]
                 ],
