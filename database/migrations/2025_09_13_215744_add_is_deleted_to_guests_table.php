@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('guests', function (Blueprint $table) {
-            $table->boolean('is_deleted')->default(false)->after('check_in_notes');
-            $table->dropColumn('deleted_at');
+            if (!Schema::hasColumn('guests', 'is_deleted')) {
+                $table->boolean('is_deleted')->default(false)->after('check_in_notes');
+            }
+            if (Schema::hasColumn('guests', 'deleted_at')) {
+                $table->dropColumn('deleted_at');
+            }
         });
     }
 
