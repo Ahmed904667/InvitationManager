@@ -1,0 +1,33 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/css/app-CLB1panK.css",
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/css/landing.css": {
+    "file": "assets/css/landing-DA-KQHSo.css",
+    "src": "resources/css/landing.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/js/app-Bvd02HAk.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "imports": [
+      "resources/js/theme.js"
+    ]
+  },
+  "resources/js/landing.js": {
+    "file": "assets/js/landing-NhWJZkbv.js",
+    "name": "landing",
+    "src": "resources/js/landing.js",
+    "isEntry": true
+  },
+  "resources/js/theme.js": {
+    "file": "assets/js/theme-esv8LIyP.js",
+    "name": "theme",
+    "src": "resources/js/theme.js",
+    "isEntry": true
+  }
+}
