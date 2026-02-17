@@ -50,3 +50,4 @@ Render is another great option with a free tier for web services.
 ## Important Notes
 *   **APP_KEY**: Crucial for security. Never commit this to Git. Always set it in the hosting dashboard.
 *   **Database**: SQLite (the default in your project) will **reset** every time you deploy on these platforms because the file system is "ephemeral". You **MUST** use a managed MySQL or PostgreSQL database (provided by Railway/Render) for data to persist.
+*   **Migrations**: The internal database migration scripts have been updated to be robust against re-runs and partial failures. Ensure you are deploying the latest version.
