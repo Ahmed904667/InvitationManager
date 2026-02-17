@@ -23,10 +23,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Set the correct scheme based on the request
-        if (request()->isSecure() || str_contains(request()->getHost(), 'ngrok')) {
+        if ($this->app->environment('production')) {
             URL::forceScheme('https');
-        } else {
-            URL::forceScheme('http');
         }
         
         // Custom route model binding for GuestGroup
