@@ -456,4 +456,17 @@ Route::get('/test/webhook/{notification_id}/{status}', function($notificationId,
 });
 
 
-
+Route::get('/debug-css', function () {
+    $path = public_path('build/assets/css/app-CLB1panK.css');
+    $exists = file_exists($path) ? "YES" : "NO";
+    $url = asset('build/assets/css/app-CLB1panK.css');
+    return [
+        'path' => $path,
+        'exists' => $exists,
+        'url' => $url,
+        'app_url' => config('app.url'),
+        'asset_url' => config('app.asset_url'),
+        'public_path' => public_path(),
+        'base_path' => base_path(),
+    ];
+});
