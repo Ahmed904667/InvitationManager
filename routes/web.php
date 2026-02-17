@@ -53,7 +53,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // OTP Registration Routes
 Route::post('/register/send-otp', [AuthController::class, 'sendRegistrationOTP'])->name('register.send-otp');
 Route::get('/register/verify-otp', [AuthController::class, 'showVerifyOTP'])->name('register.verify-otp');
-Route::post('/register/verify-otp', [AuthController::class, 'verifyRegistrationOTP'])->name('register.verify-otp');
+Route::post('/register/verify-otp', [AuthController::class, 'verifyRegistrationOTP'])->name('register.verify-otp.submit');
 
 // Password Reset Routes
 Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');

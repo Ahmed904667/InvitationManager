@@ -84,7 +84,7 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('register.verify-otp') }}" class="space-y-4 lg:space-y-6">
+                    <form method="POST" action="{{ route('register.verify-otp.submit') }}" class="space-y-4 lg:space-y-6">
                         @csrf
                         
                         <input type="hidden" name="email" value="{{ $email }}">
