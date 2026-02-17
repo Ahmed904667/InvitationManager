@@ -31,19 +31,23 @@ return new class extends Migration
             });
         } catch (\Exception $e) { }
         
-        Schema::table('event_guest', function (Blueprint $table) {
-            // Drop unused columns
-            $table->dropColumn([
-                'guest_name',
-                'guest_email', 
-                'guest_phone',
-                'guest_language',
-                'guest_notes',
-                'guest_timezone',
-                'guest_group_name',
-                'guest_list_name'
-            ]);
-        });
+        try {
+            Schema::table('event_guest', function (Blueprint $table) {
+                // Drop unused columns
+                $table->dropColumn([
+                    'guest_name',
+                    'guest_email', 
+                    'guest_phone',
+                    'guest_language',
+                    'guest_notes',
+                    'guest_timezone',
+                    'guest_group_name',
+                    'guest_list_name'
+                ]);
+            });
+        } catch (\Exception $e) {
+            // Ignore if columns don't exist
+        }
     }
 
     /**
