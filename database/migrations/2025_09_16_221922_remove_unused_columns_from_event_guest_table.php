@@ -11,27 +11,25 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('event_guest', function (Blueprint $table) {
-            // Drop indexes first before dropping columns
-            // Using try-catch as a safe "drop if exists" for SQLite
-            try {
+        // Drop indexes first before dropping columns
+        // Using try-catch around Schema::table to handle "no such index" errors
+        try {
+            Schema::table('event_guest', function (Blueprint $table) {
                 $table->dropIndex(['event_id', 'guest_name']);
-            } catch (\Exception $e) {
-                // Index likely doesn't exist, continue
-            }
+            });
+        } catch (\Exception $e) { }
             
-            try {
+        try {
+            Schema::table('event_guest', function (Blueprint $table) {
                 $table->dropIndex(['event_id', 'guest_email']);
-            } catch (\Exception $e) {
-                // Index likely doesn't exist, continue
-            }
+            });
+        } catch (\Exception $e) { }
             
-            try {
+        try {
+            Schema::table('event_guest', function (Blueprint $table) {
                 $table->dropIndex(['event_id', 'guest_phone']);
-            } catch (\Exception $e) {
-                // Index likely doesn't exist, continue
-            }
-        });
+            });
+        } catch (\Exception $e) { }
         
         Schema::table('event_guest', function (Blueprint $table) {
             // Drop unused columns

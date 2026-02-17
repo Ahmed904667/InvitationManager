@@ -11,22 +11,24 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('guests', function (Blueprint $table) {
-            // Drop the old unique constraints using the correct index names
-            // Wrap in try-catch to handle cases where index doesn't exist or is used in FK
-            try {
+        // Drop the old unique constraints using the correct index names
+        // Wrap Schema::table in try-catch because the commands run after the closure
+        
+        try {
+            Schema::table('guests', function (Blueprint $table) {
                 $table->dropIndex('guests_guest_list_email_unique');
-            } catch (\Exception $e) {
-                // If it fails, it might be due to FK constraint or index not existing
-                // simpler to ignore in migration fix context as we just want to proceed
-            }
-            
-            try {
+            });
+        } catch (\Exception $e) {
+            // Ignore if index doesn't exist
+        }
+
+        try {
+            Schema::table('guests', function (Blueprint $table) {
                 $table->dropIndex('guests_guest_list_phone_unique');
-            } catch (\Exception $e) {
-                // Ignore errors
-            }
-        });
+            });
+        } catch (\Exception $e) {
+            // Ignore if index doesn't exist
+        }
     }
 
     /**
