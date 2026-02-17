@@ -23,8 +23,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Set the correct scheme based on the request
-        if ($this->app->environment('production')) {
+        if ($this->app->environment('production') || str_contains(request()->getHost(), 'railway.app')) {
             URL::forceScheme('https');
+            $this->app['request']->server->set('HTTPS', 'on');
         }
         
         // Custom route model binding for GuestGroup
