@@ -470,3 +470,23 @@ Route::get('/debug-css', function () {
         'base_path' => base_path(),
     ];
 });
+
+// Seed Database Route
+Route::get('/seed-deploy', function () {
+    // Basic protection
+    if (!request()->has('key') || request()->get('key') != 'secret123') {
+        abort(403, 'Forbidden');
+    }
+    
+    try {
+        // Run migrations/seed
+        \Illuminate\Support\Facades\Artisan::call('db:seed', [
+            '--class' => 'AdminUserSeeder',
+            '--force' => true
+        ]);
+        
+        return 'Database seeded successfully!';
+    } catch (\Exception $e) {
+        return 'Error: ' . $e->getMessage();
+    }
+});
